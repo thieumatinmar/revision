@@ -165,6 +165,18 @@ export async function saveCard(card) {
   return { id: d.id, ...donnees };
 }
 
+/**
+ * Range une carte dans un autre chapitre.
+ *
+ * Écriture **ciblée** (`merge`), et non un `saveCard` complet : déplacer ne doit
+ * pas dépendre de la fraîcheur des quatre champs détenus par l'appelant. Une
+ * liste affichée depuis dix minutes déplacerait sinon la carte *et* réécrirait
+ * un contenu périmé par-dessus une correction faite entre-temps ailleurs.
+ */
+export async function moveCard(id, categoryId) {
+  await setDoc(ref('cards', id), { categoryId }, { merge: true });
+}
+
 export async function deleteCard(id) {
   await deleteDoc(ref('cards', id));
 }

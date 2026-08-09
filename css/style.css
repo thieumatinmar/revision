@@ -99,6 +99,21 @@ button:active, .btn:active { transform: translateY(1px); }
 .list .grow { flex: 1; min-width: 0; }
 .list .name { font-weight: 550; }
 
+/* Message attaché à une ligne : il s'insère dans la liste, juste sous elle,
+   pour être vu sans avoir à faire défiler l'écran. */
+.list li.annonce {
+  display: block;
+  font-size: .88rem;
+  padding: 10px 12px;
+  margin-top: -4px;
+  background: transparent;
+}
+.list li.annonce.erreur {
+  color: #e8695f;
+  border-color: color-mix(in srgb, #e8695f 45%, var(--line));
+}
+.list li.annonce.info { color: var(--fg-dim); }
+
 .count {
   min-width: 26px;
   padding: 1px 8px;

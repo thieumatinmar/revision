@@ -229,6 +229,16 @@ Projet `agreg-revision`, forfait Spark (gratuit).
   réseau, la page elle-même ne se charge pas.
 - **Aucune sauvegarde exportable** : les données ne vivent que dans Firestore.
 - **L'app ne se teste pas sans compte.** La connexion étant obligatoire, aucun
-  écran ne se rend tant que Firebase n'a pas authentifié quelqu'un : les
-  vérifications automatiques se limitent au chargement des modules et au
-  routage. Le reste se vérifie à la main, connecté.
+  écran ne se rend tant que Firebase n'a pas authentifié quelqu'un.
+
+  > **Contournement, quand il faut vraiment vérifier une vue** : une page jetable
+  > à la racine, avec une `<script type="importmap">` qui redirige l'URL de
+  > `js/store.js` vers un faux store, puis un appel direct à `render(ctx)` de la
+  > vue avec un `ctx` minimal. La vue réelle s'exécute, sans Firebase. À
+  > supprimer une fois la vérification faite — un banc d'essai laissé en place
+  > pourrit, et serait servi publiquement.
+  >
+  > Piège du banc d'essai : quand le volet navigateur n'est pas affiché,
+  > `document.hasFocus()` est faux et `element.focus()` ne déclenche **pas**
+  > l'événement `focus`. Utiliser `dispatchEvent(new FocusEvent('focus'))` pour
+  > tester un gestionnaire de focus, sinon on conclut à tort à un bug.
