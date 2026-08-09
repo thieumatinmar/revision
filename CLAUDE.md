@@ -55,18 +55,28 @@ on l'inscrit ici avec sa frontière.
 - `js/quiz.js` — le tirage. **Pur** : ni DOM, ni réseau, ni stockage.
 - `js/mathtext.js` — texte + LaTeX → HTML via KaTeX. Échappe tout ce qui n'est
   pas une formule ; porte les macros maison (`\P`, `\E`, `\V`, `\R`…).
-- `js/store.js` — **seule** porte d'entrée vers les données. Toutes ses fonctions
-  sont asynchrones, y compris aujourd'hui où elles répondraient instantanément :
-  c'est ce qui permettra de passer à Firestore sans réécrire les vues.
-  ⚠ implémentation **en mémoire** pour l'instant — rien n'est persisté.
+- `js/firebase.js` — configuration et instanciation des services Firebase. Seul
+  fichier à connaître la config ; personne d'autre ne parle au SDK directement.
+- `js/auth.js` — connexion Google (popup), état de session.
+- `js/store.js` — **seule** porte d'entrée vers les données, sur Firestore.
+  Arborescence `users/{uid}/categories` et `users/{uid}/cards` : c'est cette
+  forme qui rend la règle de sécurité tenable en une ligne, la changer
+  obligerait à revoir les règles publiées.
 - `js/dom.js` — deux micro-helpers (`el`, `fill`). Pas un framework.
 - `js/app.js` — coque : routeur par `#/…`, en-tête, rendu de la vue courante.
   Oriente, ne calcule pas.
-- `js/views/` — un fichier par écran (`accueil.js`, `test.js`).
+- `js/views/` — un fichier par écran (`accueil`, `test`, `cartes`, `editeur`),
+  plus `connexion.js` qui n'est pas une route : la coque l'affiche à la place de
+  tout le reste tant que personne n'est connecté.
 - `vendor/katex/` — KaTeX vendorisé (script, CSS, 20 polices woff2). Jamais de
   CDN : une PWA hors ligne ne peut pas aller chercher son moteur de rendu
   ailleurs. Fichiers **non modifiés à la main**, sauf le CSS dont les variantes
   `.woff`/`.ttf` ont été retirées (elles n'étaient pas téléchargées → 404).
+- `vendor/firebase/` — SDK Firebase 12.9.0 (app, auth, firestore), vendorisé pour
+  la même raison. **Une** modification à la main : les imports absolus vers
+  `gstatic.com` ont été réécrits en chemins relatifs, sans quoi le bundle
+  Firestore serait allé chercher `firebase-app.js` sur le CDN. À refaire à
+  l'identique en cas de mise à jour de version.
 
 ## Le rôle de Claude
 
@@ -196,12 +206,27 @@ il n'y a rien à déployer à la main, puisqu'il n'y a rien à compiler.
 > changé. Dans la console : `navigator.serviceWorker.getRegistrations()` puis
 > `.unregister()`, et `caches.keys()` puis `caches.delete()`.
 
+## Firebase
+
+Projet `agreg-revision`, forfait Spark (gratuit).
+
+- **Firestore** : emplacement `eur3 (Europe)`, multi-région. **Définitif** — un
+  emplacement Firestore ne se change jamais.
+- **Règles publiées** : `users/{userId}/{document=**}` accessible en lecture et
+  écriture au seul `request.auth.uid == userId`. Toute modification de
+  l'arborescence dans `store.js` oblige à revoir ces règles.
+- **Connexion** : Google uniquement, par popup (la redirection s'appuie sur du
+  stockage tiers, désormais bloqué hors domaine Firebase).
+- **Domaines autorisés** : `localhost` et `thieumatinmar.github.io`. Oublier le
+  second est le piège classique : la connexion marche en local et casse en ligne.
+- La **clé d'API est publique** par conception. La sécurité vient des règles.
+
 ## Limites connues
 
-- **Rien n'est persisté.** `js/store.js` garde tout en mémoire : recharger la
-  page remet le jeu d'essai. Firestore n'est pas encore branché — il attend un
-  projet Firebase (création de compte, à faire par Mathieu).
 - **Pas encore de PWA.** Ni `manifest.webmanifest`, ni `sw.js`, ni icônes :
-  l'app ne s'installe pas sur le téléphone et ne marche pas hors ligne. Prévu
-  une fois les écrans en place.
-- **Écrans manquants** : Cartes (liste + recherche), Éditeur, Réglages.
+  l'app ne s'installe pas sur l'écran d'accueil. Le cache local de Firestore
+  couvre déjà les données hors ligne, mais **pas les fichiers de l'app** — sans
+  réseau, la page elle-même ne se charge pas.
+- **Écran Réglages manquant** : renommer, réordonner ou supprimer un chapitre
+  n'est pas possible depuis l'interface, bien que `store.js` sache le faire.
+- **Aucune sauvegarde exportable** : les données ne vivent que dans Firestore.

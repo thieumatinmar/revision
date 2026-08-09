@@ -4,15 +4,12 @@
 // « toutes catégories » ici, c'est une décision actée (docs/decisions.md).
 
 import { el } from '../dom.js';
-import { listCategories, countCards } from '../store.js';
+import { listCategories, countByCategory } from '../store.js';
 
 export async function render(ctx) {
-  const categories = await listCategories();
-
-  // Un compteur par catégorie. `Promise.all` plutôt qu'une boucle await : les
-  // requêtes partent ensemble au lieu de s'attendre les unes les autres —
-  // invisible en mémoire, mais décisif quand ce sera Firestore.
-  const counts = await Promise.all(categories.map((c) => countCards(c.id)));
+  // Deux requêtes pour tout l'écran, quel que soit le nombre de chapitres.
+  const [categories, compte] = await Promise.all([listCategories(), countByCategory()]);
+  const counts = categories.map((c) => compte.get(c.id) || 0);
 
   ctx.root.append(
     el('p', { class: 'muted small' },
