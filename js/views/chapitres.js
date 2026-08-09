@@ -12,6 +12,7 @@
 // moment du clic — l'utilisateur voit alors « rien ne se passe ».
 
 import { el, fill } from '../dom.js';
+import { VERSION } from '../version.js';
 import {
   listCategories, countByCategory, createCategory, renameCategory,
   deleteCategory, setCategoriesOrder,
@@ -139,6 +140,11 @@ export async function render(ctx) {
     saisie,
     el('button', { class: 'btn-primary', on: { click: ajouter } }, 'Ajouter'),
   ));
+
+  // Version affichée : sans repère, impossible de distinguer « c'est cassé » de
+  // « mon navigateur me sert du vieux code » (GitHub Pages : max-age=600).
+  ctx.root.append(el('p', { class: 'small muted', style: 'text-align:center;margin-top:40px' },
+    'Version ', VERSION));
 
   dessiner();
 }

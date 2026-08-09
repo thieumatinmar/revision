@@ -1,6 +1,6 @@
-/* style.css — feuille unique.
-   Mobile-first : la mise en page part du téléphone, les media queries n'ajoutent
-   que ce qu'un grand écran permet en plus. */
+/* style.css â€” feuille unique.
+   Mobile-first : la mise en page part du tÃ©lÃ©phone, les media queries n'ajoutent
+   que ce qu'un grand Ã©cran permet en plus. */
 
 :root {
   --bg:       #0f1115;
@@ -43,7 +43,7 @@ body {
   top: 0;
   z-index: 10;
   display: grid;
-  grid-template-columns: 1fr auto 1fr;   /* titre centré quoi qu'il arrive */
+  grid-template-columns: 1fr auto 1fr;   /* titre centrÃ© quoi qu'il arrive */
   align-items: center;
   gap: 8px;
   padding: 12px 14px;
@@ -99,8 +99,8 @@ button:active, .btn:active { transform: translateY(1px); }
 .list .grow { flex: 1; min-width: 0; }
 .list .name { font-weight: 550; }
 
-/* Message attaché à une ligne : il s'insère dans la liste, juste sous elle,
-   pour être vu sans avoir à faire défiler l'écran. */
+/* Message attachÃ© Ã  une ligne : il s'insÃ¨re dans la liste, juste sous elle,
+   pour Ãªtre vu sans avoir Ã  faire dÃ©filer l'Ã©cran. */
 .list li.annonce {
   display: block;
   font-size: .88rem;
@@ -181,7 +181,7 @@ button:active, .btn:active { transform: translateY(1px); }
 .actions { display: flex; gap: 8px; margin-top: 16px; }
 .actions > * { flex: 1; }
 
-/* ---------------------------------------------------------------- Éditeur */
+/* ---------------------------------------------------------------- Ã‰diteur */
 
 .champ { margin-bottom: 22px; }
 .champ label { display: block; margin-bottom: 6px; }
@@ -198,15 +198,15 @@ textarea, select, input {
 textarea {
   min-height: 90px;
   resize: vertical;
-  /* Police à chasse fixe : on écrit du LaTeX, les accolades doivent s'aligner. */
+  /* Police Ã  chasse fixe : on Ã©crit du LaTeX, les accolades doivent s'aligner. */
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: .92rem;
 }
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input[type="search"] { margin-bottom: 14px; }
 
-/* Barre d'insertion : elle défile horizontalement plutôt que de passer à la
-   ligne, pour ne pas repousser l'aperçu hors de l'écran sur téléphone. */
+/* Barre d'insertion : elle dÃ©file horizontalement plutÃ´t que de passer Ã  la
+   ligne, pour ne pas repousser l'aperÃ§u hors de l'Ã©cran sur tÃ©lÃ©phone. */
 .raccourcis {
   display: flex;
   gap: 6px;
@@ -233,7 +233,7 @@ input[type="search"] { margin-bottom: 14px; }
 .mathtext .katex { font-size: 1.05em; }
 .math-error { color: #e8695f; font-family: ui-monospace, monospace; font-size: .85em; }
 
-/* ---------------------------------------------------------------- Grand écran */
+/* ---------------------------------------------------------------- Grand Ã©cran */
 
 @media (min-width: 760px) {
   main { padding: 24px 0 48px; }

@@ -189,8 +189,14 @@ python -m http.server 8123    # servir l'app, puis ouvrir http://localhost:8123
 
 Il faut un serveur : les modules ES ne se chargent pas depuis un `file://`.
 
-**Mise en ligne** : `git push origin main`. GitHub Pages reconstruit tout seul —
-il n'y a rien à déployer à la main, puisqu'il n'y a rien à compiler.
+**Mise en ligne** : incrémenter `VERSION` dans `js/version.js`, puis
+`git push origin main`. GitHub Pages reconstruit tout seul — il n'y a rien à
+déployer à la main, puisqu'il n'y a rien à compiler.
+
+> Pourquoi incrémenter la version : GitHub Pages sert avec `max-age=600`, donc un
+> navigateur peut afficher du code vieux de dix minutes. Sans repère visible (bas
+> de l'écran *Chapitres*), impossible de distinguer « c'est cassé » de « ce n'est
+> pas encore arrivé » — on a déjà perdu du temps là-dessus.
 
 - Dépôt : `thieumatinmar/revision` (**public** — voir `docs/decisions.md`)
 - Site : <https://thieumatinmar.github.io/revision/>
@@ -221,12 +227,22 @@ Projet `agreg-revision`, forfait Spark (gratuit).
   second est le piège classique : la connexion marche en local et casse en ligne.
 - La **clé d'API est publique** par conception. La sécurité vient des règles.
 
+## Hors ligne et installation
+
+`sw.js` applique **deux** stratégies, et le partage est délibéré :
+
+- `vendor/**` → **cache d'abord**. ~1,7 Mo (KaTeX, ses polices, le SDK Firebase)
+  qui ne changent que lorsqu'on les revendorise à la main.
+- tout le reste → **réseau d'abord**, repli sur le cache, avec
+  `fetch(req, { cache: 'reload' })`. Nos fichiers changent à chaque déploiement,
+  et un cache d'abord empilerait son retard sur celui de GitHub Pages : on ne
+  saurait plus jamais si une fonctionnalité est cassée ou simplement pas arrivée.
+
+Les données ne passent pas par le service worker : Firestore tient son propre
+cache local persistant.
+
 ## Limites connues
 
-- **Pas encore de PWA.** Ni `manifest.webmanifest`, ni `sw.js`, ni icônes :
-  l'app ne s'installe pas sur l'écran d'accueil. Le cache local de Firestore
-  couvre déjà les données hors ligne, mais **pas les fichiers de l'app** — sans
-  réseau, la page elle-même ne se charge pas.
 - **Aucune sauvegarde exportable** : les données ne vivent que dans Firestore.
 - **L'app ne se teste pas sans compte.** La connexion étant obligatoire, aucun
   écran ne se rend tant que Firebase n'a pas authentifié quelqu'un.

@@ -117,3 +117,10 @@ onUserChange(async (user) => {
 });
 
 window.addEventListener('hashchange', renderRoute);
+
+// Service worker : il rend l'app installable sur l'écran d'accueil et
+// disponible sans réseau. Il exige une origine sûre — https ou localhost. En
+// http sur le réseau local, l'app marche, simplement sans cache ni installation.
+if ('serviceWorker' in navigator && window.isSecureContext) {
+  navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW :', err));
+}
