@@ -1,0 +1,7 @@
+# Réglages locaux de Claude Code : propres à cette machine, pas au projet.
+.claude/settings.local.json
+
+# Systèmes d'exploitation
+Thumbs.db
+desktop.ini
+.DS_Store

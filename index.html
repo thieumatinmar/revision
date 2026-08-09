@@ -1,0 +1,30 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Agrég — Révision</title>
+<meta name="theme-color" content="#0f1115">
+
+<!-- KaTeX est vendorisé (vendor/), jamais chargé depuis un CDN : une app censée
+     marcher dans le métro ne peut pas aller chercher son moteur de rendu ailleurs.
+     Voir docs/decisions.md. -->
+<link rel="stylesheet" href="vendor/katex/katex.min.css">
+<link rel="stylesheet" href="css/style.css">
+</head>
+<body>
+
+<header class="app-header">
+  <div id="header-left"></div>
+  <h1 id="view-title">Agrég</h1>
+  <div id="header-right"></div>
+</header>
+
+<main id="view"></main>
+
+<!-- Script classique AVANT les modules : window.katex est donc prêt quand
+     app.js s'exécute. -->
+<script src="vendor/katex/katex.min.js" defer></script>
+<script type="module" src="js/app.js"></script>
+</body>
+</html>
