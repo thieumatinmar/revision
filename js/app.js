@@ -8,10 +8,18 @@ import { el, fill } from './dom.js';
 
 import * as accueil from './views/accueil.js';
 import * as test from './views/test.js';
+import * as cartes from './views/cartes.js';
+import * as editeur from './views/editeur.js';
 
+// L'ordre compte : la première expression qui correspond gagne. « nouvelle »
+// est placée avant la route générique d'édition pour que l'intention soit
+// lisible ici, sans avoir à raisonner sur la forme des identifiants.
 const ROUTES = [
-  { path: /^\/$/,              view: accueil, title: 'Agrég' },
-  { path: /^\/test\/(.+)$/,    view: test,    title: 'Test' },
+  { path: /^\/$/,                                view: accueil, title: 'Agrég' },
+  { path: /^\/test\/(.+)$/,                      view: test,    title: 'Test' },
+  { path: /^\/cartes\/(.+)$/,                    view: cartes,  title: 'Cartes' },
+  { path: /^\/carte\/nouvelle\/(.+)$/,           view: editeur, title: 'Nouvelle carte', mode: 'creation' },
+  { path: /^\/carte\/([^/]+)(?:\/(test))?$/,     view: editeur, title: 'Modifier',       mode: 'edition' },
 ];
 
 const mount = document.getElementById('view');
@@ -40,6 +48,9 @@ async function renderRoute() {
   const ctx = {
     root: container,
     params: m.slice(1),
+    // Certaines vues servent plusieurs routes (l'éditeur : création ou
+    // modification). La route le dit explicitement, la vue n'a rien à deviner.
+    mode: r.mode,
     setTitle(t) { header.title = t; },
     setHeader(left, right) { header.left = left; header.right = right; },
     go(to) { location.hash = '#' + to; },

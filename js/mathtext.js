@@ -104,3 +104,20 @@ export function render(node, source) {
   node.innerHTML = toHtml(source);
   return node;
 }
+
+/**
+ * Version courte, pour les listes.
+ *
+ * On ne coupe jamais au milieu d'une formule : une source tronquée à
+ * `$\frac{1}` ne se rend pas, et afficherait du rouge dans la liste. D'où la
+ * règle : si la coupe laisse un nombre impair de `$`, on recule jusqu'au
+ * dernier `$` ouvrant.
+ */
+export function excerpt(source, max = 110) {
+  const s = String(source ?? '').replace(/\s+/g, ' ').trim();
+  if (s.length <= max) return s;
+  let cut = s.slice(0, max);
+  const nbDollars = (cut.match(/\$/g) || []).length;
+  if (nbDollars % 2 === 1) cut = cut.slice(0, cut.lastIndexOf('$'));
+  return cut.trimEnd() + '…';
+}

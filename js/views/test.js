@@ -67,6 +67,12 @@ export async function render(ctx) {
 
       el('p', { class: 'small muted', style: 'text-align:center;margin-top:18px' },
         `Tirage au hasard parmi ${cards.length} carte${cards.length > 1 ? 's' : ''} — le test ne se termine pas.`),
+
+      // Corriger sans sortir du test : le suffixe /test dit à l'éditeur de
+      // revenir ici, pas dans la liste du chapitre.
+      el('p', { style: 'text-align:center;margin-top:4px' },
+        el('a', { class: 'btn btn-sm btn-ghost', href: `#/carte/${card.id}/test` },
+          'Modifier cette carte')),
     );
   }
 

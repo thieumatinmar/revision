@@ -155,6 +155,51 @@ button:active, .btn:active { transform: translateY(1px); }
 .actions { display: flex; gap: 8px; margin-top: 16px; }
 .actions > * { flex: 1; }
 
+/* ---------------------------------------------------------------- Éditeur */
+
+.champ { margin-bottom: 22px; }
+.champ label { display: block; margin-bottom: 6px; }
+
+textarea, select, input {
+  font: inherit;
+  width: 100%;
+  color: var(--fg);
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  padding: 10px 12px;
+}
+textarea {
+  min-height: 90px;
+  resize: vertical;
+  /* Police à chasse fixe : on écrit du LaTeX, les accolades doivent s'aligner. */
+  font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
+  font-size: .92rem;
+}
+input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+input[type="search"] { margin-bottom: 14px; }
+
+/* Barre d'insertion : elle défile horizontalement plutôt que de passer à la
+   ligne, pour ne pas repousser l'aperçu hors de l'écran sur téléphone. */
+.raccourcis {
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  margin: 8px 0;
+  padding-bottom: 4px;
+  scrollbar-width: none;
+}
+.raccourcis::-webkit-scrollbar { display: none; }
+.raccourcis button { flex: 0 0 auto; color: var(--fg-dim); }
+
+.apercu {
+  border: 1px dashed var(--line);
+  border-radius: 10px;
+  padding: 12px;
+  background: var(--bg-soft);
+  min-height: 46px;
+}
+
 /* ---------------------------------------------------------------- Maths */
 
 .mathtext { white-space: pre-wrap; overflow-wrap: anywhere; }
