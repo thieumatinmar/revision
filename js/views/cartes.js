@@ -45,7 +45,7 @@ export async function render(ctx) {
     // On cherche dans les quatre champs : une carte se retrouve aussi bien par
     // sa réponse ou par un mot de la note que par son recto.
     const found = cards.filter((c) => !query
-      || [c.front, c.hint, c.back, c.note].join(' ').toLowerCase().includes(query));
+      || [c.title, c.front, c.hint, c.back, c.note].join(' ').toLowerCase().includes(query));
 
     if (found.length === 0) {
       fill(list, el('p', { class: 'empty' },
@@ -69,9 +69,13 @@ export async function render(ctx) {
 
   function ligne(card) {
     const item = el('li', {},
+      // Le titre, quand il existe, tient la ligne principale et le recto passe
+      // en dessous. Sans titre, le recto reprend cette place : une liste où
+      // certaines lignes seraient vides serait illisible.
       el('a', { class: 'grow', href: `#/carte/${card.id}`, style: 'text-decoration:none;color:inherit' },
-        renderMath(el('div', { class: 'name' }), excerpt(card.front)),
-        el('div', { class: 'small muted' }, excerpt(stripMath(card.back), 70)),
+        renderMath(el('div', { class: 'name' }), excerpt(card.title || card.front)),
+        el('div', { class: 'small muted' },
+          card.title ? excerpt(stripMath(card.front), 70) : excerpt(stripMath(card.back), 70)),
       ),
       el('button', {
         class: 'btn-sm',

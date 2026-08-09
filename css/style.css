@@ -153,6 +153,17 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 .card-face hr { border: 0; border-top: 1px dashed var(--line); margin: 18px 0; }
 
+/* Titre de la carte pendant le test : il annonce le sujet, il ne doit pas
+   concurrencer le recto, qui reste ce qu'on lit. */
+.titre-carte {
+  font-size: .82rem;
+  font-weight: 600;
+  letter-spacing: .02em;
+  color: var(--accent);
+  margin-bottom: 12px;
+}
+.titre-carte .katex { font-size: 1em; }
+
 .hint {
   border-left: 2px solid var(--accent);
   padding-left: 10px;

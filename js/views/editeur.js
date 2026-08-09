@@ -38,7 +38,7 @@ export async function render(ctx) {
   const categories = await listCategories();
 
   const card = creation
-    ? { categoryId: param, front: '', hint: '', back: '', note: '' }
+    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '' }
     : await getCard(param);
 
   if (!card) {
@@ -58,6 +58,8 @@ export async function render(ctx) {
     categories.map((c) => el('option', { value: c.id, selected: c.id === card.categoryId }, c.name)),
   );
 
+  const titre = champTitre(card.title);
+
   const recto = champ('Recto — ce qui est demandé', card.front,
     'Ex. : Inégalité de Bienaymé–Tchebychev : énoncé et hypothèses ?');
   const indication = champ('Indication (facultatif) — le coup de pouce, pas la réponse', card.hint,
@@ -72,6 +74,7 @@ export async function render(ctx) {
   ctx.root.append(
     el('label', { class: 'small muted' }, 'Chapitre'),
     categorie,
+    titre.bloc,
     recto.bloc, indication.bloc, verso.bloc, note.bloc,
     erreur,
     el('div', { class: 'actions' },
@@ -95,6 +98,7 @@ export async function render(ctx) {
     await saveCard({
       ...card,
       categoryId: categorie.value,
+      title: titre.input.value.trim(),
       front: recto.input.value,
       hint: indication.input.value,
       back: verso.input.value,
@@ -109,6 +113,38 @@ export async function render(ctx) {
     await deleteCard(card.id);
     location.hash = `#/cartes/${card.categoryId}`;
   }
+}
+
+/**
+ * Le titre : une seule ligne, pas de barre d'insertion.
+ *
+ * Facultatif. Il sert à retrouver la carte dans la liste et la recherche, et il
+ * est affiché pendant le test, au-dessus du recto, comme intitulé de ce dont on
+ * parle.
+ *
+ * Le LaTeX y est accepté : « Fonction génératrice $G_X$ » est un titre légitime.
+ * D'où l'aperçu, réduit à une ligne.
+ */
+function champTitre(valeur) {
+  const apercu = el('div', { class: 'apercu mathtext', style: 'min-height:0;padding:8px 12px' });
+  const input = el('input', { value: valeur || '', placeholder: 'Ex. : Inégalité de Bienaymé–Tchebychev' });
+  const rafraichir = () => renderMath(apercu, input.value);
+  input.addEventListener('input', rafraichir);
+
+  const bloc = el('div', { class: 'champ' },
+    el('label', { class: 'small muted' }, 'Titre (facultatif) — de quoi parle la carte'),
+    input,
+    // L'aperçu ne s'affiche que s'il y a une formule à montrer : sinon c'est une
+    // boîte vide qui répète bêtement ce qu'on vient de taper.
+    apercu,
+  );
+
+  const majVisibilite = () => { apercu.style.display = input.value.includes('$') ? '' : 'none'; };
+  input.addEventListener('input', majVisibilite);
+  rafraichir();
+  majVisibilite();
+
+  return { bloc, input };
 }
 
 /**

@@ -7,7 +7,7 @@
 // Arborescence dans Firestore :
 //
 //   users/{uid}/categories/{id}   { name, order }
-//   users/{uid}/cards/{id}        { categoryId, front, hint, back, note }
+//   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note }
 //
 // Tout est rangé **sous l'identifiant de l'utilisateur**, et les règles publiées
 // n'autorisent `users/{userId}` qu'à l'uid correspondant. C'est cette forme
@@ -150,8 +150,11 @@ export async function getCard(id) {
 /** Crée ou met à jour une carte, selon qu'elle porte déjà un identifiant. */
 export async function saveCard(card) {
   const { id, ...champs } = card;
+  // Liste explicite des champs écrits : une carte relue depuis Firestore porte
+  // aussi son `id`, qu'on ne veut pas dupliquer dans le document.
   const donnees = {
     categoryId: champs.categoryId,
+    title: champs.title || '',
     front: champs.front || '',
     hint: champs.hint || '',
     back: champs.back || '',

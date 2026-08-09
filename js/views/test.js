@@ -41,7 +41,11 @@ export async function render(ctx) {
   function paint() {
     fill(stage,
       el('div', { class: 'card-face' },
-        el('div', { class: 'face-label' }, 'Recto'),
+        // Le titre est facultatif : sans lui, la carte commence directement au
+        // recto, sans en-tête vide.
+        card.title
+          ? renderMath(el('div', { class: 'titre-carte' }), card.title)
+          : el('div', { class: 'face-label' }, 'Recto'),
         renderMath(el('div'), card.front),
 
         showHint && card.hint && el('div', { class: 'hint' },

@@ -13,6 +13,12 @@ sous une forme interrogeable.
 _Code_: `card`
 _Éviter_: fiche, flashcard, item, note
 
+**Titre** :
+Le sujet de la carte, en quelques mots. Facultatif. Il nomme ce dont la carte
+parle — il ne la pose pas ; c'est le recto qui demande quelque chose.
+_Code_: `title`
+_Éviter_: nom, intitulé, libellé, en-tête
+
 **Recto** :
 La face visible d'emblée : ce qui est demandé.
 _Code_: `front`
