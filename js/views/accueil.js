@@ -11,6 +11,9 @@ export async function render(ctx) {
   const [categories, compte] = await Promise.all([listCategories(), countByCategory()]);
   const counts = categories.map((c) => compte.get(c.id) || 0);
 
+  // À gauche, la coque met l'accès au compte : ici on ne pose que la droite.
+  ctx.setHeader(null, el('a', { class: 'btn btn-sm btn-ghost', href: '#/chapitres' }, 'Gérer'));
+
   ctx.root.append(
     el('p', { class: 'muted small' },
       'Touche le nom d’un chapitre pour voir ses cartes, « Tester » pour lancer un tirage.'),

@@ -17,7 +17,8 @@
 import { db } from './firebase.js';
 import { currentUid } from './auth.js';
 import {
-  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, query, where, orderBy,
+  collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, writeBatch,
+  query, where, orderBy,
 } from '../vendor/firebase/firebase-firestore.js';
 
 /** Les 12 titres du programme officiel 2027 (../ressources/programme_officiel_2027.md). */
@@ -72,6 +73,24 @@ export async function createCategory(name) {
 
 export async function renameCategory(id, name) {
   await setDoc(ref('categories', id), { name }, { merge: true });
+}
+
+/**
+ * Réécrit l'ordre de **tous** les chapitres d'un coup, à partir de la liste
+ * ordonnée de leurs identifiants.
+ *
+ * Réécrire tout plutôt que d'échanger deux valeurs : après quelques
+ * suppressions, les `order` ne sont plus contigus (0, 1, 4, 7…) et un échange
+ * deux à deux finit par produire des doublons — donc un ordre d'affichage
+ * instable. Ici, on repart de 0 à chaque fois.
+ *
+ * `writeBatch` rend l'opération atomique : soit tout l'ordre change, soit rien.
+ * Un ordre à moitié écrit serait pire que l'ancien.
+ */
+export async function setCategoriesOrder(orderedIds) {
+  const batch = writeBatch(db);
+  orderedIds.forEach((id, order) => batch.set(ref('categories', id), { order }, { merge: true }));
+  await batch.commit();
 }
 
 /**

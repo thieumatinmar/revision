@@ -13,12 +13,14 @@ import * as accueil from './views/accueil.js';
 import * as test from './views/test.js';
 import * as cartes from './views/cartes.js';
 import * as editeur from './views/editeur.js';
+import * as chapitres from './views/chapitres.js';
 
 // L'ordre compte : la première expression qui correspond gagne. « nouvelle » est
 // placée avant la route générique d'édition pour que l'intention soit lisible
 // ici, sans avoir à raisonner sur la forme des identifiants.
 const ROUTES = [
-  { path: /^\/$/,                            view: accueil, title: 'Agrég' },
+  { path: /^\/$/,                            view: accueil,   title: 'Agrég' },
+  { path: /^\/chapitres$/,                   view: chapitres, title: 'Chapitres' },
   { path: /^\/test\/(.+)$/,                  view: test,    title: 'Test' },
   { path: /^\/cartes\/(.+)$/,                view: cartes,  title: 'Cartes' },
   { path: /^\/carte\/nouvelle\/(.+)$/,       view: editeur, title: 'Nouvelle carte', mode: 'creation' },
@@ -80,10 +82,10 @@ async function renderRoute() {
   if (isStale()) return;
 
   titleEl.textContent = header.title;
-  fill(leftEl, header.left);
-  // Sur l'accueil seulement, un accès à la déconnexion : ailleurs, la place à
-  // droite sert aux actions de l'écran.
-  fill(rightEl, header.right || (path === '/' ? boutonCompte() : null));
+  // Sur l'accueil, la place à gauche est libre (rien d'où revenir) : on y met
+  // l'accès au compte. Ailleurs elle sert au retour, posé par la vue.
+  fill(leftEl, header.left || (path === '/' ? boutonCompte() : null));
+  fill(rightEl, header.right);
   mount.replaceChildren(container);
   window.scrollTo(0, 0);
 }

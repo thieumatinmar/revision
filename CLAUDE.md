@@ -227,6 +227,8 @@ Projet `agreg-revision`, forfait Spark (gratuit).
   l'app ne s'installe pas sur l'écran d'accueil. Le cache local de Firestore
   couvre déjà les données hors ligne, mais **pas les fichiers de l'app** — sans
   réseau, la page elle-même ne se charge pas.
-- **Écran Réglages manquant** : renommer, réordonner ou supprimer un chapitre
-  n'est pas possible depuis l'interface, bien que `store.js` sache le faire.
 - **Aucune sauvegarde exportable** : les données ne vivent que dans Firestore.
+- **L'app ne se teste pas sans compte.** La connexion étant obligatoire, aucun
+  écran ne se rend tant que Firebase n'a pas authentifié quelqu'un : les
+  vérifications automatiques se limitent au chargement des modules et au
+  routage. Le reste se vérifie à la main, connecté.
