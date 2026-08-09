@@ -179,6 +179,14 @@ python -m http.server 8123    # servir l'app, puis ouvrir http://localhost:8123
 
 Il faut un serveur : les modules ES ne se chargent pas depuis un `file://`.
 
+**Mise en ligne** : `git push origin main`. GitHub Pages reconstruit tout seul —
+il n'y a rien à déployer à la main, puisqu'il n'y a rien à compiler.
+
+- Dépôt : `thieumatinmar/revision` (**public** — voir `docs/decisions.md`)
+- Site : <https://thieumatinmar.github.io/revision/>
+- `.nojekyll` à la racine coupe le traitement Jekyll : les fichiers sont servis
+  tels quels.
+
 > Pas de commande de build : c'est le choix (pas de Node ni de npm installés sur
 > la machine). Pas de commande de test non plus : aucun test pour l'instant.
 > Quand ils reviendront, la première cible est `js/quiz.js`, seul module pur.

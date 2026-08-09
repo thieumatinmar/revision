@@ -304,3 +304,28 @@ marcher dans le métro ne peut pas aller chercher son moteur de rendu ailleurs.
 > Même raisonnement à appliquer au SDK Firebase, chargé lui aussi depuis un CDN
 > Google : il devra être figé dans le cache du service worker, sinon « hors
 > ligne » ne veut rien dire.
+
+---
+
+## Le dépôt est public
+
+**Choix** — `thieumatinmar/revision` est un dépôt **public**, et le site est
+servi par GitHub Pages depuis la branche `main`.
+
+**Alternative écartée** — (a) garder le dépôt privé et publier via Cloudflare
+Pages ou Netlify, qui déploient gratuitement depuis un dépôt privé ; (b) passer
+à GitHub Pro (~4 $/mois), seule façon d'avoir Pages sur un dépôt privé.
+
+**Raison** — Contrainte de départ : GitHub Pages ne fonctionne pas sur un dépôt
+privé avec un compte gratuit. Rendre le dépôt public est la solution qui
+n'ajoute ni compte, ni brique, ni abonnement.
+
+Le calcul de confidentialité est favorable, et c'est ce qui rend la décision
+tenable : **le dépôt ne contient aucune donnée personnelle**. Les cartes vivent
+dans Firestore, pas dans le code. Quant à la configuration Firebase qui y
+figurera, elle est publique par conception — n'importe quel visiteur du site peut
+la lire dans son navigateur. Ce qui protège les données, ce sont les règles
+Firestore adossées au compte Google, jamais le secret de cette clé.
+
+> Ce qui devient visible : le code, `CLAUDE.md`, `CONTEXT.md`, ce fichier.
+> Décision **irréversible en pratique** : ce qui a été public a pu être copié.
