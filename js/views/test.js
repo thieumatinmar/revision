@@ -56,6 +56,18 @@ export async function render(ctx) {
         showBack && el('hr'),
         showBack && el('div', { class: 'face-label' }, 'Verso'),
         showBack && renderMath(el('div'), card.back),
+
+        // Les images font partie de la réponse : elles n'apparaissent donc
+        // qu'avec le verso, jamais avant.
+        showBack && Array.isArray(card.images) && card.images.length > 0
+          && el('div', { class: 'images-verso' },
+            card.images.map((url, i) => el('img', {
+              src: url,
+              alt: `Image ${i + 1} de la réponse`,
+              loading: 'lazy',
+            })),
+          ),
+
         showBack && card.note && el('div', { class: 'note' }, renderMath(el('div'), card.note)),
       ),
 

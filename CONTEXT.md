@@ -35,6 +35,12 @@ La face cachée : la réponse, révélée une fois l'effort de rappel fait.
 _Code_: `back`
 _Éviter_: réponse, solution, correction, face B
 
+**Image** :
+Une figure attachée à la réponse — schéma, courbe, démonstration écrite à la
+main. Elle fait partie du verso : elle n'apparaît jamais avant lui.
+_Code_: `images`
+_Éviter_: photo, illustration, pièce jointe, figure
+
 **Note** :
 Un commentaire facultatif attaché à la carte, affiché **avec** le verso : le
 piège classique, l'hypothèse qui mord, l'idée de preuve, le moyen mnémotechnique.

@@ -329,3 +329,29 @@ Firestore adossées au compte Google, jamais le secret de cette clé.
 
 > Ce qui devient visible : le code, `CLAUDE.md`, `CONTEXT.md`, ce fichier.
 > Décision **irréversible en pratique** : ce qui a été public a pu être copié.
+
+---
+
+## Les images vivent dans le document, pas dans Firebase Storage
+
+**Choix** — Une image attachée à la réponse est réduite dans le navigateur, puis
+stockée **encodée en texte** dans le champ `images` du document Firestore de la
+carte.
+
+**Alternative écartée** — Firebase Storage, avec les images déposées sur un
+service dédié et le document ne conservant que leurs adresses.
+
+**Raison** — Storage impose d'activer un produit de plus, d'écrire un second jeu
+de règles de sécurité, et sur les projets créés récemment il exige un compte de
+facturation. À l'inverse, l'image dans le document ne coûte rien, et surtout elle
+**suit la carte** : elle se synchronise entre appareils et se retrouve dans le
+cache hors ligne de Firestore sans une ligne de code supplémentaire. Avec
+Storage, il aurait fallu gérer à part le téléversement, les adresses, leur
+expiration et leur mise en cache.
+
+**Le prix, assumé** : un document Firestore est plafonné à **1 Mo**. D'où
+`js/images.js` — réduction à 1400 px de côté, encodage WebP quand le navigateur
+le sait, et un budget de 700 Ko par carte, affiché en permanence dans l'éditeur.
+Une photo de 9 Mo tombe à ~85 Ko ; le plafond tient donc environ huit figures par
+carte, ce qui dépasse tout usage réel. Si ce plafond devenait gênant, c'est le
+signal qu'il faut basculer sur Storage — et non contourner la limite.

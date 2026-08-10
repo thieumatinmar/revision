@@ -226,6 +226,45 @@ input[type="search"] { margin-bottom: 14px; }
   min-height: 46px;
 }
 
+/* ---------------------------------------------------------------- Images */
+
+.galerie { display: flex; flex-wrap: wrap; gap: 8px; }
+.vignette { position: relative; }
+.vignette img {
+  display: block;
+  width: 96px;
+  height: 96px;
+  object-fit: cover;               /* vignettes régulières, quel que soit le cadrage */
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+.vignette button {
+  position: absolute;
+  top: -6px;
+  right: -6px;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border-radius: 999px;
+  background: var(--bg);
+  color: #e8695f;
+  line-height: 1;
+}
+
+/* Dans le test, l'image se lit : on ne la rogne pas, on la laisse respirer. */
+.images-verso { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
+.images-verso img {
+  display: block;
+  width: 100%;
+  height: auto;
+  max-height: 60vh;
+  object-fit: contain;
+  border-radius: 10px;
+  border: 1px solid var(--line);
+  background: #fff;
+}
+
 /* ---------------------------------------------------------------- Maths */
 
 .mathtext { white-space: pre-wrap; overflow-wrap: anywhere; }

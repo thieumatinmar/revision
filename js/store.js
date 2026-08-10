@@ -7,7 +7,12 @@
 // Arborescence dans Firestore :
 //
 //   users/{uid}/categories/{id}   { name, order }
-//   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note }
+//   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
+//                                   images: string[] }
+//
+// `images` contient des data URL, donc les images elles-mêmes, pas des liens.
+// C'est ce qui les fait suivre la carte sans Firebase Storage — au prix du
+// plafond de 1 Mo par document, tenu par `js/images.js`.
 //
 // Tout est rangé **sous l'identifiant de l'utilisateur**, et les règles publiées
 // n'autorisent `users/{userId}` qu'à l'uid correspondant. C'est cette forme
@@ -159,6 +164,7 @@ export async function saveCard(card) {
     hint: champs.hint || '',
     back: champs.back || '',
     note: champs.note || '',
+    images: Array.isArray(champs.images) ? champs.images : [],
   };
   if (id) {
     await setDoc(ref('cards', id), donnees);

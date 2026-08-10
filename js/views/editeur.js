@@ -10,9 +10,10 @@
 //   #/carte/<cardId>                          → retour à la liste du chapitre
 //   #/carte/<cardId>/test                     → retour au test en cours
 
-import { el } from '../dom.js';
+import { el, fill } from '../dom.js';
 import { render as renderMath } from '../mathtext.js';
 import { getCard, saveCard, deleteCard, listCategories } from '../store.js';
+import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
 /** Insertions rapides : ce qu'on tape le plus souvent, en un tap sur mobile. */
 const RACCOURCIS = [
@@ -38,7 +39,7 @@ export async function render(ctx) {
   const categories = await listCategories();
 
   const card = creation
-    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '' }
+    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [] }
     : await getCard(param);
 
   if (!card) {
@@ -71,11 +72,13 @@ export async function render(ctx) {
 
   const erreur = el('p', { class: 'small', style: 'color:#e8695f;min-height:1.2em' });
 
+  const images = champImages(Array.isArray(card.images) ? [...card.images] : []);
+
   ctx.root.append(
     el('label', { class: 'small muted' }, 'Chapitre'),
     categorie,
     titre.bloc,
-    recto.bloc, indication.bloc, verso.bloc, note.bloc,
+    recto.bloc, indication.bloc, verso.bloc, images.bloc, note.bloc,
     erreur,
     el('div', { class: 'actions' },
       el('button', { class: 'btn-primary', on: { click: enregistrer } }, 'Enregistrer'),
@@ -103,6 +106,7 @@ export async function render(ctx) {
       hint: indication.input.value,
       back: verso.input.value,
       note: note.input.value,
+      images: images.valeur(),
     });
     // La catégorie a pu changer : on repart de celle qui vient d'être choisie.
     location.hash = origine === 'test' ? `#/test/${categorie.value}` : `#/cartes/${categorie.value}`;
@@ -145,6 +149,94 @@ function champTitre(valeur) {
   majVisibilite();
 
   return { bloc, input };
+}
+
+/**
+ * Les images de la réponse : import, vignettes, suppression, jauge de budget.
+ *
+ * La jauge n'est pas décorative. Les images vivent **dans** le document
+ * Firestore, plafonné à 1 Mo : sans repère visible, on découvrirait la limite au
+ * moment d'enregistrer, c'est-à-dire au pire moment. Ici, on la voit venir.
+ */
+function champImages(images) {
+  const galerie = el('div', { class: 'galerie' });
+  const jauge = el('div', { class: 'small muted' });
+  const etat = el('p', { class: 'small', style: 'min-height:1.2em;margin:6px 0 0' });
+
+  const fichier = el('input', {
+    type: 'file',
+    accept: 'image/*',
+    multiple: true,
+    style: 'display:none',
+  });
+
+  const bouton = el('button', { type: 'button', class: 'btn-sm', on: { click: () => fichier.click() } },
+    'Ajouter une image');
+
+  fichier.addEventListener('change', async () => {
+    const choisis = [...fichier.files];
+    fichier.value = '';                      // pour pouvoir reprendre le même fichier
+    if (choisis.length === 0) return;
+
+    bouton.disabled = true;
+    etat.style.color = 'var(--fg-dim)';
+    etat.textContent = 'Traitement…';
+    const refus = [];
+
+    for (const f of choisis) {
+      try {
+        const url = await depuisFichier(f);
+        // On vérifie le budget **après** réduction : refuser sur la taille du
+        // fichier d'origine rejetterait des photos de 4 Mo qui tiennent en 150 Ko.
+        if (poidsTotal(images) + url.length > BUDGET) {
+          refus.push(f.name);
+          continue;
+        }
+        images.push(url);
+      } catch (err) {
+        refus.push(f.name + ' (' + err.message + ')');
+      }
+    }
+
+    bouton.disabled = false;
+    if (refus.length) {
+      etat.style.color = '#e8695f';
+      etat.textContent = 'Non ajouté, budget dépassé : ' + refus.join(', ')
+        + '. Supprime une image existante pour faire de la place.';
+    } else {
+      etat.textContent = '';
+    }
+    dessiner();
+  });
+
+  function dessiner() {
+    fill(galerie, images.map((url, i) => el('div', { class: 'vignette' },
+      el('img', { src: url, alt: `Image ${i + 1} de la réponse` }),
+      el('button', {
+        type: 'button',
+        class: 'btn-sm',
+        title: 'Retirer cette image',
+        on: { click: () => { images.splice(i, 1); etat.textContent = ''; dessiner(); } },
+      }, '×'),
+    )));
+
+    const total = poidsTotal(images);
+    jauge.textContent = images.length === 0
+      ? 'Aucune image.'
+      : `${images.length} image${images.length > 1 ? 's' : ''} — `
+        + `${formatePoids(total)} sur ${formatePoids(BUDGET)} utilisés.`;
+  }
+
+  const bloc = el('div', { class: 'champ' },
+    el('label', { class: 'small muted' },
+      'Images de la réponse (facultatif) — schéma, figure, démonstration écrite'),
+    galerie,
+    el('div', { class: 'row', style: 'margin-top:8px' }, bouton, fichier, jauge),
+    etat,
+  );
+
+  dessiner();
+  return { bloc, valeur: () => [...images] };
 }
 
 /**
