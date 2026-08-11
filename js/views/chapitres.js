@@ -44,7 +44,7 @@ export async function render(ctx) {
 
   function dessiner() {
     fill(liste, categories.flatMap((cat, i) => {
-      const n = compte.get(cat.id) || 0;
+      const { total: n, unplaced } = compte.get(cat.id) || { total: 0, unplaced: 0 };
 
       const nom = el('input', {
         value: cat.name,
@@ -64,8 +64,13 @@ export async function render(ctx) {
       const ligne = el('li', {},
         el('div', { class: 'grow' },
           nom,
+          // Le compte des non rangées est ici, et pas seulement dans le
+          // chapitre : c'est le seul endroit d'où l'on voit d'un coup d'œil
+          // où il reste de l'ordre à mettre.
           el('div', { class: 'small muted', style: 'margin-top:4px' },
-            n === 0 ? 'vide' : `${n} carte${n > 1 ? 's' : ''}`),
+            n === 0 ? 'vide' : `${n} carte${n > 1 ? 's' : ''}`,
+            unplaced > 0 && el('span', { style: 'color:var(--accent)' },
+              ` · ${unplaced} non rangée${unplaced > 1 ? 's' : ''}`)),
         ),
         el('button', {
           class: 'btn-sm', title: 'Monter', disabled: i === 0,

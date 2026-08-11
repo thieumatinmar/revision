@@ -9,7 +9,9 @@ import { listCategories, countByCategory } from '../store.js';
 export async function render(ctx) {
   // Deux requêtes pour tout l'écran, quel que soit le nombre de chapitres.
   const [categories, compte] = await Promise.all([listCategories(), countByCategory()]);
-  const counts = categories.map((c) => compte.get(c.id) || 0);
+  // `countByCategory` renvoie { total, unplaced } : l'accueil ne montre que le
+  // total, le détail des non rangées appartient à l'écran de gestion.
+  const counts = categories.map((c) => (compte.get(c.id) || { total: 0 }).total);
 
   // À gauche, la coque met l'accès au compte : ici on ne pose que la droite.
   ctx.setHeader(null, el('a', { class: 'btn btn-sm btn-ghost', href: '#/chapitres' }, 'Gérer'));

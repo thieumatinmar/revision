@@ -54,9 +54,36 @@ Le rangement d'une carte, calqué sur les titres du programme officiel.
 _Code_: `category`
 _Éviter_: chapitre, thème, tag, matière
 
+**Ordre** :
+La place d'une carte à l'intérieur de sa catégorie, décidée à la main. Deux
+catégories ont chacune leur ordre ; il n'en existe pas de global.
+_Code_: `order`
+_Éviter_: rang, position, index, tri
+
+**Carte non rangée** :
+Une carte qui n'a pas encore reçu de place dans sa catégorie : elle vient d'être
+créée, ou elle arrive d'une autre catégorie — où sa place ne voulait plus rien
+dire. Elle passe après les cartes rangées, et le reste jusqu'à ce qu'on la range.
+_Code_: carte sans `order` — `isPlaced(card)` est faux
+_Éviter_: non classée, non triée, orpheline, en attente
+
 ## Le travail
 
 **Test** :
-Une suite de cartes tirées au hasard dans une catégorie, présentées une par une.
+Une suite de cartes d'une seule catégorie, présentées une par une, dans l'un des
+deux modes ci-dessous.
 _Code_: `quiz`
 _Éviter_: session, révision, entraînement, exercice
+
+**Mode aléatoire** :
+Chaque carte est tirée au hasard, indépendamment des précédentes. Le test ne se
+termine jamais, et une même carte peut retomber.
+_Code_: `MODES.RANDOM`
+_Éviter_: shuffle, mélange, tirage libre
+
+**Mode dans l'ordre** :
+Les cartes de la catégorie dans leur ordre, chacune une fois — les non rangées à
+la fin. La passe **se termine** : c'est le seul endroit où « j'ai fait le tour »
+veut dire quelque chose.
+_Code_: `MODES.ORDERED`
+_Éviter_: mode séquentiel, parcours, révision complète

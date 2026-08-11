@@ -114,6 +114,24 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 .list li.annonce.info { color: var(--fg-dim); }
 
+/* Séparateur entre les cartes rangées et celles qui n'ont pas encore de place :
+   ce n'est pas une carte, il ne doit donc pas ressembler à une ligne de liste. */
+.list li.separateur {
+  background: transparent;
+  border: 0;
+  border-top: 1px dashed var(--line);
+  border-radius: 0;
+  margin-top: 18px;
+  padding: 14px 2px 4px;
+}
+
+/* Bordure en pointillés = position pas encore fixée. Le repère est visible sans
+   ajouter d'étiquette sur chaque ligne, qui volerait la place du texte. */
+.list li.non-rangee { border-style: dashed; }
+
+/* Choix du mode de test : deux boutons, au-dessus de la carte. */
+.modes { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
+
 .count {
   min-width: 26px;
   padding: 1px 8px;

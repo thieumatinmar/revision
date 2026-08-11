@@ -332,6 +332,73 @@ Firestore adossées au compte Google, jamais le secret de cette clé.
 
 ---
 
+## Ordre des cartes : une place explicite, et un état « non rangée »
+
+**Choix** — Une carte peut recevoir une place dans sa catégorie (`order`). Ce
+champ est **facultatif** : son absence signifie « non rangée ». Une carte naît
+non rangée, le reste tant qu'on ne la range pas, et **perd sa place** si on la
+change de catégorie. L'écran d'une catégorie est donc coupé en deux zones — les
+rangées, réordonnables par ↑/↓, puis les non rangées, chacune avec un bouton
+*Ranger* (plus un *Tout ranger* pour la première mise en ordre). L'écran de
+gestion compte les non rangées par chapitre.
+
+**Alternative écartée** — (a) toute carte reçoit d'office une place en fin de
+liste (création, déplacement) : plus d'état à distinguer, une seule zone ; (b)
+pas de champ du tout, ordre implicite par date de création ; (c) ordre par
+glisser-déposer.
+
+**Raison** — Trois choses se tiennent.
+
+D'abord, **l'absence de champ était déjà l'état de toutes les cartes existantes**
+au moment d'ajouter la fonctionnalité. En faire un état signifiant, plutôt qu'une
+valeur à combler, a évité toute migration : rien à réécrire, et un seul chemin de
+code au lieu de « anciennes cartes » vs « nouvelles ».
+
+Ensuite, **placer d'office, c'est décider à la place de l'utilisateur** — et
+mettre une carte fraîchement arrivée au milieu d'un chapitre, là où on ne la
+cherchera pas. Une carte qui change de catégorie perd sa place pour la même
+raison : la position 3 d'où elle vient ne veut rien dire là où elle arrive.
+
+Enfin, **la renumérotation ne touche que la zone rangée**. Sans cette frontière,
+la première pression sur une flèche rangerait implicitement les quarante cartes
+du chapitre — le repère disparaîtrait en masse sans qu'on l'ait voulu. La
+frontière ne se franchit que dans un sens ; pour « dé-ranger », il reste le
+déplacement de catégorie, et aucun besoin réel ne demandait plus.
+
+Le tri se fait **en mémoire**, pas par un `orderBy` Firestore : une requête triée
+sur un champ **exclut les documents qui ne le portent pas** — toutes les cartes
+non rangées auraient disparu de l'écran — et `where` + `orderBy` aurait en plus
+exigé un index composite déclaré à la main. Le glisser-déposer, lui, a été écarté
+au coût : gestes tactiles, autoscroll et cibles de dépôt, pour un gain nul sur
+des chapitres de quelques dizaines de cartes.
+
+---
+
+## Le test « dans l'ordre » se termine, l'aléatoire non
+
+**Choix** — Deux modes, choisis dans l'écran de test lui-même : *Aléatoire*
+(inchangé — tirage indépendant, flux infini) et *Dans l'ordre* (les cartes de la
+catégorie dans leur ordre, chacune une fois, non rangées à la fin, puis un écran
+de fin). Le mode n'est pas mémorisé : un test rouvre en aléatoire.
+
+**Alternative écartée** — (a) le mode ordonné reboucle sur la première carte, ce
+qui aurait gardé « un test ne se termine jamais » vrai partout ; (b) le choix se
+fait à l'accueil, deux boutons *Tester* par chapitre ; (c) le mode ordonné saute
+les cartes non rangées.
+
+**Raison** — Le rebouclage a été refusé explicitement par Mathieu : la seule
+raison de réviser dans l'ordre est de faire le tour d'un chapitre, et un tour ne
+veut rien dire s'il ne s'arrête pas. C'est donc le seul écran de fin de l'app, et
+il n'est atteignable que par ce mode — l'aléatoire, lui, garde sa promesse.
+
+Le choix vit dans l'écran de test plutôt qu'à l'accueil parce qu'on change d'avis
+**pendant** une révision (« je reprends ce chapitre à zéro »), et parce que
+l'accueil aurait doublé ses boutons sur douze lignes. Quant aux cartes non
+rangées, les sauter aurait créé des cartes jamais révisées, invisibles jusqu'à ce
+qu'on pense à les ranger : elles passent donc à la fin, comme partout ailleurs.
+
+---
+
 ## Les images vivent dans le document, pas dans Firebase Storage
 
 **Choix** — Une image attachée à la réponse est réduite dans le navigateur, puis
