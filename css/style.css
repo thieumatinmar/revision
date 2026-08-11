@@ -265,6 +265,27 @@ input[type="search"] { margin-bottom: 14px; }
   background: #fff;
 }
 
+/* Bandeau « nouvelle version » : en bas, au-dessus de tout, impossible à rater
+   sans bloquer la lecture. */
+.bandeau-maj {
+  position: fixed;
+  left: 12px;
+  right: 12px;
+  bottom: calc(12px + env(safe-area-inset-bottom, 0px));
+  z-index: 100;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--accent);
+  color: #fff;
+  font-size: .85rem;
+  box-shadow: 0 6px 24px rgba(0, 0, 0, .35);
+}
+.bandeau-maj button { background: rgba(255, 255, 255, .18); border-color: transparent; color: #fff; }
+
 /* ---------------------------------------------------------------- Maths */
 
 .mathtext { white-space: pre-wrap; overflow-wrap: anywhere; }

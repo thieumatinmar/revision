@@ -5,6 +5,7 @@
 // dans `views/`.
 
 import { el, fill } from './dom.js';
+import { VERSION } from './version.js';
 import { onUserChange, currentUser, signOut } from './auth.js';
 import { seedIfEmpty } from './store.js';
 import { ecranConnexion } from './views/connexion.js';
@@ -124,3 +125,44 @@ window.addEventListener('hashchange', renderRoute);
 if ('serviceWorker' in navigator && window.isSecureContext) {
   navigator.serviceWorker.register('sw.js').catch((err) => console.warn('SW :', err));
 }
+
+/**
+ * Détecte qu'on exécute du code périmé.
+ *
+ * On relit `version.js` sur le réseau, en court-circuitant tous les caches, et
+ * on compare à la version chargée en mémoire. Si elles diffèrent, c'est que le
+ * navigateur (ou le service worker) sert d'anciens fichiers.
+ *
+ * Ça existe parce que le diagnostic a coûté cher : « la fonctionnalité est
+ * cassée » et « mon navigateur me sert du vieux code » donnent exactement le
+ * même symptôme — un écran où il manque quelque chose. Désormais l'app le dit
+ * elle-même.
+ *
+ * On relit le fichier source plutôt qu'un second fichier de version : deux
+ * fichiers à tenir synchronisés finiraient par diverger, et le détecteur
+ * mentirait.
+ */
+async function verifieVersion() {
+  try {
+    const src = await (await fetch('js/version.js', { cache: 'no-store' })).text();
+    const surLeServeur = (src.match(/VERSION\s*=\s*'([^']+)'/) || [])[1];
+    if (!surLeServeur || surLeServeur === VERSION) return;
+
+    document.body.append(el('div', { class: 'bandeau-maj' },
+      el('span', {}, `Version ${surLeServeur} disponible — tu exécutes la ${VERSION}.`),
+      el('button', {
+        class: 'btn-sm',
+        on: { click: async () => {
+          // Purger le cache du service worker : sans ça, un rechargement peut
+          // resservir exactement les mêmes fichiers.
+          for (const nom of await caches.keys()) await caches.delete(nom);
+          location.reload();
+        } },
+      }, 'Recharger'),
+    ));
+  } catch {
+    // Hors ligne : on ne sait pas, et ce n'est pas grave. Pas de bandeau.
+  }
+}
+
+verifieVersion();

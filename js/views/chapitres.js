@@ -20,7 +20,13 @@ import {
 
 export async function render(ctx) {
   ctx.setTitle('Chapitres');
-  ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Retour'), null);
+  // La version s'affiche dans l'en-tête, pas en pied de page : avec douze
+  // chapitres, un pied de page est hors écran, et « je ne vois pas la version »
+  // redevient impossible à distinguer de « la version n'y est pas ».
+  ctx.setHeader(
+    el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Retour'),
+    el('span', { class: 'small muted', title: 'Version du code exécutée' }, 'v' + VERSION),
+  );
 
   const [categories, compte] = await Promise.all([listCategories(), countByCategory()]);
 
@@ -140,11 +146,6 @@ export async function render(ctx) {
     saisie,
     el('button', { class: 'btn-primary', on: { click: ajouter } }, 'Ajouter'),
   ));
-
-  // Version affichée : sans repère, impossible de distinguer « c'est cassé » de
-  // « mon navigateur me sert du vieux code » (GitHub Pages : max-age=600).
-  ctx.root.append(el('p', { class: 'small muted', style: 'text-align:center;margin-top:40px' },
-    'Version ', VERSION));
 
   dessiner();
 }

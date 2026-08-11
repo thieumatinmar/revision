@@ -37,6 +37,7 @@ const COQUE = [
   'js/auth.js',
   'js/firebase.js',
   'js/mathtext.js',
+  'js/images.js',
   'js/version.js',
   'js/views/accueil.js',
   'js/views/test.js',
