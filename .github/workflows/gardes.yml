@@ -1,0 +1,31 @@
+# Gardes — filet de rattrapage.
+#
+# Le vrai point de contrôle est le hook `pre-push` local : GitHub Pages publie
+# depuis la branche `main`, donc quand ce workflow échoue, le code cassé est
+# **déjà en ligne**. Ce workflow sert aux cas où le hook n'a pas joué : push
+# depuis un autre poste, clone sans `core.hooksPath`, ou `--no-verify`.
+#
+# Il n'y a rien à installer : les gardes sont du Python 3 sans dépendance.
+
+name: Gardes
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:        # pour relancer à la main depuis l'onglet Actions
+
+jobs:
+  gardes:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # Historique complet : le garde G3 doit pouvoir lire js/version.js
+          # dans le commit d'avant le push.
+          fetch-depth: 0
+
+      - name: Lancer les gardes
+        # `github.event.before` = ce que le déploiement vient de remplacer.
+        # Vide sur workflow_dispatch : le garde G3 s'annule alors de lui-même,
+        # en le disant, plutôt que de prétendre passer.
+        run: python3 tools/check.py --ref "${{ github.event.before }}"

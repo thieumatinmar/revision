@@ -1,0 +1,33 @@
+#!/bin/sh
+# pre-push — lance les gardes avant que quoi que ce soit parte sur GitHub.
+#
+# Pourquoi ici et pas seulement en CI : GitHub Pages publie depuis la branche
+# `main` (`build_type: legacy`). Une GitHub Action ne peut donc **rien bloquer** —
+# le déploiement a déjà eu lieu quand la croix rouge apparaît. Le seul point de
+# contrôle capable d'arrêter du code cassé est ce poste-ci.
+#
+# Ce hook n'est pas une serrure : `git push --no-verify` le saute. C'est voulu.
+# Un garde qu'on ne peut pas contourner finit désinstallé.
+#
+# Activation (une fois par clone, `.git/hooks/` n'étant pas versionné) :
+#
+#     git config core.hooksPath .githooks
+
+ROOT=$(git rev-parse --show-toplevel)
+
+# `python` sur Windows, `python3` ailleurs : on prend ce qui répond.
+if command -v python >/dev/null 2>&1; then
+  PY=python
+elif command -v python3 >/dev/null 2>&1; then
+  PY=python3
+else
+  echo "pre-push : Python introuvable, gardes non exécutés." >&2
+  exit 0   # pas de Python = pas de garde, mais pas de blocage arbitraire non plus
+fi
+
+# La référence est ce que le déploiement va remplacer : la version déjà en ligne.
+"$PY" "$ROOT/tools/check.py" --ref origin/main || {
+  echo ""
+  echo "Push interrompu. Corrige, ou force avec : git push --no-verify" >&2
+  exit 1
+}
