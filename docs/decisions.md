@@ -422,3 +422,126 @@ le sait, et un budget de 700 Ko par carte, affiché en permanence dans l'éditeu
 Une photo de 9 Mo tombe à ~85 Ko ; le plafond tient donc environ huit figures par
 carte, ce qui dépasse tout usage réel. Si ce plafond devenait gênant, c'est le
 signal qu'il faut basculer sur Storage — et non contourner la limite.
+
+---
+
+## Aperçu de la carte : une bascule dans l'éditeur, et un montage partagé
+
+**Choix** — L'éditeur gagne une bascule **Édition ⇄ Aperçu**, posée dans
+l'en-tête. L'aperçu montre la carte **montée** — titre, recto, indication,
+verso, images, note — d'un seul coup, avec les styles exacts du test, construite
+à partir des **valeurs courantes du formulaire** (pas de la carte enregistrée).
+La barre d'actions (*Enregistrer* / *Annuler*) reste visible en aperçu. Ce n'est
+pas une route : le formulaire est masqué mais conservé dans le DOM.
+
+Ce montage n'est pas réécrit : il est extrait dans un fichier neuf,
+`js/carte.js`, qui exporte `faceCarte(card, { hint, back })` — l'écran de test
+l'appelle avec son état courant, l'aperçu avec les deux à vrai.
+
+Le mot **aperçu** change de sens au passage : il désigne désormais cette vue.
+Les boîtes de rendu sous chaque champ, qui portaient le mot, deviennent des
+**rendus** (`.rendu`).
+
+**Alternative écartée** — (a) un bloc d'aperçu permanent en bas du formulaire ;
+(b) une modale ; (c) un aperçu **fidèle au déroulé** du test (recto, puis bouton
+*Indication*, puis bouton *Réponse*) ; (d) la duplication du montage dans
+l'éditeur ; (e) un écran de **lecture seule** atteint depuis la liste des cartes,
+le clic ouvrant la carte au lieu de l'éditeur.
+
+**Raison** — Quatre arbitrages, tous dans le même sens : l'aperçu ne doit jamais
+mentir, et ne doit rien coûter au geste de correction.
+
+D'abord, **il ne peut pas avoir sa propre copie du rendu**. Une fonctionnalité
+dont le seul but est « voir ce que ça donnera » perd toute valeur si elle diverge
+de la référence — et elle divergerait en silence, au premier champ ajouté ou au
+premier changement d'ordre verso/images/note. D'où `js/carte.js`, premier
+**composant** de l'app : ni une vue (pas de route, ne lit pas le store), ni un
+helper DOM. La carte du dépôt gagne donc une catégorie de fichier ; c'est le
+coût, et il est payé une fois.
+
+Ensuite, **tout d'un coup plutôt que le déroulé (c)**. Ce qu'on cherche à
+attraper est une coquille LaTeX ou une formule qui déborde, et elle est presque
+toujours au verso : rejouer le déroulé mettrait le verso à deux clics derrière
+*chaque* rafraîchissement. Ce qu'on perd, explicitement : on ne juge pas « mon
+recto tient-il sans son verso » ni « mon indication en dit-elle trop ». Les
+libellés de section gardent malgré tout la frontière visible.
+
+Ensuite, **une bascule plein cadre (b) plutôt qu'un bloc permanent (a)**.
+L'éditeur fait déjà six champs, chacun avec sa saisie, sa barre d'insertion et
+son rendu : un aperçu en pied de formulaire serait à plusieurs écrans du champ
+qu'on tape, et déplacerait le bas de page en permanence. La modale coûtait les
+pièges habituels (focus, fermeture, défilement du fond) pour le même résultat.
+La barre d'actions survit en aperçu parce que le geste réel finit là : *je tape,
+je bascule, je vérifie, c'est bon, j'enregistre* — repasser par le formulaire
+pour ce dernier pas serait un péage sur le seul chemin où l'on est sûr de soi.
+Corollaire à ne pas perdre : si l'enregistrement échoue sur la validation, on
+**rebascule en édition**, sinon le message d'erreur s'afficherait dans un
+formulaire masqué.
+
+Enfin, **les rendus par champ restent**. Ils ne servent pas au même instant : le
+rendu répond *pendant* la frappe (l'accolade manquante se voit à la seconde où
+on la rate), l'aperçu répond *après*, sur le montage. Le renommage lève
+l'ambiguïté qui aurait sinon donné deux sens au mot « aperçu » dans le même
+fichier.
+
+> Contexte qui a relâché la contrainte d'écran : la saisie se fait **sur PC
+> uniquement** — le téléphone ne sert qu'à se tester. L'éditeur peut donc
+> s'autoriser une bascule d'en-tête et un formulaire long, là où l'écran de test
+> reste, lui, strictement mobile-first.
+>
+> L'écran de lecture seule (e) a été écarté sans regret : relire un chapitre sans
+> rien modifier, c'est déjà ce que fait le mode « dans l'ordre ».
+
+---
+
+## Gardes du dépôt (et pourquoi ce ne sont pas des tests)
+
+**Choix** — Un script Python unique, `tools/check.py`, vérifie quatre invariants
+du dépôt : (G1) tout import relatif mène à un fichier existant ; (G2) la `COQUE`
+de `sw.js` et l'arborescence se correspondent **dans les deux sens** ; (G3)
+`VERSION` diffère de celle du commit que le déploiement va remplacer ; (G4)
+aucune URL de CDN en dur. Il est déclenché par un hook `pre-push`
+(`.githooks/pre-push`, activé par `git config core.hooksPath .githooks`) et,
+en rattrapage, par `.github/workflows/gardes.yml`.
+
+**Alternative écartée** — Des tests unitaires sur `js/quiz.js` comme première
+brique, ainsi que le laissait entendre le « cap » annoncé dans `CLAUDE.md`.
+
+**Raison** — Un test vérifie qu'un code **calcule** juste. Or ce qui a réellement
+coûté du temps ici n'a jamais été un calcul faux : c'était du code correct qui
+n'arrivait pas au navigateur, ou qui y arrivait sans qu'on puisse le savoir.
+L'app n'a ni build, ni bundler, ni compilateur — rien ne relit les imports, rien
+ne vérifie que la liste de préchargement du service worker suit l'arborescence.
+Ces quatre pannes passeraient tous les tests unitaires du monde.
+
+Le vocabulaire n'est pas cosmétique : **« test » est déjà pris**. `CONTEXT.md` le
+définit comme « une suite de cartes d'une seule catégorie ». Ranger ces
+vérifications sous « les tests » ferait porter deux sens au mot central de l'app,
+et surtout laisserait croire dans six mois que la logique est vérifiée alors que
+rien n'exécute une seule ligne de `js/`. D'où **garde** — qui vérifie un
+invariant du dépôt **sans rien exécuter** — gardé distinct de **test**, qui
+viendra quand `js/quiz.js` ou `js/mathtext.js` aura de quoi se tromper.
+
+**Le blocage est local, pas en CI — et c'est une contrainte subie, pas un
+goût.** GitHub Pages est en `build_type: legacy` : il publie dès qu'un commit
+atterrit sur `main`. Une Action ne peut donc rien empêcher ; quand elle échoue,
+le code cassé est déjà en ligne. Rendre le blocage réel supposerait de passer la
+source Pages en « GitHub Actions » et d'écrire soi-même le déploiement
+(`upload-pages-artifact` + `deploy-pages`). Refusé sur une asymétrie : en l'état,
+le pire cas est du code cassé en ligne, réparé par un push de trente secondes ;
+avec un déploiement maison, le pire cas est la **publication elle-même** en
+panne — et on débogue du YAML au lieu de faire des maths. Le workflow reste comme
+filet pour les cas où le hook n'a pas joué (autre poste, clone sans
+`core.hooksPath`, `--no-verify`).
+
+**Corollaires assumés** :
+
+1. **Le hook est contournable** (`git push --no-verify`). Voulu : un garde
+   inévitable finit désinstallé. Corollaire du corollaire — tout message d'échec
+   doit dire **quoi faire**, pas seulement que ça a échoué, sinon `--no-verify`
+   devient le réflexe.
+2. **Un garde qu'on ne peut pas vérifier s'affiche `[--] non vérifié`**, jamais
+   `[ok]`. C'est le cas de G3 sur un clone neuf ou un `workflow_dispatch`. Un
+   garde neutralisé qui se déclare vert est pire que pas de garde du tout.
+3. **G2 est en dur sur la forme de `COQUE`.** Si la déclaration change de forme,
+   le garde le dit et échoue — il ne se tait pas.

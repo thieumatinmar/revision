@@ -1,9 +1,19 @@
 // views/editeur.js — création et modification d'une carte.
 //
-// Chaque champ montre son rendu juste en dessous, mis à jour à la frappe. Écrire
-// du LaTeX à l'aveugle et découvrir la coquille en plein test est exactement ce
-// qu'on cherche à éviter (docs/decisions.md, « Corriger une carte depuis le
-// test »).
+// Chaque champ montre son **rendu** juste en dessous, mis à jour à la frappe.
+// Écrire du LaTeX à l'aveugle et découvrir la coquille en plein test est
+// exactement ce qu'on cherche à éviter (docs/decisions.md, « Corriger une carte
+// depuis le test »).
+//
+// L'écran a deux visages, sur la même route : **Édition** (le formulaire) et
+// **Aperçu** (la carte montée, comme en test, toutes faces révélées). La bascule
+// vit dans l'en-tête. Ce n'est pas une route de plus : le formulaire est
+// seulement masqué, jamais détruit — sinon une bascule perdrait les saisies non
+// enregistrées.
+//
+// Les deux ne se recouvrent pas : le rendu par champ répond *pendant* la frappe,
+// l'aperçu répond *après*, sur le montage — et lui seul montre si le verso
+// déborde ou si la note tombe au mauvais endroit.
 //
 // Deux points d'entrée, d'où deux retours possibles :
 //   #/carte/nouvelle/<categoryId>   création  → retour à la liste du chapitre
@@ -12,6 +22,7 @@
 
 import { el, fill } from '../dom.js';
 import { render as renderMath } from '../mathtext.js';
+import { faceCarte } from '../carte.js';
 import { getCard, saveCard, deleteCard, listCategories } from '../store.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
@@ -52,7 +63,16 @@ export async function render(ctx) {
     : `#/cartes/${card.categoryId}`;
 
   ctx.setTitle(creation ? 'Nouvelle carte' : 'Modifier');
-  ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler'), null);
+
+  // La bascule est le seul bouton de l'en-tête à droite : c'est un changement de
+  // vue, pas une action sur la carte — sa place n'est pas dans le formulaire.
+  const bascule = el('button', {
+    class: 'btn btn-sm',
+    title: 'Voir la carte montée, comme en test',
+    on: { click: () => basculer(mode === 'edition' ? 'apercu' : 'edition') },
+  }, 'Aperçu');
+
+  ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler'), bascule);
 
   // --- Champs -----------------------------------------------------------------
   const categorie = el('select', {},
@@ -74,31 +94,73 @@ export async function render(ctx) {
 
   const images = champImages(Array.isArray(card.images) ? [...card.images] : []);
 
-  ctx.root.append(
+  // --- Les deux visages de l'écran --------------------------------------------
+  const formulaire = el('div', {},
     el('label', { class: 'small muted' }, 'Chapitre'),
     categorie,
     titre.bloc,
     recto.bloc, indication.bloc, verso.bloc, images.bloc, note.bloc,
     erreur,
+  );
+
+  const zoneApercu = el('div', { style: 'display:none' });
+
+  // Supprimer ne concerne que l'édition : en aperçu, on regarde une carte, on ne
+  // la détruit pas.
+  const zoneSuppression = creation ? null : el('div', { style: 'margin-top:28px;text-align:center' },
+    el('button', {
+      class: 'btn-sm',
+      style: 'color:#e8695f',
+      on: { click: supprimer },
+    }, 'Supprimer cette carte'),
+  );
+
+  // La barre d'actions est **commune aux deux visages** : le geste réel finit en
+  // aperçu (« je vérifie, c'est bon, j'enregistre ») et repasser par le
+  // formulaire pour ce dernier pas serait un aller-retour pour rien.
+  ctx.root.append(
+    formulaire,
+    zoneApercu,
     el('div', { class: 'actions' },
       el('button', { class: 'btn-primary', on: { click: enregistrer } }, 'Enregistrer'),
       el('a', { class: 'btn', href: retour }, 'Annuler'),
     ),
-    !creation && el('div', { style: 'margin-top:28px;text-align:center' },
-      el('button', {
-        class: 'btn-sm',
-        style: 'color:#e8695f',
-        on: { click: supprimer },
-      }, 'Supprimer cette carte'),
-    ),
+    zoneSuppression,
   );
 
-  async function enregistrer() {
-    if (!recto.input.value.trim() || !verso.input.value.trim()) {
-      erreur.textContent = 'Le recto et le verso sont obligatoires.';
-      return;
+  /** Visage courant : 'edition' ou 'apercu'. */
+  let mode = 'edition';
+
+  /**
+   * Passe d'un visage à l'autre. Le formulaire n'est que masqué : ses valeurs
+   * restent lisibles par `valeurs()` et `enregistrer()`, et une bascule ne perd
+   * donc jamais une saisie.
+   */
+  function basculer(vers) {
+    mode = vers;
+    const enApercu = vers === 'apercu';
+
+    // L'aperçu se reconstruit à chaque bascule, à partir des valeurs **du
+    // formulaire** — jamais de la carte enregistrée, qui ignore ce qu'on vient
+    // de corriger.
+    if (enApercu) {
+      fill(zoneApercu,
+        el('p', { class: 'small muted' },
+          'Aperçu — la carte telle qu’elle apparaîtra en test, toutes faces révélées.'),
+        faceCarte(valeurs(), { hint: true, back: true }),
+      );
     }
-    await saveCard({
+
+    formulaire.style.display = enApercu ? 'none' : '';
+    zoneApercu.style.display = enApercu ? '' : 'none';
+    if (zoneSuppression) zoneSuppression.style.display = enApercu ? 'none' : '';
+    bascule.textContent = enApercu ? '‹ Édition' : 'Aperçu';
+    window.scrollTo(0, 0);
+  }
+
+  /** La carte telle que le formulaire la décrit à cet instant. */
+  function valeurs() {
+    return {
       ...card,
       categoryId: categorie.value,
       title: titre.input.value.trim(),
@@ -107,7 +169,18 @@ export async function render(ctx) {
       back: verso.input.value,
       note: note.input.value,
       images: images.valeur(),
-    });
+    };
+  }
+
+  async function enregistrer() {
+    if (!recto.input.value.trim() || !verso.input.value.trim()) {
+      // Le message vit dans le formulaire : l'afficher sans revenir dessus
+      // reviendrait à ne rien afficher du tout.
+      basculer('edition');
+      erreur.textContent = 'Le recto et le verso sont obligatoires.';
+      return;
+    }
+    await saveCard(valeurs());
     // La catégorie a pu changer : on repart de celle qui vient d'être choisie.
     location.hash = origine === 'test' ? `#/test/${categorie.value}` : `#/cartes/${categorie.value}`;
   }
@@ -127,23 +200,23 @@ export async function render(ctx) {
  * parle.
  *
  * Le LaTeX y est accepté : « Fonction génératrice $G_X$ » est un titre légitime.
- * D'où l'aperçu, réduit à une ligne.
+ * D'où le rendu, réduit à une ligne.
  */
 function champTitre(valeur) {
-  const apercu = el('div', { class: 'apercu mathtext', style: 'min-height:0;padding:8px 12px' });
+  const rendu = el('div', { class: 'rendu mathtext', style: 'min-height:0;padding:8px 12px' });
   const input = el('input', { value: valeur || '', placeholder: 'Ex. : Inégalité de Bienaymé–Tchebychev' });
-  const rafraichir = () => renderMath(apercu, input.value);
+  const rafraichir = () => renderMath(rendu, input.value);
   input.addEventListener('input', rafraichir);
 
   const bloc = el('div', { class: 'champ' },
     el('label', { class: 'small muted' }, 'Titre (facultatif) — de quoi parle la carte'),
     input,
-    // L'aperçu ne s'affiche que s'il y a une formule à montrer : sinon c'est une
+    // Le rendu ne s'affiche que s'il y a une formule à montrer : sinon c'est une
     // boîte vide qui répète bêtement ce qu'on vient de taper.
-    apercu,
+    rendu,
   );
 
-  const majVisibilite = () => { apercu.style.display = input.value.includes('$') ? '' : 'none'; };
+  const majVisibilite = () => { rendu.style.display = input.value.includes('$') ? '' : 'none'; };
   input.addEventListener('input', majVisibilite);
   rafraichir();
   majVisibilite();
@@ -240,13 +313,13 @@ function champImages(images) {
 }
 
 /**
- * Un champ = libellé, zone de saisie, barre d'insertion, aperçu rendu.
+ * Un champ = libellé, zone de saisie, barre d'insertion, rendu du LaTeX tapé.
  * Renvoie le bloc à insérer et la zone de saisie, pour lire sa valeur ensuite.
  */
 function champ(libelle, valeur, placeholder) {
-  const apercu = el('div', { class: 'apercu mathtext' });
+  const rendu = el('div', { class: 'rendu mathtext' });
   const input = el('textarea', { placeholder, value: valeur || '' });
-  const rafraichir = () => renderMath(apercu, input.value);
+  const rafraichir = () => renderMath(rendu, input.value);
   input.addEventListener('input', rafraichir);
 
   const barre = el('div', { class: 'raccourcis' },
@@ -261,7 +334,7 @@ function champ(libelle, valeur, placeholder) {
     el('label', { class: 'small muted' }, libelle),
     input,
     barre,
-    apercu,
+    rendu,
   );
 
   rafraichir();
@@ -275,5 +348,5 @@ function entourer(input, avant, apres) {
   const curseur = d + avant.length + (f - d);
   input.focus();
   input.setSelectionRange(curseur, curseur);
-  input.dispatchEvent(new Event('input'));   // déclenche le rafraîchissement de l'aperçu
+  input.dispatchEvent(new Event('input'));   // déclenche le rafraîchissement du rendu
 }

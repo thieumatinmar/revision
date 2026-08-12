@@ -47,6 +47,22 @@ piège classique, l'hypothèse qui mord, l'idée de preuve, le moyen mnémotechn
 _Code_: `note`
 _Éviter_: remarque, commentaire, astuce
 
+## L'écriture
+
+**Aperçu** :
+La carte **montée**, telle qu'elle apparaîtra en test, vue depuis l'éditeur.
+Toutes ses faces d'un coup : rien n'y est caché, rien ne s'y révèle — ce n'est
+donc pas un test sur une seule carte, c'est une vérification avant de ranger.
+_Code_: `faceCarte()`
+_Éviter_: prévisualisation, simulation, mode lecture
+
+**Rendu** :
+La boîte qui montre, sous un champ de l'éditeur, ce que le LaTeX qu'on est en
+train de taper donne une fois composé. Un seul champ à la fois, pendant la
+frappe — là où l'aperçu attend qu'on ait fini.
+_Code_: `.rendu`
+_Éviter_: aperçu (réservé à la carte entière), preview, sortie
+
 ## L'organisation
 
 **Catégorie** :

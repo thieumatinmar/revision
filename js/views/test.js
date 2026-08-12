@@ -12,10 +12,13 @@
 //
 // L'écran se redessine lui-même au lieu de repasser par le routeur :
 // `ctx.refresh()` relirait les cartes en base à chaque « suivante », pour rien.
+//
+// La carte elle-même n'est pas montée ici mais dans `carte.js` : l'aperçu de
+// l'éditeur doit afficher **le même** montage, sous peine de mentir.
 
 import { el, fill } from '../dom.js';
-import { render as renderMath } from '../mathtext.js';
 import { listCards, getCategory } from '../store.js';
+import { faceCarte } from '../carte.js';
 import { nextCard, MODES } from '../quiz.js';
 
 export async function render(ctx) {
@@ -98,36 +101,9 @@ export async function render(ctx) {
     fill(stage,
       selecteurDeMode(),
 
-      el('div', { class: 'card-face' },
-        // Le titre est facultatif : sans lui, la carte commence directement au
-        // recto, sans en-tête vide.
-        card.title
-          ? renderMath(el('div', { class: 'titre-carte' }), card.title)
-          : el('div', { class: 'face-label' }, 'Recto'),
-        renderMath(el('div'), card.front),
-
-        showHint && card.hint && el('div', { class: 'hint' },
-          el('div', { class: 'face-label' }, 'Indication'),
-          renderMath(el('div'), card.hint),
-        ),
-
-        showBack && el('hr'),
-        showBack && el('div', { class: 'face-label' }, 'Verso'),
-        showBack && renderMath(el('div'), card.back),
-
-        // Les images font partie de la réponse : elles n'apparaissent donc
-        // qu'avec le verso, jamais avant.
-        showBack && Array.isArray(card.images) && card.images.length > 0
-          && el('div', { class: 'images-verso' },
-            card.images.map((url, i) => el('img', {
-              src: url,
-              alt: `Image ${i + 1} de la réponse`,
-              loading: 'lazy',
-            })),
-          ),
-
-        showBack && card.note && el('div', { class: 'note' }, renderMath(el('div'), card.note)),
-      ),
+      // Le montage de la carte vit dans `carte.js` : l'aperçu de l'éditeur
+      // affiche exactement le même, avec les deux faces révélées.
+      faceCarte(card, { hint: showHint, back: showBack }),
 
       el('div', { class: 'actions' },
         // L'indication ne s'offre que si la carte en a une, et disparaît une

@@ -224,7 +224,7 @@ input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); ou
 input[type="search"] { margin-bottom: 14px; }
 
 /* Barre d'insertion : elle dÃ©file horizontalement plutÃ´t que de passer Ã  la
-   ligne, pour ne pas repousser l'aperÃ§u hors de l'Ã©cran sur tÃ©lÃ©phone. */
+   ligne, pour ne pas repousser le rendu hors de l'ecran sur telephone. */
 .raccourcis {
   display: flex;
   gap: 6px;
@@ -236,7 +236,9 @@ input[type="search"] { margin-bottom: 14px; }
 .raccourcis::-webkit-scrollbar { display: none; }
 .raccourcis button { flex: 0 0 auto; color: var(--fg-dim); }
 
-.apercu {
+/* Le rendu d'**un** champ, pendant la frappe. À ne pas confondre avec l'aperçu,
+   qui est la carte entière montée (bascule de l'éditeur, cf. CONTEXT.md). */
+.rendu {
   border: 1px dashed var(--line);
   border-radius: 10px;
   padding: 12px;

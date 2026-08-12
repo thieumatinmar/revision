@@ -62,6 +62,10 @@ on l'inscrit ici avec sa frontière.
   Arborescence `users/{uid}/categories` et `users/{uid}/cards` : c'est cette
   forme qui rend la règle de sécurité tenable en une ligne, la changer
   obligerait à revoir les règles publiées.
+- `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
+  et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
+  DOM. Partagé par l'écran de test et l'aperçu de l'éditeur — le dupliquer ferait
+  mentir l'aperçu, et en silence.
 - `js/dom.js` — deux micro-helpers (`el`, `fill`). Pas un framework.
 - `js/app.js` — coque : routeur par `#/…`, en-tête, rendu de la vue courante.
   Oriente, ne calcule pas.
@@ -72,6 +76,11 @@ on l'inscrit ici avec sa frontière.
   CDN : une PWA hors ligne ne peut pas aller chercher son moteur de rendu
   ailleurs. Fichiers **non modifiés à la main**, sauf le CSS dont les variantes
   `.woff`/`.ttf` ont été retirées (elles n'étaient pas téléchargées → 404).
+- `tools/check.py` — les **gardes** du dépôt (voir *Gardes* plus bas). Aucune
+  dépendance, ne lance aucun JavaScript.
+- `.githooks/pre-push` — déclenche les gardes avant chaque `git push`. Seul point
+  de contrôle capable d'arrêter un déploiement, Pages publiant depuis `main`.
+- `.github/workflows/gardes.yml` — les mêmes gardes en rattrapage côté GitHub.
 - `vendor/firebase/` — SDK Firebase 12.9.0 (app, auth, firestore), vendorisé pour
   la même raison. **Une** modification à la main : les imports absolus vers
   `gstatic.com` ont été réécrits en chemins relatifs, sans quoi le bundle
@@ -153,12 +162,20 @@ vocabulaire dans `CONTEXT.md`.
 - **Code en anglais**, y compris les noms de champs stockés.
 - **Interface en français** : c'est l'app de Mathieu, pas un produit.
 
-### Tests
+### Gardes et tests — deux choses distinctes
 
-- **Pas de test unitaire pour l'instant** : le découpage bouge encore trop pour
-  qu'un test soit rentable. On valide à la main.
-- Le **cap** pour quand les tests reviendront : la logique de planification des
-  révisions (pure, sans I/O, sans DOM) est la première cible évidente.
+- Un **garde** vérifie un invariant du **dépôt**, sans exécuter une seule ligne
+  de JavaScript : les imports résolvent, la `COQUE` suit l'arborescence, la
+  version a bougé, aucun CDN en dur. C'est `tools/check.py`.
+- Un **test** exécute du code et vérifie un **comportement**. Il n'y en a
+  toujours aucun.
+- Ne jamais fondre les deux sous le mot « test » : d'une part `CONTEXT.md`
+  définit déjà *Test* comme une suite de cartes, d'autre part « les tests
+  passent » laisserait croire que la logique est vérifiée alors que rien ne
+  l'exécute. Voir `docs/decisions.md`, « Gardes du dépôt ».
+- Le **cap** pour quand les vrais tests viendront : `js/quiz.js` (`nextCard`,
+  pur, sans I/O ni DOM), puis `js/mathtext.js` — ce dernier demandera un DOM et
+  KaTeX, donc ce n'est pas la première marche.
 
 ### Décisions d'architecture
 
@@ -189,9 +206,27 @@ python -m http.server 8123    # servir l'app, puis ouvrir http://localhost:8123
 
 Il faut un serveur : les modules ES ne se chargent pas depuis un `file://`.
 
+```bash
+python tools/check.py         # lancer les gardes à la main
+```
+
+À faire une fois par clone, sans quoi le hook `pre-push` ne s'exécute jamais
+(`.git/hooks/` n'est pas versionné) :
+
+```bash
+git config core.hooksPath .githooks
+```
+
 **Mise en ligne** : incrémenter `VERSION` dans `js/version.js`, puis
 `git push origin main`. GitHub Pages reconstruit tout seul — il n'y a rien à
-déployer à la main, puisqu'il n'y a rien à compiler.
+déployer à la main, puisqu'il n'y a rien à compiler. Le hook `pre-push` lance les
+gardes au passage, et refuse le push si l'un échoue (`--no-verify` pour passer
+outre en connaissance de cause).
+
+> **Le blocage est local, et il ne peut pas être ailleurs** : Pages est en
+> `build_type: legacy`, il publie dès qu'un commit atteint `main`. Le workflow
+> `gardes.yml` ne bloque donc rien — quand sa croix rouge apparaît, le code est
+> déjà en ligne. Il sert de filet, pas de barrière.
 
 > Pourquoi incrémenter la version : GitHub Pages sert avec `max-age=600`, donc un
 > navigateur peut afficher du code vieux de dix minutes. Sans repère visible (bas
