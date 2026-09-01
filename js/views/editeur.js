@@ -24,21 +24,6 @@ import { faceCarte } from '../carte.js';
 import { getCard, saveCard, deleteCard, listCategories } from '../store.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
-/** Insertions rapides : ce qu'on tape le plus souvent, en un tap sur mobile. */
-const RACCOURCIS = [
-  ['$…$',   '$', '$'],
-  ['$$…$$', '$$\n', '\n$$'],
-  ['frac',  '\\frac{', '}{}'],
-  ['sum',   '\\sum_{k=0}^{n} ', ''],
-  ['int',   '\\int_a^b ', '\\,\\dd x'],
-  ['lim',   '\\lim_{n\\to\\infty} ', ''],
-  ['P',     '\\P(', ')'],
-  ['E',     '\\E[', ']'],
-  ['Var',   '\\V(', ')'],
-  ['≤',     '\\le ', ''],
-  ['⇒',     '\\Rightarrow ', ''],
-];
-
 /**
  * Délai avant de recomposer l'aperçu, en ms. Recomposer tout le KaTeX à chaque
  * touche saccade la frappe ; à 150 ms l'attente ne se voit pas.
@@ -233,7 +218,7 @@ export async function render(ctx) {
 }
 
 /**
- * Le titre : une seule ligne, pas de barre d'insertion.
+ * Le titre : une seule ligne.
  *
  * Facultatif. Il sert à retrouver la carte dans la liste et la recherche, et il
  * est affiché pendant le test, au-dessus du recto, comme intitulé de ce dont on
@@ -346,39 +331,21 @@ function champImages(images, auChangement = () => {}) {
 }
 
 /**
- * Un champ = libellé, zone de saisie, barre d'insertion.
+ * Un champ = libellé et zone de saisie. Rien d'autre.
  *
- * Plus de boîte de rendu sous le champ : l'aperçu de droite compose déjà le
- * LaTeX à la frappe, et une coquille s'y signale **en place** (`.math-error`,
- * cf. `mathtext.js`). Deux copies du même contenu allongeraient la colonne sans
- * rien montrer de plus.
+ * Ni boîte de rendu sous le champ (l'aperçu de droite compose déjà le LaTeX à la
+ * frappe, et une coquille s'y signale **en place** — `.math-error`, cf.
+ * `mathtext.js`), ni barre d'insertion : elle visait le tap sur téléphone, où
+ * l'on ne saisit pas, et au clavier on tape plus vite que l'on ne vise un
+ * bouton. Ce qu'elle prenait en hauteur, la zone de saisie le récupère.
  */
 function champ(libelle, valeur, placeholder) {
   const input = el('textarea', { placeholder, value: valeur || '' });
 
-  const barre = el('div', { class: 'raccourcis' },
-    RACCOURCIS.map(([texte, avant, apres]) => el('button', {
-      type: 'button',
-      class: 'btn-sm',
-      on: { click: () => entourer(input, avant, apres) },
-    }, texte)),
-  );
-
   const bloc = el('div', { class: 'champ' },
     el('label', { class: 'small muted' }, libelle),
     input,
-    barre,
   );
 
   return { bloc, input };
-}
-
-/** Entoure la sélection (ou insère au curseur), puis rend le focus au champ. */
-function entourer(input, avant, apres) {
-  const { selectionStart: d, selectionEnd: f, value } = input;
-  input.value = value.slice(0, d) + avant + value.slice(d, f) + apres + value.slice(f);
-  const curseur = d + avant.length + (f - d);
-  input.focus();
-  input.setSelectionRange(curseur, curseur);
-  input.dispatchEvent(new Event('input'));   // déclenche le rafraîchissement de l'aperçu
 }

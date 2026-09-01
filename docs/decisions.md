@@ -558,7 +558,10 @@ filet pour les cas où le hook n'a pas joué (autre poste, clone sans
 
 **Choix** — L'éditeur devient une grille : **saisie à gauche, carte montée à
 droite**, l'aperçu redessiné à la frappe (après 150 ms de pause). Les boîtes de
-rendu sous chaque champ (`.rendu`) sont **supprimées**, celle du titre comprise.
+rendu sous chaque champ (`.rendu`) sont **supprimées**, celle du titre comprise,
+ainsi que la **barre d'insertion** (`.raccourcis` : `$…$`, `frac`, `sum`…) et la
+fonction `entourer()` qui la servait. Un champ n'est plus qu'un libellé et une
+zone de saisie, haute de 200 px au lieu de 140.
 L'aperçu reste `faceCarte()`, faces révélées. Sous 900 px, la grille se replie et
 la bascule de l'en-tête montre un visage à la fois, exactement comme avant ; au
 delà, la bascule est masquée et l'aperçu devient **collant**. `main` s'élargit à
@@ -582,6 +585,13 @@ une colonne qui devient deux fois plus longue — le contraire du but recherché
 Ce qu'on perd est mince : `.rendu` isolait la coquille sous *son* champ, mais
 `mathtext.js` signale déjà l'erreur **en place** (`.math-error`), à l'endroit de
 la formule fautive.
+
+La **barre d'insertion** tombe pour une raison voisine : elle avait été écrite
+« en un tap sur mobile », or on ne saisit pas sur mobile — et au clavier, taper
+`\frac{` est plus rapide que viser un bouton dans une barre qui défile. Elle
+coûtait deux lignes de hauteur sous *chaque* champ, dans la colonne qu'on
+cherche justement à raccourcir. La hauteur récupérée va à la saisie : 200 px au
+lieu de 140.
 
 Ce que l'ancienne entrée écartait — « un bloc d'aperçu permanent en bas du
 formulaire » — reste écarté, et cette décision n'y revient pas : un aperçu **en

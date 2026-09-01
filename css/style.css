@@ -214,8 +214,9 @@ textarea, select, input {
   padding: 10px 12px;
 }
 textarea {
-  /* ~5 lignes visibles : le LaTeX déborde vite sur 3. */
-  min-height: 140px;
+  /* ~8 lignes visibles. Le LaTeX déborde vite, et l'éditeur n'a plus ni barre
+     d'insertion ni boîte de rendu à loger sous le champ : la place va à la saisie. */
+  min-height: 200px;
   resize: vertical;
   /* Police Ã  chasse fixe : on Ã©crit du LaTeX, les accolades doivent s'aligner. */
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
@@ -223,19 +224,6 @@ textarea {
 }
 input:focus, textarea:focus, select:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
 input[type="search"] { margin-bottom: 14px; }
-
-/* Barre d'insertion : elle dÃ©file horizontalement plutÃ´t que de passer Ã  la
-   ligne, pour ne pas repousser le rendu hors de l'ecran sur telephone. */
-.raccourcis {
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  margin: 8px 0;
-  padding-bottom: 4px;
-  scrollbar-width: none;
-}
-.raccourcis::-webkit-scrollbar { display: none; }
-.raccourcis button { flex: 0 0 auto; color: var(--fg-dim); }
 
 /* L'éditeur : la saisie à gauche, la carte montée à droite.
 
