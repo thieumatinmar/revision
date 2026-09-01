@@ -209,6 +209,26 @@ def guard_coque():
 VERSION_RE = re.compile(r"""VERSION\s*=\s*['"]([^'"]+)['"]""")
 
 
+def git(*args):
+    """Sortie d'une commande git, ou None si elle échoue (ref absente, pas de dépôt)."""
+    try:
+        return subprocess.run(['git', *args], cwd=ROOT, capture_output=True,
+                              text=True, check=True).stdout
+    except (subprocess.CalledProcessError, FileNotFoundError):
+        return None
+
+
+def nothing_to_deliver(ref):
+    """Aucun commit d'avance sur la référence, et rien de modifié sur disque."""
+    ahead = git('rev-list', '--count', f'{ref}..HEAD')
+    if ahead is None or ahead.strip() != '0':
+        return False
+    # `--untracked-files=no` : un fichier non suivi ne partira pas au push, il ne
+    # constitue donc rien à livrer. Seul le suivi modifié compte.
+    dirty = git('status', '--porcelain', '--untracked-files=no')
+    return dirty is not None and dirty.strip() == ''
+
+
 def guard_version(ref):
     """G3 — VERSION diffère de celle du commit de référence.
 
@@ -228,12 +248,16 @@ def guard_version(ref):
         skip('G3', "G3 : aucune référence de comparaison fournie.")
         return []
 
-    try:
-        previous_source = subprocess.run(
-            ['git', 'show', f'{ref}:js/version.js'],
-            cwd=ROOT, capture_output=True, text=True, check=True,
-        ).stdout
-    except (subprocess.CalledProcessError, FileNotFoundError):
+    # Rien à livrer = rien à reprocher. Juste après un push, la version sur
+    # disque **est** celle en ligne : c'est l'état normal, pas une faute. Crier
+    # au rouge là-dessus apprendrait à ignorer les gardes.
+    if nothing_to_deliver(ref):
+        skip('G3', f"G3 : rien à livrer (aucun commit d'avance sur {ref}, "
+                   f"arbre de travail propre).")
+        return []
+
+    previous_source = git('show', f'{ref}:js/version.js')
+    if previous_source is None:
         skip('G3', f"G3 : '{ref}:js/version.js' est introuvable "
                    f"(dépôt fraîchement cloné, ou `git fetch` à faire).")
         return []
