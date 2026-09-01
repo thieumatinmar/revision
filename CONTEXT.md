@@ -24,9 +24,12 @@ La face visible d'emblée : ce qui est demandé.
 _Code_: `front`
 _Éviter_: question, avant, face A
 
-**Indication** :
+**Indication** *(en extinction)* :
 Un coup de pouce, facultatif, que l'on demande explicitement quand on sèche —
-avant de retourner la carte. La révéler ne révèle pas la réponse.
+avant de retourner la carte. La révéler ne révèle pas la réponse. **On n'en
+écrit plus** : l'éditeur ne montre le champ que sur une carte qui en porte déjà
+une, et le vider l'éteint définitivement. Le terme reste au glossaire tant que
+des cartes en portent.
 _Code_: `hint`
 _Éviter_: aide, indice, tip
 
@@ -41,27 +44,24 @@ main. Elle fait partie du verso : elle n'apparaît jamais avant lui.
 _Code_: `images`
 _Éviter_: photo, illustration, pièce jointe, figure
 
-**Note** :
+**Note** *(en extinction)* :
 Un commentaire facultatif attaché à la carte, affiché **avec** le verso : le
 piège classique, l'hypothèse qui mord, l'idée de preuve, le moyen mnémotechnique.
+**On n'en écrit plus**, aux mêmes conditions que l'indication : ce qui est à dire
+avec la réponse se dit désormais dans le verso.
 _Code_: `note`
 _Éviter_: remarque, commentaire, astuce
 
 ## L'écriture
 
 **Aperçu** :
-La carte **montée**, telle qu'elle apparaîtra en test, vue depuis l'éditeur.
-Toutes ses faces d'un coup : rien n'y est caché, rien ne s'y révèle — ce n'est
-donc pas un test sur une seule carte, c'est une vérification avant de ranger.
+La carte **montée**, telle qu'elle apparaîtra en test, vue depuis l'éditeur, à
+côté de la saisie et redessinée à la frappe. Toutes ses faces d'un coup : rien
+n'y est caché, rien ne s'y révèle — ce n'est donc pas un test sur une seule
+carte, c'est ce qu'on regarde pendant qu'on écrit. C'est le **seul** endroit de
+l'éditeur où le LaTeX est composé.
 _Code_: `faceCarte()`
-_Éviter_: prévisualisation, simulation, mode lecture
-
-**Rendu** :
-La boîte qui montre, sous un champ de l'éditeur, ce que le LaTeX qu'on est en
-train de taper donne une fois composé. Un seul champ à la fois, pendant la
-frappe — là où l'aperçu attend qu'on ait fini.
-_Code_: `.rendu`
-_Éviter_: aperçu (réservé à la carte entière), preview, sortie
+_Éviter_: prévisualisation, simulation, mode lecture, rendu
 
 ## L'organisation
 

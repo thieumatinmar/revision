@@ -545,3 +545,83 @@ filet pour les cas où le hook n'a pas joué (autre poste, clone sans
    garde neutralisé qui se déclare vert est pire que pas de garde du tout.
 3. **G2 est en dur sur la forme de `COQUE`.** Si la déclaration change de forme,
    le garde le dit et échoue — il ne se tait pas.
+4. **G3 se tait quand il n'y a rien à livrer** (aucun commit d'avance sur la
+   référence *et* arbre de travail propre). Sans ça, tout lancement manuel juste
+   après un push s'afficherait en rouge — la version sur disque **est** alors
+   celle en ligne, c'est l'état normal. Un garde qui crie à tort est un garde
+   qu'on apprend à ignorer, ce qui le rend pire qu'absent. Un fichier non suivi
+   ne compte pas : il ne partira pas au push.
+
+---
+
+## L'éditeur en deux colonnes, et la fin des rendus par champ
+
+**Choix** — L'éditeur devient une grille : **saisie à gauche, carte montée à
+droite**, l'aperçu redessiné à la frappe (après 150 ms de pause). Les boîtes de
+rendu sous chaque champ (`.rendu`) sont **supprimées**, celle du titre comprise.
+L'aperçu reste `faceCarte()`, faces révélées. Sous 900 px, la grille se replie et
+la bascule de l'en-tête montre un visage à la fois, exactement comme avant ; au
+delà, la bascule est masquée et l'aperçu devient **collant**. `main` s'élargit à
+1180 px **sur ce seul écran**, via `main:has(.editeur)`.
+
+Cette entrée **renverse un point** de « Aperçu de la carte : une bascule dans
+l'éditeur, et un montage partagé » — son « les rendus par champ restent » et le
+terme **Rendu** qu'elle introduisait. Tout le reste de cette entrée tient : le
+montage partagé, l'aperçu construit sur les valeurs du formulaire, la barre
+d'actions hors des deux visages, le retour forcé en édition quand la validation
+échoue.
+
+**Alternative écartée** — Garder `.rendu` sous chaque champ, à côté de l'aperçu
+permanent ; ou le garder replié, ouvert à la demande.
+
+**Raison** — L'argument d'origine (« ils ne servent pas au même instant : le
+rendu *pendant* la frappe, l'aperçu *après* ») tombe dès lors que l'aperçu est
+lui-même permanent et vivant : il répond désormais pendant la frappe, sur le
+montage réel. Les garder, c'est composer le même LaTeX deux fois à l'écran, dans
+une colonne qui devient deux fois plus longue — le contraire du but recherché.
+Ce qu'on perd est mince : `.rendu` isolait la coquille sous *son* champ, mais
+`mathtext.js` signale déjà l'erreur **en place** (`.math-error`), à l'endroit de
+la formule fautive.
+
+Ce que l'ancienne entrée écartait — « un bloc d'aperçu permanent en bas du
+formulaire » — reste écarté, et cette décision n'y revient pas : un aperçu **en
+bas** serait à plusieurs écrans du champ qu'on tape. C'est le passage **à côté**,
+en colonne collante, qui change la donne, et il n'était possible qu'à condition
+d'élargir l'écran. La contrainte qui l'autorise est déjà notée : la saisie se
+fait sur PC, le téléphone ne sert qu'à se tester.
+
+Choix par **classe** (`en-apercu` sur la grille) et non par style en ligne : un
+`display:none` posé pour l'écran étroit survivrait au passage en grand écran, un
+style en ligne battant toujours la feuille. Et `align-items: start` sur la
+grille, faute de quoi la colonne s'étire sur toute la hauteur et `position:
+sticky` n'a plus rien contre quoi coller.
+
+---
+
+## Indication et note : en extinction, pas supprimées
+
+**Choix** — On n'écrit plus d'**indication** ni de **note**. L'éditeur ne montre
+le champ que si la carte en porte déjà une ; le vider et enregistrer l'éteint
+**définitivement**, sans porte de sortie. Les champs `hint` et `note` restent
+dans le document Firestore et dans `faceCarte()`, qui continue de les afficher
+tant qu'ils ne sont pas vides. Aucune migration, aucune donnée détruite.
+
+**Alternative écartée** — (a) retirer les deux champs d'un coup, après avoir
+recensé et vidé à la main les cartes concernées ; (b) laisser un lien discret
+« + note » pour rouvrir un champ éteint.
+
+**Raison** — (a) supposait de savoir **où** ces champs ne sont pas vides. Or
+personne ne peut le dire depuis le dépôt : les cartes vivent dans Firestore,
+sous l'uid, derrière la connexion Google. Il aurait fallu écrire un outil de
+recensement jetable — du code, et un aller-retour de plus — pour une question
+qui s'évapore si l'on accepte que l'extinction soit **progressive** : chaque
+carte perd son encart le jour où on la repasse.
+
+(b) réintroduirait exactement ce qu'on supprime. Un champ qu'on peut rouvrir
+d'un clic n'est pas en extinction, c'est un champ replié.
+
+Le coût assumé : une note vidée par erreur, puis enregistrée, est perdue — le
+champ ne réapparaîtra pas. C'est le prix de l'irréversibilité, et il est faible
+devant ce qu'on gagne (un éditeur à trois champs au lieu de cinq). Le terme
+reste au glossaire, marqué *en extinction*, tant que des cartes en portent : le
+retirer ferait mentir `carte.js`, qui les affiche encore.

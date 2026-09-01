@@ -237,14 +237,39 @@ input[type="search"] { margin-bottom: 14px; }
 .raccourcis::-webkit-scrollbar { display: none; }
 .raccourcis button { flex: 0 0 auto; color: var(--fg-dim); }
 
-/* Le rendu d'**un** champ, pendant la frappe. À ne pas confondre avec l'aperçu,
-   qui est la carte entière montée (bascule de l'éditeur, cf. CONTEXT.md). */
-.rendu {
-  border: 1px dashed var(--line);
-  border-radius: 10px;
-  padding: 12px;
-  background: var(--bg-soft);
-  min-height: 46px;
+/* L'éditeur : la saisie à gauche, la carte montée à droite.
+
+   Sous 900 px la place manque pour deux colonnes — un seul visage à la fois,
+   choisi par la bascule de l'en-tête, qui pose `en-apercu` sur la grille. */
+.editeur-apercu { display: none; }
+.editeur.en-apercu .editeur-champs { display: none; }
+.editeur.en-apercu .editeur-apercu { display: block; }
+
+@media (min-width: 900px) {
+  /* L'éditeur est le seul écran à deux colonnes : lui seul s'élargit. Étaler
+     les listes de chapitres sur 1180 px les rendrait illisibles. `:has` cible
+     la vue depuis la feuille, sans faire connaître les écrans à app.js. */
+  main:has(.editeur) { max-width: 1180px; }
+
+  .editeur {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 28px;
+    /* Sans ça, la colonne s'étire sur toute la hauteur et `sticky` n'a plus
+       rien contre quoi coller : l'aperçu ne suivrait pas le défilement. */
+    align-items: start;
+  }
+
+  /* Les deux colonnes sont là : la bascule n'a plus d'objet, et un état
+     `en-apercu` hérité d'un écran étroit ne doit plus rien masquer. */
+  .bascule-apercu { display: none; }
+  .editeur.en-apercu .editeur-champs { display: block; }
+  .editeur-apercu,
+  .editeur.en-apercu .editeur-apercu {
+    display: block;
+    position: sticky;
+    top: 76px;                       /* juste sous l'en-tête collant */
+  }
 }
 
 /* ---------------------------------------------------------------- Images */
