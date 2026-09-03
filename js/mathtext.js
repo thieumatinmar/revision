@@ -121,3 +121,14 @@ export function excerpt(source, max = 110) {
   if (nbDollars % 2 === 1) cut = cut.slice(0, cut.lastIndexOf('$'));
   return cut.trimEnd() + '…';
 }
+
+/**
+ * Source dépouillée de ses délimiteurs mathématiques.
+ *
+ * Dans une liste, une formule rendue déforme la hauteur des lignes : on y montre
+ * donc la source LaTeX en texte brut, sans les `$`. Vit ici, avec `excerpt`, du
+ * jour où deux écrans en ont eu besoin — la liste des cartes et la bibliothèque.
+ */
+export function stripMath(source) {
+  return String(source ?? '').replace(/\$\$?/g, '');
+}

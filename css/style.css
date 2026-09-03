@@ -129,6 +129,22 @@ button:active, .btn:active { transform: translateY(1px); }
    ajouter d'étiquette sur chaque ligne, qui volerait la place du texte. */
 .list li.non-rangee { border-style: dashed; }
 
+/* La bibliothèque, sur l'accueil : un rayon à part, sous les chapitres.
+   Même habillage qu'une ligne de liste — c'est la même nature de geste (ouvrir
+   un rayon) — mais détaché par une marge et un trait, pour qu'on lise « et
+   par ailleurs » plutôt que « treizième chapitre ». */
+.bloc-bibliotheque {
+  display: block;
+  margin-top: 26px;
+  padding: 14px;
+  background: var(--bg-card);
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  text-decoration: none;
+  color: inherit;
+}
+.bloc-bibliotheque .name { font-weight: 550; }
+
 /* Choix du mode de test : deux boutons, au-dessus de la carte. */
 .modes { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
 

@@ -16,7 +16,7 @@
 // qu'on l'ait décidé.
 
 import { el, fill } from '../dom.js';
-import { render as renderMath, excerpt } from '../mathtext.js';
+import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listCards, getCategory, listCategories, moveCard, setCardsOrder, isPlaced,
 } from '../store.js';
@@ -227,12 +227,4 @@ export async function render(ctx) {
   }
 
   paint();
-}
-
-/**
- * Aperçu du verso en texte brut : dans une liste, une formule rendue déforme la
- * hauteur des lignes. On garde la source LaTeX, dépouillée de ses délimiteurs.
- */
-function stripMath(source) {
-  return String(source ?? '').replace(/\$\$?/g, '');
 }

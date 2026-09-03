@@ -83,6 +83,36 @@ dire. Elle passe après les cartes rangées, et le reste jusqu'à ce qu'on la ra
 _Code_: carte sans `order` — `isPlaced(card)` est faux
 _Éviter_: non classée, non triée, orpheline, en attente
 
+## La bibliothèque
+
+**Bibliothèque** :
+Le rayon des théorèmes, à côté des cartes et séparé d'elles. On y **consulte** :
+on cherche, on lit, on choisit quoi travailler. On ne s'y fait pas interroger —
+c'est ce qui la distingue d'un chapitre de cartes.
+_Code_: route `#/bibliotheque`
+_Éviter_: base, catalogue, fiches, recueil
+
+**Théorème** :
+Un résultat qu'on veut garder sous la main, avec son énoncé et l'esquisse de sa
+preuve. Une seule notion : on ne distingue pas ici le résultat qu'on présentera
+à l'oral de celui qu'on se contentera de citer — ce jugement change trop souvent
+pour tenir dans les données.
+_Code_: `theorem`
+_Éviter_: développement, résultat, lemme, propriété, énoncé (c'est une de ses parties)
+
+**Énoncé** :
+Ce que le théorème affirme, hypothèses comprises. La partie qu'on doit pouvoir
+citer juste.
+_Code_: `statement`
+_Éviter_: formulation, définition, théorème
+
+**Esquisse** :
+Le squelette de la preuve : les étapes et les leviers, pas la preuve rédigée.
+Elle doit tenir en un coup d'œil — une démonstration complète ferait de la
+bibliothèque un cours, qu'on ne parcourt plus.
+_Code_: `sketch`
+_Éviter_: démonstration, preuve, démo, plan, idée
+
 ## Le travail
 
 **Test** :

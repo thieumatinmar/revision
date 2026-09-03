@@ -62,6 +62,11 @@ on l'inscrit ici avec sa frontière.
   Arborescence `users/{uid}/categories` et `users/{uid}/cards` : c'est cette
   forme qui rend la règle de sécurité tenable en une ligne, la changer
   obligerait à revoir les règles publiées.
+- `js/theoreme.js` — **composant** : monte un théorème (`faceTheoreme(th)`).
+  Même rôle que `carte.js`, partagé par le détail et l'aperçu de l'éditeur. Rien
+  n'y est caché : un théorème se consulte, il n'interroge pas.
+- `js/recherche.js` — le filtre de la bibliothèque. **Pur**, comme `quiz.js` :
+  ni DOM, ni réseau, ni stockage.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
   DOM. Partagé par l'écran de test et l'aperçu de l'éditeur — le dupliquer ferait
@@ -70,7 +75,8 @@ on l'inscrit ici avec sa frontière.
 - `js/app.js` — coque : routeur par `#/…`, en-tête, rendu de la vue courante.
   Oriente, ne calcule pas.
 - `js/views/` — un fichier par écran (`accueil`, `test`, `cartes`, `editeur`),
-  plus `connexion.js` qui n'est pas une route : la coque l'affiche à la place de
+  plus `bibliotheque`, `theoreme_detail` et `editeur_theoreme` (le rayon des
+  théorèmes), et `connexion.js` qui n'est pas une route : la coque l'affiche à la place de
   tout le reste tant que personne n'est connecté.
 - `vendor/katex/` — KaTeX vendorisé (script, CSS, 20 polices woff2). Jamais de
   CDN : une PWA hors ligne ne peut pas aller chercher son moteur de rendu

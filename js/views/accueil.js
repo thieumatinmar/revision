@@ -4,11 +4,13 @@
 // « toutes catégories » ici, c'est une décision actée (docs/decisions.md).
 
 import { el } from '../dom.js';
-import { listCategories, countByCategory } from '../store.js';
+import { listCategories, countByCategory, countTheorems } from '../store.js';
 
 export async function render(ctx) {
   // Deux requêtes pour tout l'écran, quel que soit le nombre de chapitres.
-  const [categories, compte] = await Promise.all([listCategories(), countByCategory()]);
+  const [categories, compte, theoremes] = await Promise.all([
+    listCategories(), countByCategory(), countTheorems(),
+  ]);
   // `countByCategory` renvoie { total, unplaced } : l'accueil ne montre que le
   // total, le détail des non rangées appartient à l'écran de gestion.
   const counts = categories.map((c) => (compte.get(c.id) || { total: 0 }).total);
@@ -36,6 +38,20 @@ export async function render(ctx) {
           ? el('a', { class: 'btn btn-sm btn-primary', href: `#/test/${cat.id}` }, 'Tester')
           : el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${cat.id}` }, '+'),
       )),
+    ),
+  );
+
+  // La bibliothèque est un **second rayon** : elle n'a pas de chapitre, donc pas
+  // sa place dans la liste ci-dessus. Un bloc pleine largeur en dessous, plutôt
+  // qu'un troisième bouton dans l'en-tête — sur un téléphone, « compte »,
+  // « Gérer » et un troisième feraient trois cibles collées.
+  ctx.root.append(
+    el('a', { class: 'bloc-bibliotheque', href: '#/bibliotheque' },
+      el('div', { class: 'name' }, 'Bibliothèque'),
+      el('div', { class: 'small muted' },
+        theoremes === 0
+          ? 'énoncés et esquisses de preuve — vide pour l’instant'
+          : `${theoremes} théorème${theoremes > 1 ? 's' : ''} — énoncés et esquisses de preuve`),
     ),
   );
 }

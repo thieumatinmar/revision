@@ -635,3 +635,47 @@ champ ne réapparaîtra pas. C'est le prix de l'irréversibilité, et il est fai
 devant ce qu'on gagne (un éditeur à trois champs au lieu de cinq). Le terme
 reste au glossaire, marqué *en extinction*, tant que des cartes en portent : le
 retirer ferait mentir `carte.js`, qui les affiche encore.
+
+---
+
+## La bibliothèque de théorèmes : une entité à part, et à plat
+
+**Choix** — Un **théorème** (`users/{uid}/theorems`, champs `title`,
+`statement`, `sketch`) est une entité distincte de la carte, avec ses propres
+écrans : une liste chercheable (`#/bibliotheque`), un détail
+(`#/theoreme/{id}`), un éditeur. Il n'a **ni catégorie, ni ordre manuel** : la
+liste est plate, triée par titre, et se filtre par une recherche plein texte
+côté client. Aucune place dans un test : on ne tire pas de théorème.
+
+**Alternative écartée** — (a) un champ `type` sur `card`, la bibliothèque
+n'étant qu'un filtre ; (b) ranger les théorèmes dans les 12 titres du programme,
+comme les cartes ; (c) les rattacher aux leçons d'oral où ils sont recasables.
+
+**Raison** — (a) coûtait presque rien à écrire, et c'est exactement le piège :
+le `type` aurait fuité partout. `nextCard` devrait l'exclure du tirage,
+`countByCategory` le retrancher des compteurs, `faceCarte` choisir son montage,
+l'éditeur masquer trois champs sur cinq. Un booléen dans les données, cinq `if`
+dans le code, et deux notions qui se déforment l'une l'autre. Surtout : une
+carte **pose une question** et se révèle en deux temps ; un théorème se lit d'un
+bloc. Ce ne sont pas deux variantes d'une même chose.
+
+(b) et (c) sont du rangement dont on n'a pas encore la preuve qu'il sert. Un
+théorème traverse les titres du programme, et le geste qui compte vraiment
+(« pour la leçon 106, qu'est-ce que je sors ? ») demanderait une entité `Leçon`
+et ses ~100 titres — un chantier à lui seul, que `lecons.md` couvre déjà hors de
+l'app. Une recherche plein texte répond dès aujourd'hui à « où j'ai parlé de
+Baire ? », pour le prix d'un `filter`. Firestore étant sans schéma,
+`categoryId` ou `lessons: []` s'ajouteront plus tard sans migration ni carte à
+retoucher.
+
+Le filtrage est **côté client** : Firestore ne sait pas chercher dans du texte,
+et un filtre local est le seul qui marche hors ligne. À l'échelle d'une
+préparation personnelle, tout charger puis filtrer en mémoire est le même
+compromis que `countByCategory`. La recherche porte sur le **source**, donc sur
+le LaTeX tel qu'il est tapé — pas de normalisation des macros : ce serait un
+moteur de recherche, pas un filtre.
+
+Reporté volontairement : les **images**. `images.js` s'y prêterait, mais
+`champImages()` vit dans `editeur.js` et demanderait d'en être extrait. On livre
+sans, on remplit la bibliothèque, on ajoutera si le manque se fait sentir.
+

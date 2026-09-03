@@ -15,6 +15,9 @@ import * as test from './views/test.js';
 import * as cartes from './views/cartes.js';
 import * as editeur from './views/editeur.js';
 import * as chapitres from './views/chapitres.js';
+import * as bibliotheque from './views/bibliotheque.js';
+import * as theoreme from './views/theoreme_detail.js';
+import * as editeurTheoreme from './views/editeur_theoreme.js';
 
 // L'ordre compte : la première expression qui correspond gagne. « nouvelle » est
 // placée avant la route générique d'édition pour que l'intention soit lisible
@@ -22,10 +25,16 @@ import * as chapitres from './views/chapitres.js';
 const ROUTES = [
   { path: /^\/$/,                            view: accueil,   title: 'Agrég' },
   { path: /^\/chapitres$/,                   view: chapitres, title: 'Chapitres' },
+  { path: /^\/bibliotheque$/,                view: bibliotheque, title: 'Bibliothèque' },
   { path: /^\/test\/(.+)$/,                  view: test,    title: 'Test' },
   { path: /^\/cartes\/(.+)$/,                view: cartes,  title: 'Cartes' },
   { path: /^\/carte\/nouvelle\/(.+)$/,       view: editeur, title: 'Nouvelle carte', mode: 'creation' },
   { path: /^\/carte\/([^/]+)(?:\/(test))?$/, view: editeur, title: 'Modifier',       mode: 'edition' },
+  // Même précaution que pour « nouvelle » : les routes littérales passent avant
+  // celle qui capture un identifiant, sinon « nouveau » serait pris pour un id.
+  { path: /^\/theoreme\/nouveau$/,           view: editeurTheoreme, title: 'Nouveau théorème', mode: 'creation' },
+  { path: /^\/theoreme\/([^/]+)\/editer$/,   view: editeurTheoreme, title: 'Modifier',         mode: 'edition' },
+  { path: /^\/theoreme\/([^/]+)$/,           view: theoreme,        title: 'Théorème' },
 ];
 
 const mount = document.getElementById('view');

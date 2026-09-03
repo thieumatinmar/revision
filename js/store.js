@@ -260,3 +260,66 @@ export async function moveCard(id, categoryId) {
 export async function deleteCard(id) {
   await deleteDoc(ref('cards', id));
 }
+
+// ---------------------------------------------------------------- Théorèmes
+//
+// Un théorème vit dans `users/{uid}/theorems/{id}` — { title, statement, sketch }.
+//
+// Volontairement **sans catégorie et sans ordre** : la bibliothèque est plate,
+// triée par titre, et se parcourt par la recherche (docs/decisions.md, « La
+// bibliothèque de théorèmes »). Il n'y a donc ici ni `order`, ni `where`, ni
+// notion de « non rangé » : rien à ranger.
+
+/**
+ * Tous les théorèmes, triés par titre.
+ *
+ * Le tri se fait **ici, en mémoire**, et non par `orderBy('title')` : la
+ * comparaison de Firestore est binaire, donc « Élément » passerait après
+ * « Zorn ». `localeCompare` en français range les accents comme un lecteur
+ * français les attend. À l'échelle d'une bibliothèque personnelle, lire tout
+ * puis trier ne coûte rien — et c'est de toute façon ce que la recherche exige,
+ * elle qui filtre sur la liste complète.
+ */
+export async function listTheorems() {
+  const snap = await getDocs(col('theorems'));
+  return snap.docs.map(toObj)
+    .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base' }));
+}
+
+export async function getTheorem(id) {
+  const d = await getDoc(ref('theorems', id));
+  return d.exists() ? toObj(d) : null;
+}
+
+/** Combien de théorèmes en bibliothèque — pour le repère affiché sur l'accueil. */
+export async function countTheorems() {
+  const snap = await getDocs(col('theorems'));
+  return snap.size;
+}
+
+/**
+ * Crée ou met à jour un théorème, selon qu'il porte déjà un identifiant.
+ *
+ * Champs écrits explicitement, comme pour une carte : l'objet reçu porte aussi
+ * son `id` quand il vient d'une lecture, et on ne veut pas le dupliquer dans le
+ * document. Rien à reporter d'un ancien état ici — un théorème n'a pas de champ
+ * que l'éditeur ignore.
+ */
+export async function saveTheorem(theorem) {
+  const { id, ...champs } = theorem;
+  const donnees = {
+    title: champs.title || '',
+    statement: champs.statement || '',
+    sketch: champs.sketch || '',
+  };
+  if (id) {
+    await setDoc(ref('theorems', id), donnees);
+    return { id, ...donnees };
+  }
+  const d = await addDoc(col('theorems'), donnees);
+  return { id: d.id, ...donnees };
+}
+
+export async function deleteTheorem(id) {
+  await deleteDoc(ref('theorems', id));
+}
