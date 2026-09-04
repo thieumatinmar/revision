@@ -1,7 +1,8 @@
 // views/accueil.js — la liste des catégories, point d'entrée de l'app.
 //
-// Un test porte toujours sur une seule catégorie : il n'y a donc pas d'entrée
-// « toutes catégories » ici, c'est une décision actée (docs/decisions.md).
+// L'écran se contente d'orienter : un chapitre mène à ses cartes, le bloc du bas
+// à la bibliothèque. Il ne compte rien lui-même — `countByCategory` le fait en
+// une requête.
 
 import { el } from '../dom.js';
 import { listCategories, countByCategory, countTheorems } from '../store.js';
@@ -20,7 +21,7 @@ export async function render(ctx) {
 
   ctx.root.append(
     el('p', { class: 'muted small' },
-      'Touche le nom d’un chapitre pour voir ses cartes, « Tester » pour lancer un tirage.'),
+      'Touche un chapitre pour voir ses cartes, « + » pour en ajouter une.'),
     el('ul', { class: 'list' },
       categories.map((cat, i) => el('li', {},
         el('a', {
@@ -32,11 +33,9 @@ export async function render(ctx) {
           el('div', { class: 'small muted' },
             counts[i] === 0 ? 'aucune carte' : `${counts[i]} carte${counts[i] > 1 ? 's' : ''}`),
         ),
-        // « Tester » n'apparaît que s'il y a de quoi tirer. Un chapitre vide
-        // renvoie vers sa liste, seul endroit d'où en créer une.
-        counts[i] > 0
-          ? el('a', { class: 'btn btn-sm btn-primary', href: `#/test/${cat.id}` }, 'Tester')
-          : el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${cat.id}` }, '+'),
+        // Ajouter une carte sans passer par la liste du chapitre : c'est le geste
+        // le plus fréquent en phase de saisie.
+        el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${cat.id}` }, '+'),
       )),
     ),
   );

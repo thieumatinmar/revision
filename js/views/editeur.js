@@ -1,13 +1,13 @@
 // views/editeur.js — création et modification d'une carte.
 //
 // L'écran est **la saisie à gauche, la carte montée à droite** : on tape, on
-// voit. Écrire du LaTeX à l'aveugle et découvrir la coquille en plein test est
+// voit. Écrire du LaTeX à l'aveugle et découvrir la coquille plus tard est
 // exactement ce qu'on cherche à éviter (docs/decisions.md, « L'éditeur en deux
 // colonnes »).
 //
-// L'aperçu est le composant `faceCarte()` — le même que l'écran de test, faces
-// révélées. Il n'a pas sa propre copie du montage : une copie divergerait en
-// silence, et un aperçu qui ment ne sert à rien.
+// L'aperçu est le composant `faceCarte()`, toutes faces révélées. Il n'a pas sa
+// propre copie du montage : une copie divergerait en silence, et un aperçu qui
+// ment ne sert à rien.
 //
 // Sous 900 px il n'y a pas la place pour deux colonnes : la bascule de l'en-tête
 // montre alors un visage à la fois. Le formulaire est seulement masqué, jamais
@@ -17,7 +17,6 @@
 // Deux points d'entrée, d'où deux retours possibles :
 //   #/carte/nouvelle/<categoryId>   création  → retour à la liste du chapitre
 //   #/carte/<cardId>                          → retour à la liste du chapitre
-//   #/carte/<cardId>/test                     → retour au test en cours
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
@@ -36,7 +35,7 @@ export async function render(ctx) {
   // désigne un chapitre (création) ou une carte (modification). Sans lui, il
   // faudrait deviner à partir de la forme de l'identifiant — fragile.
   const creation = ctx.mode === 'creation';
-  const [param, origine] = ctx.params;
+  const [param] = ctx.params;
   const [categories, theorems] = await Promise.all([listCategories(), listTheorems()]);
 
   const card = creation
@@ -48,9 +47,7 @@ export async function render(ctx) {
     return;
   }
 
-  const retour = origine === 'test' && card.categoryId
-    ? `#/test/${card.categoryId}`
-    : `#/cartes/${card.categoryId}`;
+  const retour = `#/cartes/${card.categoryId}`;
 
   ctx.setTitle(creation ? 'Nouvelle carte' : 'Modifier');
 
@@ -58,7 +55,7 @@ export async function render(ctx) {
   // le bouton ne veut plus rien dire — le CSS le masque.
   const bascule = el('button', {
     class: 'btn btn-sm bascule-apercu',
-    title: 'Voir la carte montée, comme en test',
+    title: 'Voir la carte montée',
     on: { click: () => basculer(mode === 'edition' ? 'apercu' : 'edition') },
   }, 'Aperçu');
 
@@ -161,7 +158,7 @@ export async function render(ctx) {
   function dessineApercu() {
     fill(zoneApercu,
       el('p', { class: 'small muted' },
-        'Aperçu — la carte telle qu’elle apparaîtra en test, toutes faces révélées.'),
+        'Aperçu — la carte telle qu’elle se lira, toutes faces révélées.'),
       faceCarte(valeurs(), { hint: true, back: true, theorems }),
     );
   }
@@ -216,7 +213,7 @@ export async function render(ctx) {
     }
     await saveCard(valeurs());
     // La catégorie a pu changer : on repart de celle qui vient d'être choisie.
-    location.hash = origine === 'test' ? `#/test/${categorie.value}` : `#/cartes/${categorie.value}`;
+    location.hash = `#/cartes/${categorie.value}`;
   }
 
   async function supprimer() {
@@ -230,8 +227,7 @@ export async function render(ctx) {
  * Le titre : une seule ligne.
  *
  * Facultatif. Il sert à retrouver la carte dans la liste et la recherche, et il
- * est affiché pendant le test, au-dessus du recto, comme intitulé de ce dont on
- * parle.
+ * est affiché au-dessus du recto, comme intitulé de ce dont on parle.
  *
  * Le LaTeX y est accepté : « Fonction génératrice $G_X$ » est un titre légitime.
  * Son rendu se lit dans l'aperçu, en tête de carte — pas sous le champ.

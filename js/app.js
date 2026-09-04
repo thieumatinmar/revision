@@ -1,8 +1,8 @@
 // app.js — coque de l'application : connexion, routeur, en-tête, démarrage.
 //
-// Ce fichier **oriente**, il ne calcule rien : le tirage vit dans `quiz.js`, les
-// données dans `store.js`, le rendu des maths dans `mathtext.js`, chaque écran
-// dans `views/`.
+// Ce fichier **oriente**, il ne calcule rien : les données vivent dans
+// `store.js`, le rendu des maths dans `mathtext.js`, chaque écran dans
+// `views/`.
 
 import { el, fill } from './dom.js';
 import { VERSION } from './version.js';
@@ -11,7 +11,6 @@ import { seedIfEmpty } from './store.js';
 import { ecranConnexion } from './views/connexion.js';
 
 import * as accueil from './views/accueil.js';
-import * as test from './views/test.js';
 import * as cartes from './views/cartes.js';
 import * as editeur from './views/editeur.js';
 import * as chapitres from './views/chapitres.js';
@@ -26,10 +25,9 @@ const ROUTES = [
   { path: /^\/$/,                            view: accueil,   title: 'Agrég' },
   { path: /^\/chapitres$/,                   view: chapitres, title: 'Chapitres' },
   { path: /^\/bibliotheque$/,                view: bibliotheque, title: 'Bibliothèque' },
-  { path: /^\/test\/(.+)$/,                  view: test,    title: 'Test' },
   { path: /^\/cartes\/(.+)$/,                view: cartes,  title: 'Cartes' },
   { path: /^\/carte\/nouvelle\/(.+)$/,       view: editeur, title: 'Nouvelle carte', mode: 'creation' },
-  { path: /^\/carte\/([^/]+)(?:\/(test))?$/, view: editeur, title: 'Modifier',       mode: 'edition' },
+  { path: /^\/carte\/([^/]+)$/,              view: editeur, title: 'Modifier',       mode: 'edition' },
   // Même précaution que pour « nouvelle » : les routes littérales passent avant
   // celle qui capture un identifiant, sinon « nouveau » serait pris pour un id.
   { path: /^\/theoreme\/nouveau$/,           view: editeurTheoreme, title: 'Nouveau théorème', mode: 'creation' },

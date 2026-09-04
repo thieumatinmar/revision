@@ -1,9 +1,8 @@
 // views/bibliotheque.js — le rayon des théorèmes : chercher, parcourir, ouvrir.
 //
-// Une bibliothèque se **consulte**, elle n'interroge pas : il n'y a donc ici ni
-// « Tester », ni chapitre, ni ordre à la main. La liste est plate, triée par
-// titre, et c'est la recherche qui sert de rangement (docs/decisions.md, « La
-// bibliothèque de théorèmes »).
+// La liste est plate, triée par titre, sans chapitre ni ordre à la main : c'est
+// la recherche qui sert de rangement (docs/decisions.md, « La bibliothèque de
+// théorèmes »).
 //
 // La recherche filtre sans repasser par le routeur — elle doit répondre à chaque
 // frappe, et rien n'a changé en base entre deux caractères tapés. Le filtre

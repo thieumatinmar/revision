@@ -1,10 +1,12 @@
 // carte.js — le montage d'une carte : ses faces, dans l'ordre, en un élément.
 //
-// Deux écrans doivent afficher **la même** carte : le test, qui révèle les faces
-// une à une, et l'aperçu de l'éditeur, qui les montre toutes d'un coup. Écrire
-// le montage deux fois le ferait diverger au premier champ ajouté — et diverger
-// en silence : l'aperçu montrerait alors une carte qui n'existe pas en test,
-// exactement ce qu'il est censé empêcher.
+// Le montage d'une carte vit ici, en un seul endroit : écrit deux fois, il
+// divergerait au premier champ ajouté, et il divergerait en silence.
+//
+// Depuis le retrait du test, il n'a plus qu'un appelant — l'aperçu de
+// l'éditeur. On le garde séparé quand même : `hint` et `back` décrivent ce qui
+// est **révélé**, et ce vocabulaire resservira dès qu'un second écran montrera
+// des cartes.
 //
 // Ce fichier n'est ni une vue (aucune route, aucun accès au store) ni un helper
 // DOM : c'est un **composant**, le premier de l'app. Il ne lit rien, ne range
@@ -17,7 +19,7 @@ import { faceTheoreme } from './theoreme.js';
 /**
  * Monte une carte et renvoie l'élément `.card-face`.
  *
- *   faceCarte(card)                            → recto seul (début de test)
+ *   faceCarte(card)                            → recto seul
  *   faceCarte(card, { hint: true })            → recto + indication
  *   faceCarte(card, { hint: true, back: true }) → tout (aperçu de l'éditeur)
  *
@@ -78,9 +80,9 @@ export function faceCarte(card, { hint = false, back = false, theorems = [] } = 
 /**
  * « Voir aussi » : un bouton par théorème cité, qui le **déplie sur place**.
  *
- * Déplier et non naviguer : `test.js` garde tout son état en mémoire (mode,
- * position, verso révélé), et un lien le perdrait — on reviendrait à un test
- * reparti de zéro, pour une consultation de dix secondes.
+ * Déplier et non naviguer : l'écran appelant garde son état en mémoire — dans
+ * l'éditeur, les saisies non enregistrées — et un lien le perdrait, pour une
+ * consultation de dix secondes.
  *
  * Un seul théorème ouvert à la fois : deux énoncés dépliés sous une carte, et
  * l'on ne sait plus ce qu'on lisait.
@@ -100,7 +102,7 @@ function blocRenvois(renvois) {
     if (!ouvert) return fill(zone);
     fill(zone,
       faceTheoreme(t),
-      // Pour qui veut vraiment y aller : la fiche complète, et la sortie du test
+      // Pour qui veut vraiment y aller : la fiche complète, et quitter l'écran
       // devient alors un choix explicite.
       el('p', { style: 'text-align:center;margin-top:10px' },
         el('a', { class: 'btn btn-sm btn-ghost', href: `#/theoreme/${t.id}` }, 'Ouvrir la fiche')),

@@ -729,3 +729,36 @@ Enfin, le renvoi ne s'affiche **jamais avant le verso** : nommer « Théorème d
 Dini » sous une carte qui demande quel théorème donne la convergence uniforme,
 c'est donner la réponse. Même règle que les images, pour la même raison.
 
+---
+
+## Retrait du test : l'app devient un fonds, pas un interrogateur
+
+**Choix** — Le tirage disparaît. `js/quiz.js`, `js/views/test.js`, la route
+`#/test/…`, les deux modes (aléatoire, dans l'ordre), les boutons *Tester* et
+les termes correspondants du glossaire sont retirés. Ce qui reste : saisir,
+ranger, chercher, relire.
+
+**Alternative écartée** — Garder le tirage en sommeil derrière un bouton peu
+visible, « au cas où ».
+
+**Raison** — L'usage réel a tranché : la phase en cours est une phase
+d'**accumulation**, pas de restitution. Le tirage n'était pas utilisé, et
+chaque évolution devait pourtant le maintenir cohérent — un écran, deux modes,
+une révélation en deux temps à respecter dans le composant `faceCarte`, un
+retour « vers le test en cours » à traverser dans l'éditeur. On payait
+l'entretien d'une fonctionnalité dormante à chaque refonte.
+
+Le garder en sommeil ne réglait rien : du code non utilisé mais toujours
+importé continue de contraindre tout ce qu'il touche, et il pourrit sans qu'on
+le sache — il n'y a aucun test pour le dire.
+
+Le retrait est **réversible** : les deux fichiers restent dans l'historique git
+(`git show ee3cbcc:js/quiz.js`), et le jour où la préparation passe en phase de
+restitution, on les ressort — vraisemblablement sous une autre forme, puisque
+l'unité de révision visée est désormais le **thème** et non la question isolée.
+
+Ce que ça change dans le but affiché de l'app (`CLAUDE.md`) : elle n'est plus
+un outil de rappel actif, c'est un **fonds structuré** — des théorèmes, des
+définitions, et des cartes qui les citent. L'interrogation se fait ailleurs
+(sessions de travail, papier). Le jour où elle revient dans l'app, elle
+reviendra comme une fonctionnalité conçue pour ça, pas comme un reste.

@@ -1,8 +1,8 @@
 // recherche.js — le filtre de la bibliothèque.
 //
-// Module PUR : pas de DOM, pas de réseau, pas de stockage — comme `quiz.js`, et
-// pour la même raison : c'est ce qui le rendra testable le jour où on écrira des
-// tests.
+// Module PUR : pas de DOM, pas de réseau, pas de stockage. C'est le seul de
+// l'app depuis le retrait du tirage, et donc la première cible le jour où on
+// écrira de vrais tests.
 //
 // Le filtrage est **local** : on charge toute la bibliothèque, puis on filtre en
 // mémoire. Firestore ne sait pas chercher dans du texte, et un filtre local est

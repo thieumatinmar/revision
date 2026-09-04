@@ -182,9 +182,6 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 .bloc-bibliotheque .name { font-weight: 550; }
 
-/* Choix du mode de test : deux boutons, au-dessus de la carte. */
-.modes { display: flex; gap: 8px; justify-content: center; margin-bottom: 14px; }
-
 .count {
   min-width: 26px;
   padding: 1px 8px;
@@ -203,7 +200,7 @@ button:active, .btn:active { transform: translateY(1px); }
 
 .empty { text-align: center; color: var(--fg-dim); padding: 44px 12px; }
 
-/* ---------------------------------------------------------------- Test */
+/* ------------------------------------------------------- La carte montée */
 
 .card-face {
   background: var(--bg-card);
@@ -224,8 +221,8 @@ button:active, .btn:active { transform: translateY(1px); }
 }
 .card-face hr { border: 0; border-top: 1px dashed var(--line); margin: 18px 0; }
 
-/* Titre de la carte pendant le test : il annonce le sujet, il ne doit pas
-   concurrencer le recto, qui reste ce qu'on lit. */
+/* Titre de la carte : il annonce le sujet, il ne doit pas concurrencer le
+   recto, qui reste ce qu'on lit. */
 .titre-carte {
   font-size: .82rem;
   font-weight: 600;
@@ -339,7 +336,7 @@ input[type="search"] { margin-bottom: 14px; }
   line-height: 1;
 }
 
-/* Dans le test, l'image se lit : on ne la rogne pas, on la laisse respirer. */
+/* L'image se lit : on ne la rogne pas, on la laisse respirer. */
 .images-verso { margin-top: 16px; display: flex; flex-direction: column; gap: 10px; }
 .images-verso img {
   display: block;

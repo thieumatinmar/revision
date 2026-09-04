@@ -10,16 +10,21 @@ théorèmes et des idées de preuve défilent — et s'évaporent. Les relire ne
 pas : le diagnostic du 30/07/2026 a montré que le point faible n'est pas
 l'ignorance mais la **reconnaissance sans reconstruction** (« ça me parle mais je
 ne sais pas refaire »). Ce qui marche, c'est le **rappel actif** : se faire
-interroger, retrouver de tête, vérifier après.
+interroger, retrouver de tête, vérifier après. Mais pour être interrogé sur
+quelque chose, encore faut-il l'avoir écrit quelque part.
 
-L'app existe pour industrialiser exactement ça :
+L'app est ce quelque part — le **fonds** de la préparation :
 
-1. **Saisir** ce qu'on ne veut pas oublier — une formule, un théorème, une idée —
-   avec du LaTeX rendu proprement.
-2. **Classer** par catégorie (les titres du programme officiel).
-3. **Se faire tester régulièrement**, sur le PC comme sur le téléphone.
+1. **Saisir** ce qu'on ne veut pas oublier — une formule, un théorème, une
+   définition, une idée — avec du LaTeX rendu proprement.
+2. **Classer** : les cartes par catégorie (les titres du programme officiel), les
+   théorèmes à plat dans la bibliothèque, reliés par des renvois.
+3. **Retrouver** : chercher, relire, sur le PC comme sur le téléphone.
 
-Et rien d'autre. Le suivi de ce qu'il reste à faire se gère hors de l'app.
+Et rien d'autre. En particulier, **l'app n'interroge plus** : le tirage a été
+retiré (`docs/decisions.md`, « Retrait du test ») parce que la phase en cours
+est une phase d'accumulation. L'interrogation se fait en session de travail ou
+sur papier. Le suivi de ce qu'il reste à faire se gère hors de l'app.
 
 > Le contexte de la préparation (profil, planning, avancement) vit dans le
 > dossier parent : `../CLAUDE.md`, `../planning.md`, `../ressources.md`.
@@ -42,8 +47,8 @@ on l'inscrit ici avec sa frontière.
 **Documentation**
 
 - `CLAUDE.md` — ce fichier : contexte et règles du jeu.
-- `CONTEXT.md` — glossaire du domaine (Carte, Recto, Indication, Verso, Note,
-  Catégorie, Test), avec la traduction de chaque terme en code.
+- `CONTEXT.md` — glossaire du domaine (Carte, Recto, Verso, Catégorie,
+  Bibliothèque, Théorème, Renvoi), avec la traduction de chaque terme en code.
 - `docs/decisions.md` — journal des décisions d'architecture (fichier **unique**).
 - `.claude/skills/` — `grill-with-docs` et `caveman` (voir plus bas).
 
@@ -52,7 +57,6 @@ on l'inscrit ici avec sa frontière.
 - `index.html` — la page, et elle seule. L'app est une PWA sans build : les
   modules ES sont chargés tels quels, il n'y a rien à compiler.
 - `css/style.css` — feuille **unique**, mobile-first. Pas de CSS par composant.
-- `js/quiz.js` — le tirage. **Pur** : ni DOM, ni réseau, ni stockage.
 - `js/mathtext.js` — texte + LaTeX → HTML via KaTeX. Échappe tout ce qui n'est
   pas une formule ; porte les macros maison (`\P`, `\E`, `\V`, `\R`…).
 - `js/firebase.js` — configuration et instanciation des services Firebase. Seul
@@ -65,16 +69,16 @@ on l'inscrit ici avec sa frontière.
 - `js/theoreme.js` — **composant** : monte un théorème (`faceTheoreme(th)`).
   Même rôle que `carte.js`, partagé par le détail et l'aperçu de l'éditeur. Rien
   n'y est caché : un théorème se consulte, il n'interroge pas.
-- `js/recherche.js` — le filtre de la bibliothèque. **Pur**, comme `quiz.js` :
-  ni DOM, ni réseau, ni stockage.
+- `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
+  ni stockage. Seul module pur de l'app depuis le retrait du tirage.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
-  DOM. Partagé par l'écran de test et l'aperçu de l'éditeur — le dupliquer ferait
-  mentir l'aperçu, et en silence.
+  DOM. Un seul appelant aujourd'hui (l'aperçu de l'éditeur), mais le montage
+  reste à part : le dupliquer ferait mentir l'aperçu, et en silence.
 - `js/dom.js` — deux micro-helpers (`el`, `fill`). Pas un framework.
 - `js/app.js` — coque : routeur par `#/…`, en-tête, rendu de la vue courante.
   Oriente, ne calcule pas.
-- `js/views/` — un fichier par écran (`accueil`, `test`, `cartes`, `editeur`),
+- `js/views/` — un fichier par écran (`accueil`, `cartes`, `editeur`),
   plus `bibliotheque`, `theoreme_detail` et `editeur_theoreme` (le rayon des
   théorèmes), et `connexion.js` qui n'est pas une route : la coque l'affiche à la place de
   tout le reste tant que personne n'est connecté.
@@ -145,14 +149,14 @@ vocabulaire dans `CONTEXT.md`.
 
 ### Frontière entre fichiers
 
-- `js/quiz.js` = **logique pure**. Aucune importation de `dom.js`, de `store.js`
-  ni de quoi que ce soit du navigateur.
+- `js/recherche.js` = **logique pure**. Aucune importation de `dom.js`, de
+  `store.js` ni de quoi que ce soit du navigateur.
 - `js/store.js` = **accès aux données**, et rien d'autre. Aucun DOM.
 - `js/views/*.js` = **un écran**. Une vue lit par `store.js`, calcule par
-  `quiz.js`, affiche par `dom.js` et `mathtext.js`.
+  `recherche.js`, affiche par `dom.js` et `mathtext.js`.
 - `js/app.js` = **coque**. Il connaît les routes, pas les données.
-- **Règle** : aucun accès aux données ni logique de tirage écrit *directement*
-  dans une vue. Une vue orchestre, elle ne calcule pas.
+- **Règle** : aucun accès aux données ni calcul écrit *directement* dans une
+  vue. Une vue orchestre, elle ne calcule pas.
 
   > Pourquoi : c'est ce qui permet de tester la logique sans ouvrir l'app, et de
   > remplacer le stockage sans toucher un écran. Si la logique fuit dans
@@ -175,13 +179,12 @@ vocabulaire dans `CONTEXT.md`.
   version a bougé, aucun CDN en dur. C'est `tools/check.py`.
 - Un **test** exécute du code et vérifie un **comportement**. Il n'y en a
   toujours aucun.
-- Ne jamais fondre les deux sous le mot « test » : d'une part `CONTEXT.md`
-  définit déjà *Test* comme une suite de cartes, d'autre part « les tests
-  passent » laisserait croire que la logique est vérifiée alors que rien ne
-  l'exécute. Voir `docs/decisions.md`, « Gardes du dépôt ».
-- Le **cap** pour quand les vrais tests viendront : `js/quiz.js` (`nextCard`,
-  pur, sans I/O ni DOM), puis `js/mathtext.js` — ce dernier demandera un DOM et
-  KaTeX, donc ce n'est pas la première marche.
+- Ne jamais fondre les deux sous le mot « test » : « les tests passent »
+  laisserait croire que la logique est vérifiée alors que rien ne l'exécute.
+  Voir `docs/decisions.md`, « Gardes du dépôt ».
+- Le **cap** pour quand les vrais tests viendront : `js/recherche.js` (`filtre`,
+  `normalise` — purs, sans I/O ni DOM), puis `js/mathtext.js` — ce dernier
+  demandera un DOM et KaTeX, donc ce n'est pas la première marche.
 
 ### Décisions d'architecture
 
@@ -246,7 +249,7 @@ outre en connaissance de cause).
 
 > Pas de commande de build : c'est le choix (pas de Node ni de npm installés sur
 > la machine). Pas de commande de test non plus : aucun test pour l'instant.
-> Quand ils reviendront, la première cible est `js/quiz.js`, seul module pur.
+> Quand ils reviendront, la première cible est `js/recherche.js`, seul module pur.
 
 > **Piège vécu** : un service worker déjà enregistré sur `localhost:8123` sert
 > son cache et masque les fichiers modifiés — on croit que le code n'a pas

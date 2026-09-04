@@ -26,7 +26,7 @@ _Éviter_: question, avant, face A
 
 **Indication** *(en extinction)* :
 Un coup de pouce, facultatif, que l'on demande explicitement quand on sèche —
-avant de retourner la carte. La révéler ne révèle pas la réponse. **On n'en
+avant de lire le verso. La révéler ne révèle pas la réponse. **On n'en
 écrit plus** : l'éditeur ne montre le champ que sur une carte qui en porte déjà
 une, et le vider l'éteint définitivement. Le terme reste au glossaire tant que
 des cartes en portent.
@@ -34,7 +34,8 @@ _Code_: `hint`
 _Éviter_: aide, indice, tip
 
 **Verso** :
-La face cachée : la réponse, révélée une fois l'effort de rappel fait.
+La face qui porte la réponse — celle qu'on ne lit qu'après avoir tenté de la
+retrouver.
 _Code_: `back`
 _Éviter_: réponse, solution, correction, face B
 
@@ -55,10 +56,9 @@ _Éviter_: remarque, commentaire, astuce
 ## L'écriture
 
 **Aperçu** :
-La carte **montée**, telle qu'elle apparaîtra en test, vue depuis l'éditeur, à
-côté de la saisie et redessinée à la frappe. Toutes ses faces d'un coup : rien
-n'y est caché, rien ne s'y révèle — ce n'est donc pas un test sur une seule
-carte, c'est ce qu'on regarde pendant qu'on écrit. C'est le **seul** endroit de
+La carte **montée**, telle qu'elle se lira, vue depuis l'éditeur, à côté de la
+saisie et redessinée à la frappe. Toutes ses faces d'un coup : c'est ce qu'on
+regarde pendant qu'on écrit. C'est le **seul** endroit de
 l'éditeur où le LaTeX est composé.
 _Code_: `faceCarte()`
 _Éviter_: prévisualisation, simulation, mode lecture, rendu
@@ -87,8 +87,8 @@ _Éviter_: non classée, non triée, orpheline, en attente
 
 **Bibliothèque** :
 Le rayon des théorèmes, à côté des cartes et séparé d'elles. On y **consulte** :
-on cherche, on lit, on choisit quoi travailler. On ne s'y fait pas interroger —
-c'est ce qui la distingue d'un chapitre de cartes.
+on cherche, on lit, on choisit quoi travailler. Elle est plate — ni chapitre, ni
+ordre à la main.
 _Code_: route `#/bibliotheque`
 _Éviter_: base, catalogue, fiches, recueil
 
@@ -126,24 +126,3 @@ L'autre bout du renvoi, vu depuis le théorème : les cartes qui pointent vers
 lui. Ce n'est pas une donnée du théorème — c'est une question posée aux cartes.
 _Code_: `cardsCiting()`
 _Éviter_: rétrolien, backlink, cartes liées
-
-## Le travail
-
-**Test** :
-Une suite de cartes d'une seule catégorie, présentées une par une, dans l'un des
-deux modes ci-dessous.
-_Code_: `quiz`
-_Éviter_: session, révision, entraînement, exercice
-
-**Mode aléatoire** :
-Chaque carte est tirée au hasard, indépendamment des précédentes. Le test ne se
-termine jamais, et une même carte peut retomber.
-_Code_: `MODES.RANDOM`
-_Éviter_: shuffle, mélange, tirage libre
-
-**Mode dans l'ordre** :
-Les cartes de la catégorie dans leur ordre, chacune une fois — les non rangées à
-la fin. La passe **se termine** : c'est le seul endroit où « j'ai fait le tour »
-veut dire quelque chose.
-_Code_: `MODES.ORDERED`
-_Éviter_: mode séquentiel, parcours, révision complète
