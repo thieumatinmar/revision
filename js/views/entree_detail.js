@@ -1,34 +1,36 @@
-// views/theoreme_detail.js — un théorème, en entier.
+// views/entree_detail.js — une entrée de bibliothèque, en entier.
 //
-// Rien n'y est caché ni révélé : c'est ce qui sépare la bibliothèque du test.
-// Le montage lui-même vient de `theoreme.js`, partagé avec l'aperçu de
-// l'éditeur — deux montages divergeraient en silence.
+// Rien n'y est caché ni révélé : une entrée se consulte. Le montage lui-même
+// vient de `entree.js`, partagé avec l'aperçu de l'éditeur et le dépliage d'un
+// renvoi — trois montages divergeraient en silence.
 
-import { el } from '../dom.js';
+import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
-import { faceTheoreme } from '../theoreme.js';
-import { getTheorem, cardsCiting } from '../store.js';
+import { faceEntree, espece } from '../entree.js';
+import { getEntry, cardsCiting } from '../store.js';
 
 export async function render(ctx) {
   const id = ctx.params[0];
-  // « Cité par » n'est pas une donnée du théorème : c'est une question posée aux
+  // « Cité par » n'est pas une donnée de l'entrée : c'est une question posée aux
   // cartes. Les deux lectures partent ensemble, l'une n'attend pas l'autre.
-  const [theorem, citantes] = await Promise.all([getTheorem(id), cardsCiting(id)]);
+  const [entry, citantes] = await Promise.all([getEntry(id), cardsCiting(id)]);
 
-  if (!theorem) {
-    ctx.setTitle('Théorème');
-    ctx.root.append(el('p', { class: 'empty' }, 'Théorème introuvable.'));
+  if (!entry) {
+    ctx.setTitle('Entrée');
+    ctx.root.append(el('p', { class: 'empty' }, 'Entrée introuvable.'));
     return;
   }
 
-  ctx.setTitle('Théorème');
+  // Le titre de l'écran dit l'espèce : c'est le repère qu'on lit sans réfléchir
+  // en arrivant depuis une liste où les deux se mélangent.
+  ctx.setTitle(espece(entry).nom);
   ctx.setHeader(
     el('a', { class: 'btn btn-sm btn-ghost', href: '#/bibliotheque' }, '‹ Bibliothèque'),
-    el('a', { class: 'btn btn-sm', href: `#/theoreme/${id}/editer` }, 'Modifier'),
+    el('a', { class: 'btn btn-sm', href: `#/entree/${id}/editer` }, 'Modifier'),
   );
 
-  ctx.root.append(
-    faceTheoreme(theorem),
+  fill(ctx.root,
+    faceEntree(entry),
 
     // L'autre bout du renvoi. Absent quand personne ne cite : un encart « aucune
     // carte » sur chaque fiche serait du bruit permanent pour une information
@@ -43,8 +45,8 @@ export async function render(ctx) {
 
 /**
  * Une carte citante. Elle mène à l'éditeur : c'est le **seul** écran qui montre
- * une carte entière (son aperçu), et la question derrière « qui cite ce
- * théorème ? » est presque toujours « et qu'est-ce que j'en disais ? ». D'où
+ * une carte entière (son aperçu), et la question derrière « qui cite cette
+ * entrée ? » est presque toujours « et qu'est-ce que j'en disais ? ». D'où
  * « Ouvrir » plutôt que « Modifier » : on vient lire, la correction n'est qu'une
  * possibilité.
  *

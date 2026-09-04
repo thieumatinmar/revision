@@ -8,7 +8,8 @@
 //
 //   users/{uid}/categories/{id}   { name, order }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
-//                                   images: string[], theoremIds: string[], order? }
+//                                   images: string[], entryIds: string[], order? }
+//   users/{uid}/library/{id}      { kind, title, statement, support }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
 // c'est-à-dire pas encore placée dans son chapitre. Un seul état, une seule
@@ -223,7 +224,7 @@ export async function saveCard(card) {
     images: Array.isArray(champs.images) ? champs.images : [],
     // Les renvois vers la bibliothèque : des identifiants, jamais des titres —
     // renommer un théorème ne doit pas casser ce qui pointe vers lui.
-    theoremIds: Array.isArray(champs.theoremIds) ? champs.theoremIds : [],
+    entryIds: Array.isArray(champs.entryIds) ? champs.entryIds : [],
   };
   if (id) {
     // L'écriture remplace le document entier : sans ce report, `order`
@@ -264,17 +265,46 @@ export async function deleteCard(id) {
   await deleteDoc(ref('cards', id));
 }
 
-// ---------------------------------------------------------------- Théorèmes
+// ---------------------------------------------------------------- Entrées
 //
-// Un théorème vit dans `users/{uid}/theorems/{id}` — { title, statement, sketch }.
+// Une **entrée** vit dans `users/{uid}/library/{id}` :
+//
+//   { kind: 'theorem' | 'definition', title, statement, support }
+//
+// **Deux espèces, un seul document.** Un théorème et une définition ont la même
+// forme — un nom, un corps, un appui facultatif — et le même comportement : on
+// les lit d'un bloc, on les cherche ensemble, on ne les tire jamais. Seuls les
+// libellés affichés changent (« Énoncé / Esquisse » contre « Définition /
+// Remarques »), et un libellé n'est pas une raison de dédoubler un schéma :
+// deux jeux de noms de champs obligeraient le tri, la liste et la recherche à
+// demander l'espèce avant de savoir quel champ lire (docs/decisions.md,
+// « Théorèmes et définitions : deux espèces d'une même entrée »).
+//
+// La collection s'appelle `library`, et non `theorems` : elle porte les deux
+// espèces, et un nom qui ment se paie à chaque relecture. Le renommage a coûté
+// une migration — faite une fois, par `migrateLibrary()`.
 //
 // Volontairement **sans catégorie et sans ordre** : la bibliothèque est plate,
-// triée par titre, et se parcourt par la recherche (docs/decisions.md, « La
-// bibliothèque de théorèmes »). Il n'y a donc ici ni `order`, ni `where`, ni
-// notion de « non rangé » : rien à ranger.
+// triée par titre, et se parcourt par la recherche. Il n'y a donc ici ni
+// `order`, ni `where`, ni notion de « non rangée » : rien à ranger.
+
+/** Les deux espèces d'entrée. Le code ne connaît que ces deux valeurs. */
+export const THEOREM = 'theorem';
+export const DEFINITION = 'definition';
 
 /**
- * Tous les théorèmes, triés par titre.
+ * L'espèce d'une entrée, avec son repli.
+ *
+ * Tout ce qui n'est pas explicitement une définition est un théorème : c'est ce
+ * qui rend justes, sans rien réécrire, les documents antérieurs à cette
+ * fonctionnalité. Un `kind` inconnu — venu d'une version plus récente ouverte
+ * sur un autre appareil — retombe sur la même valeur plutôt que de casser
+ * l'écran.
+ */
+export const kindOf = (entry) => (entry && entry.kind === DEFINITION ? DEFINITION : THEOREM);
+
+/**
+ * Toutes les entrées, triées par titre.
  *
  * Le tri se fait **ici, en mémoire**, et non par `orderBy('title')` : la
  * comparaison de Firestore est binaire, donc « Élément » passerait après
@@ -282,49 +312,65 @@ export async function deleteCard(id) {
  * français les attend. À l'échelle d'une bibliothèque personnelle, lire tout
  * puis trier ne coûte rien — et c'est de toute façon ce que la recherche exige,
  * elle qui filtre sur la liste complète.
+ *
+ * Les deux espèces sont **mélangées** dans un seul tri : chercher « Baire » doit
+ * ramener le théorème et la définition d'espace de Baire côte à côte, et non
+ * dans deux blocs à parcourir l'un après l'autre.
  */
-export async function listTheorems() {
-  const snap = await getDocs(col('theorems'));
+export async function listEntries() {
+  const snap = await getDocs(col('library'));
   return snap.docs.map(toObj)
     .sort((a, b) => (a.title || '').localeCompare(b.title || '', 'fr', { sensitivity: 'base' }));
 }
 
-export async function getTheorem(id) {
-  const d = await getDoc(ref('theorems', id));
+export async function getEntry(id) {
+  const d = await getDoc(ref('library', id));
   return d.exists() ? toObj(d) : null;
 }
 
-/** Combien de théorèmes en bibliothèque — pour le repère affiché sur l'accueil. */
-export async function countTheorems() {
-  const snap = await getDocs(col('theorems'));
-  return snap.size;
+/**
+ * Combien d'entrées, et de quelle espèce — pour le repère affiché sur l'accueil.
+ *
+ * Une seule lecture : compter par espèce en deux requêtes coûterait deux
+ * allers-retours pour une ligne de texte.
+ */
+export async function countEntries() {
+  const snap = await getDocs(col('library'));
+  const compte = { total: snap.size, [THEOREM]: 0, [DEFINITION]: 0 };
+  snap.forEach((d) => { compte[kindOf(d.data())] += 1; });
+  return compte;
 }
 
 /**
- * Crée ou met à jour un théorème, selon qu'il porte déjà un identifiant.
+ * Crée ou met à jour une entrée, selon qu'elle porte déjà un identifiant.
  *
  * Champs écrits explicitement, comme pour une carte : l'objet reçu porte aussi
  * son `id` quand il vient d'une lecture, et on ne veut pas le dupliquer dans le
- * document. Rien à reporter d'un ancien état ici — un théorème n'a pas de champ
- * que l'éditeur ignore.
+ * document. Rien à reporter d'un ancien état ici — une entrée n'a aucun champ
+ * que l'éditeur ignorerait.
+ *
+ * L'espèce passe par `kindOf` plutôt que d'être recopiée telle quelle : c'est le
+ * seul endroit où elle s'écrit, donc le seul où l'on puisse garantir qu'aucune
+ * troisième valeur n'entre en base.
  */
-export async function saveTheorem(theorem) {
-  const { id, ...champs } = theorem;
+export async function saveEntry(entry) {
+  const { id, ...champs } = entry;
   const donnees = {
+    kind: kindOf(champs),
     title: champs.title || '',
     statement: champs.statement || '',
-    sketch: champs.sketch || '',
+    support: champs.support || '',
   };
   if (id) {
-    await setDoc(ref('theorems', id), donnees);
+    await setDoc(ref('library', id), donnees);
     return { id, ...donnees };
   }
-  const d = await addDoc(col('theorems'), donnees);
+  const d = await addDoc(col('library'), donnees);
   return { id: d.id, ...donnees };
 }
 
 /**
- * Les cartes qui **citent** ce théorème.
+ * Les cartes qui **citent** cette entrée.
  *
  * `array-contains` est une requête native : Firestore indexe les tableaux tout
  * seul, il n'y a donc pas d'index composite à déclarer, et la réponse vient de
@@ -334,17 +380,17 @@ export async function saveTheorem(theorem) {
  * Le tri se fait ici, faute d'ordre commun : ces cartes viennent de chapitres
  * différents, où leurs positions ne se comparent pas.
  */
-export async function cardsCiting(theoremId) {
-  const snap = await getDocs(query(col('cards'), where('theoremIds', 'array-contains', theoremId)));
+export async function cardsCiting(entryId) {
+  const snap = await getDocs(query(col('cards'), where('entryIds', 'array-contains', entryId)));
   return snap.docs.map(toObj)
     .sort((a, b) => (a.title || a.front || '').localeCompare(b.title || b.front || '', 'fr'));
 }
 
 /**
- * Supprime un théorème **et les renvois qui pointent vers lui**.
+ * Supprime une entrée **et les renvois qui pointent vers elle**.
  *
  * Les deux dans le même `writeBatch`, donc de façon atomique : sans ça, un
- * échec entre les deux laisserait l'état bâtard « théorème parti, renvois
+ * échec entre les deux laisserait l'état bâtard « entrée partie, renvois
  * restés », c'est-à-dire des pointeurs vers rien.
  *
  * On nettoie plutôt que de laisser mourir les identifiants sur place : la donnée
@@ -353,14 +399,76 @@ export async function cardsCiting(theoremId) {
  * ligne peut réécrire une carte avec un renvoi périmé — mais c'est un filet, pas
  * le mécanisme.
  *
- * Plafond assumé : un `writeBatch` fait 500 écritures. Il faudrait qu'un
- * théorème soit cité par 499 cartes pour le toucher.
+ * Plafond assumé : un `writeBatch` fait 500 écritures. Il faudrait qu'une entrée
+ * soit citée par 499 cartes pour le toucher.
  */
-export async function deleteTheorem(id) {
+export async function deleteEntry(id) {
   const citantes = await cardsCiting(id);
   const batch = writeBatch(db);
-  citantes.forEach((c) => batch.set(ref('cards', c.id), { theoremIds: arrayRemove(id) }, { merge: true }));
-  batch.delete(ref('theorems', id));
+  citantes.forEach((c) => batch.set(ref('cards', c.id), { entryIds: arrayRemove(id) }, { merge: true }));
+  batch.delete(ref('library', id));
   await batch.commit();
   return citantes.length;
+}
+
+/**
+ * Migration unique : `theorems` → `library`, et `theoremIds` → `entryIds`.
+ *
+ * Appelée à chaque connexion, sur le modèle de `seedIfEmpty()`. Il n'y a pas
+ * d'autre endroit possible : la machine n'a pas Node, et les règles Firestore
+ * n'ouvrent `users/{uid}` qu'à l'utilisateur connecté — le code de migration est
+ * donc forcément du code d'app.
+ *
+ * Trois précautions, parce que l'app n'a **aucun export** et qu'une migration
+ * ratée ici perdrait des données pour de bon :
+ *
+ * 1. **Idempotence** — dès qu'une entrée existe, on sort. Une bibliothèque non
+ *    vide signifie soit que la migration est passée, soit qu'on a écrit depuis :
+ *    dans les deux cas, réécrire par-dessus serait pire que ne rien faire.
+ * 2. **Identifiants conservés** (`setDoc` sur l'id existant, jamais `addDoc`) —
+ *    les renvois des cartes pointent dessus, et une URL déjà ouverte tombe juste.
+ * 3. **Rien n'est supprimé** — `theorems` reste en place, intacte et invisible :
+ *    c'est la sauvegarde. À supprimer à la main dans la console Firebase une
+ *    fois la migration constatée. Idem pour `theoremIds` sur les cartes : on
+ *    écrit `entryIds` à côté sans retirer l'ancien champ, qui disparaîtra tout
+ *    seul au premier réenregistrement de la carte — `saveCard` remplaçant le
+ *    document entier.
+ *
+ * Renvoie le nombre d'entrées migrées — 0 quand il n'y avait rien à faire.
+ *
+ * Plafond assumé, ici encore : 500 écritures par `writeBatch`, soit les
+ * théorèmes plus les cartes citantes. À l'échelle d'une préparation personnelle,
+ * on n'en approche pas.
+ */
+export async function migrateLibrary() {
+  const deja = await getDocs(col('library'));
+  if (!deja.empty) return 0;
+
+  const anciens = await getDocs(col('theorems'));
+  if (anciens.empty) return 0;
+
+  const batch = writeBatch(db);
+
+  anciens.forEach((d) => {
+    const t = d.data();
+    batch.set(ref('library', d.id), {
+      kind: THEOREM,
+      title: t.title || '',
+      statement: t.statement || '',
+      // `sketch` devient `support` : « esquisse » ne veut rien dire sur une
+      // définition, et c'était le moment de le corriger — on réécrivait déjà.
+      support: t.sketch || '',
+    });
+  });
+
+  const cartes = await getDocs(col('cards'));
+  cartes.forEach((d) => {
+    const ids = d.data().theoremIds;
+    if (Array.isArray(ids) && ids.length > 0) {
+      batch.set(ref('cards', d.id), { entryIds: ids }, { merge: true });
+    }
+  });
+
+  await batch.commit();
+  return anciens.size;
 }

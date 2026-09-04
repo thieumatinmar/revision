@@ -48,7 +48,8 @@ on l'inscrit ici avec sa frontière.
 
 - `CLAUDE.md` — ce fichier : contexte et règles du jeu.
 - `CONTEXT.md` — glossaire du domaine (Carte, Recto, Verso, Catégorie,
-  Bibliothèque, Théorème, Renvoi), avec la traduction de chaque terme en code.
+  Bibliothèque, Entrée, Espèce, Renvoi), avec la traduction de chaque terme en
+  code.
 - `docs/decisions.md` — journal des décisions d'architecture (fichier **unique**).
 - `.claude/skills/` — `grill-with-docs` et `caveman` (voir plus bas).
 
@@ -63,12 +64,16 @@ on l'inscrit ici avec sa frontière.
   fichier à connaître la config ; personne d'autre ne parle au SDK directement.
 - `js/auth.js` — connexion Google (popup), état de session.
 - `js/store.js` — **seule** porte d'entrée vers les données, sur Firestore.
-  Arborescence `users/{uid}/categories` et `users/{uid}/cards` : c'est cette
-  forme qui rend la règle de sécurité tenable en une ligne, la changer
-  obligerait à revoir les règles publiées.
-- `js/theoreme.js` — **composant** : monte un théorème (`faceTheoreme(th)`).
-  Même rôle que `carte.js`, partagé par le détail et l'aperçu de l'éditeur. Rien
-  n'y est caché : un théorème se consulte, il n'interroge pas.
+  Arborescence `users/{uid}/categories`, `users/{uid}/cards` et
+  `users/{uid}/library` : c'est cette forme qui rend la règle de sécurité
+  tenable en une ligne, la changer obligerait à revoir les règles publiées.
+  Porte aussi `migrateLibrary()`, migration unique et non destructive de
+  l'ancienne collection `theorems` — à retirer une fois celle-ci effacée.
+- `js/entree.js` — **composant** : monte une entrée (`faceEntree(entry)`), et
+  porte `ESPECES`, la table des mots de chaque espèce (théorème / définition).
+  Même rôle que `carte.js`, partagé par le détail, l'aperçu de l'éditeur et le
+  dépliage d'un renvoi. Rien n'y est caché : une entrée se consulte, elle
+  n'interroge pas. **Seul endroit** où vivent les libellés d'espèce.
 - `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
   ni stockage. Seul module pur de l'app depuis le retrait du tirage.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
@@ -79,9 +84,9 @@ on l'inscrit ici avec sa frontière.
 - `js/app.js` — coque : routeur par `#/…`, en-tête, rendu de la vue courante.
   Oriente, ne calcule pas.
 - `js/views/` — un fichier par écran (`accueil`, `cartes`, `editeur`),
-  plus `bibliotheque`, `theoreme_detail` et `editeur_theoreme` (le rayon des
-  théorèmes), et `connexion.js` qui n'est pas une route : la coque l'affiche à la place de
-  tout le reste tant que personne n'est connecté.
+  plus `bibliotheque`, `entree_detail` et `editeur_entree` (le rayon des
+  théorèmes et des définitions), et `connexion.js` qui n'est pas une route : la
+  coque l'affiche à la place de tout le reste tant que personne n'est connecté.
 - `vendor/katex/` — KaTeX vendorisé (script, CSS, 20 polices woff2). Jamais de
   CDN : une PWA hors ligne ne peut pas aller chercher son moteur de rendu
   ailleurs. Fichiers **non modifiés à la main**, sauf le CSS dont les variantes
@@ -157,6 +162,11 @@ vocabulaire dans `CONTEXT.md`.
 - `js/app.js` = **coque**. Il connaît les routes, pas les données.
 - **Règle** : aucun accès aux données ni calcul écrit *directement* dans une
   vue. Une vue orchestre, elle ne calcule pas.
+- **Toujours `fill(ctx.root, …)`, jamais `ctx.root.append(…)`** : `append` est
+  la méthode native, qui transforme un enfant `false` ou `null` en nœud de
+  texte — on a eu « falsefalse » affiché sur une bibliothèque vide et « null »
+  sous un éditeur en création. `fill` (dom.js) les ignore, ce qui est tout
+  l'intérêt du motif `condition && el(…)`.
 
   > Pourquoi : c'est ce qui permet de tester la logique sans ouvrir l'app, et de
   > remplacer le stockage sans toucher un écran. Si la logique fuit dans

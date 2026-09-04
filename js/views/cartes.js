@@ -52,7 +52,9 @@ export async function render(ctx) {
   });
 
   const list = el('div');
-  ctx.root.append(cards.length > 0 && search, list);
+  // `fill` et non `append` : le `append` natif écrirait « false » à l'écran
+  // quand le chapitre est vide (voir dom.js).
+  fill(ctx.root, cards.length > 0 && search, list);
 
   // On cherche dans les cinq champs : une carte se retrouve aussi bien par sa
   // réponse ou par un mot de la note que par son recto.

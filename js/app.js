@@ -7,7 +7,7 @@
 import { el, fill } from './dom.js';
 import { VERSION } from './version.js';
 import { onUserChange, currentUser, signOut } from './auth.js';
-import { seedIfEmpty } from './store.js';
+import { seedIfEmpty, migrateLibrary } from './store.js';
 import { ecranConnexion } from './views/connexion.js';
 
 import * as accueil from './views/accueil.js';
@@ -15,8 +15,8 @@ import * as cartes from './views/cartes.js';
 import * as editeur from './views/editeur.js';
 import * as chapitres from './views/chapitres.js';
 import * as bibliotheque from './views/bibliotheque.js';
-import * as theoreme from './views/theoreme_detail.js';
-import * as editeurTheoreme from './views/editeur_theoreme.js';
+import * as entree from './views/entree_detail.js';
+import * as editeurEntree from './views/editeur_entree.js';
 
 // L'ordre compte : la première expression qui correspond gagne. « nouvelle » est
 // placée avant la route générique d'édition pour que l'intention soit lisible
@@ -30,9 +30,12 @@ const ROUTES = [
   { path: /^\/carte\/([^/]+)$/,              view: editeur, title: 'Modifier',       mode: 'edition' },
   // Même précaution que pour « nouvelle » : les routes littérales passent avant
   // celle qui capture un identifiant, sinon « nouveau » serait pris pour un id.
-  { path: /^\/theoreme\/nouveau$/,           view: editeurTheoreme, title: 'Nouveau théorème', mode: 'creation' },
-  { path: /^\/theoreme\/([^/]+)\/editer$/,   view: editeurTheoreme, title: 'Modifier',         mode: 'edition' },
-  { path: /^\/theoreme\/([^/]+)$/,           view: theoreme,        title: 'Théorème' },
+  //
+  // L'espèce n'apparaît que dans la route de création : c'est le seul moment où
+  // le document n'existe pas encore, donc où l'URL est seule à pouvoir la dire.
+  { path: /^\/entree\/nouveau\/(theoreme|definition)$/, view: editeurEntree, title: 'Nouvelle entrée', mode: 'creation' },
+  { path: /^\/entree\/([^/]+)\/editer$/,     view: editeurEntree, title: 'Modifier',       mode: 'edition' },
+  { path: /^\/entree\/([^/]+)$/,             view: entree,        title: 'Entrée' },
 ];
 
 const mount = document.getElementById('view');
@@ -117,8 +120,12 @@ onUserChange(async (user) => {
   if (connecte) {
     try {
       await seedIfEmpty();
+      // Migration `theorems` → `library`, idempotente et non destructive : elle
+      // sort d'elle-même dès qu'elle a déjà tourné. Voir store.js.
+      const migrees = await migrateLibrary();
+      if (migrees > 0) console.info(`Bibliothèque : ${migrees} entrée(s) migrée(s).`);
     } catch (err) {
-      console.error('Création des chapitres :', err);
+      console.error('Préparation des données :', err);
     }
   }
   renderRoute();

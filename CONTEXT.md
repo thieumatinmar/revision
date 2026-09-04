@@ -86,43 +86,70 @@ _Éviter_: non classée, non triée, orpheline, en attente
 ## La bibliothèque
 
 **Bibliothèque** :
-Le rayon des théorèmes, à côté des cartes et séparé d'elles. On y **consulte** :
+Le rayon des entrées, à côté des cartes et séparé d'elles. On y **consulte** :
 on cherche, on lit, on choisit quoi travailler. Elle est plate — ni chapitre, ni
-ordre à la main.
-_Code_: route `#/bibliotheque`
+ordre à la main — et les deux espèces d'entrée y sont mélangées, triées par
+titre.
+_Code_: route `#/bibliotheque`, collection `library`
 _Éviter_: base, catalogue, fiches, recueil
+
+**Entrée** :
+Ce qu'on range en bibliothèque : un **théorème** ou une **définition**. Deux
+espèces d'une même chose — un nom, un corps, un appui facultatif — qui se lisent
+d'un bloc et ne s'interrogent pas. Le mot sert partout où la distinction ne
+change rien : une liste d'entrées, une recherche d'entrées, un renvoi vers une
+entrée.
+_Code_: `entry`, collection `library`
+_Éviter_: fiche, élément, item, notion (une définition définit une notion, elle
+n'en est pas une)
+
+**Espèce** :
+Ce qui distingue un théorème d'une définition. Elle ne change **que les mots
+affichés** — les champs, les écrans et les gestes sont les mêmes.
+_Code_: `kind` — `'theorem'` ou `'definition'`
+_Éviter_: type, catégorie (déjà pris par le rangement des cartes), genre
 
 **Théorème** :
 Un résultat qu'on veut garder sous la main, avec son énoncé et l'esquisse de sa
 preuve. Une seule notion : on ne distingue pas ici le résultat qu'on présentera
 à l'oral de celui qu'on se contentera de citer — ce jugement change trop souvent
 pour tenir dans les données.
-_Code_: `theorem`
+_Code_: entrée dont `kind` vaut `'theorem'`
 _Éviter_: développement, résultat, lemme, propriété, énoncé (c'est une de ses parties)
 
-**Énoncé** :
-Ce que le théorème affirme, hypothèses comprises. La partie qu'on doit pouvoir
-citer juste.
-_Code_: `statement`
-_Éviter_: formulation, définition, théorème
+**Définition** :
+Ce qu'une notion **est**, exactement, avec ce qui aide à s'en servir : l'exemple
+qui éclaire, le contre-exemple qui mord. Elle se range dans la même
+bibliothèque et se cite dans les mêmes renvois qu'un théorème.
+_Code_: entrée dont `kind` vaut `'definition'`
+_Éviter_: notion, concept, énoncé, axiome
 
-**Esquisse** :
-Le squelette de la preuve : les étapes et les leviers, pas la preuve rédigée.
-Elle doit tenir en un coup d'œil — une démonstration complète ferait de la
-bibliothèque un cours, qu'on ne parcourt plus.
-_Code_: `sketch`
-_Éviter_: démonstration, preuve, démo, plan, idée
+**Énoncé** *(sur un théorème)* / **Définition** *(sur une définition)* :
+Le corps de l'entrée — ce qu'elle affirme ou ce qu'elle pose, hypothèses
+comprises. La partie qu'on doit pouvoir citer juste. **Un seul champ**, deux
+libellés : le mot change avec l'espèce, la donnée non.
+_Code_: `statement`
+_Éviter_: formulation, contenu, texte
+
+**Esquisse** *(sur un théorème)* / **Remarques** *(sur une définition)* :
+L'appui : ce qui aide à se servir de l'entrée. Pour un théorème, le squelette de
+la preuve — les étapes et les leviers, pas la preuve rédigée. Pour une
+définition, les exemples, contre-exemples et pièges. Facultatif, et il doit
+tenir en un coup d'œil : une démonstration complète ferait de la bibliothèque un
+cours, qu'on ne parcourt plus. **Un seul champ**, là encore.
+_Code_: `support`
+_Éviter_: démonstration, preuve, plan, note (déjà pris, et en extinction)
 
 **Renvoi** :
-Le geste par lequel une carte pointe vers un théorème de la bibliothèque. Il
-appartient à la carte et va dans un seul sens — le théorème, lui, se contente
-d'afficher qui le cite. Un renvoi ne contient rien : une carte privée du sien
-reste une carte entière.
-_Code_: `theoremIds`
+Le geste par lequel une carte pointe vers une entrée de la bibliothèque —
+théorème ou définition, indifféremment. Il appartient à la carte et va dans un
+seul sens : l'entrée, elle, se contente d'afficher qui la cite. Un renvoi ne
+contient rien : une carte privée du sien reste une carte entière.
+_Code_: `entryIds`
 _Éviter_: lien, référence, citation, rattachement
 
 **Cité par** :
-L'autre bout du renvoi, vu depuis le théorème : les cartes qui pointent vers
-lui. Ce n'est pas une donnée du théorème — c'est une question posée aux cartes.
+L'autre bout du renvoi, vu depuis l'entrée : les cartes qui pointent vers elle.
+Ce n'est pas une donnée de l'entrée — c'est une question posée aux cartes.
 _Code_: `cardsCiting()`
 _Éviter_: rétrolien, backlink, cartes liées

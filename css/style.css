@@ -166,6 +166,24 @@ button:active, .btn:active { transform: translateY(1px); }
 .renvois-resultats { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .renvois-resultats .resultat-renvoi { text-align: left; }
 
+/* La marque d'espece (Th. / Def.) devant un titre d'entree. Grise et de largeur
+   fixe : elle doit se voir sans passer devant le titre, et ne pas decaler les
+   titres les uns par rapport aux autres d'une ligne a l'autre. L'ecart est tenu
+   par le `gap` du conteneur (.row, .renvoi-pastille), jamais par une marge. */
+.pastille-espece {
+  flex: none;
+  min-width: 32px;
+  color: var(--fg-dim);
+  font-size: .72rem;
+  letter-spacing: .04em;
+  text-transform: uppercase;
+}
+
+/* Filtre par espece, au-dessus de la recherche de la bibliotheque. Trois
+   boutons plutot qu'un menu : sur telephone, un menu coute deux gestes pour un
+   filtre qu'on bascule sans arret. */
+.filtres { display: flex; gap: 8px; margin-bottom: 12px; }
+
 /* La bibliothèque, sur l'accueil : un rayon à part, sous les chapitres.
    Même habillage qu'une ligne de liste — c'est la même nature de geste (ouvrir
    un rayon) — mais détaché par une marge et un trait, pour qu'on lise « et

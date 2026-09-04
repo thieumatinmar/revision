@@ -30,21 +30,26 @@ export function normalise(texte) {
 }
 
 /**
- * Les théorèmes qui correspondent à la requête.
+ * Les entrées qui correspondent à la requête.
  *
- * La recherche porte sur les **trois** champs réunis (titre, énoncé, esquisse) :
- * chercher dans l'esquisse est un vrai geste — « quels théorèmes s'appuient sur
- * Baire ? » — et ça ne coûte pas une ligne de plus.
+ * La recherche porte sur les **trois** champs réunis (titre, corps, appui) :
+ * chercher dans l'esquisse d'une preuve ou dans les remarques d'une définition
+ * est un vrai geste — « qu'est-ce qui s'appuie sur Baire ? » — et ça ne coûte
+ * pas une ligne de plus.
+ *
+ * Le filtre **ne connaît pas les espèces** : théorèmes et définitions portent les
+ * mêmes noms de champs, et c'est l'appelant qui restreint à une espèce s'il le
+ * veut. Ce module reste ainsi pur, et sans le moindre import.
  *
  * Les mots de la requête sont exigés **tous** (et non l'un d'entre eux), dans
  * n'importe quel ordre : taper « dini uniforme » doit resserrer la liste, pas
  * l'élargir. Une requête vide ne filtre rien.
  */
-export function filtre(theorems, requete) {
+export function filtre(entrees, requete) {
   const mots = normalise(requete).split(/\s+/).filter(Boolean);
-  if (mots.length === 0) return theorems;
-  return theorems.filter((t) => {
-    const foin = normalise(`${t.title} ${t.statement} ${t.sketch}`);
+  if (mots.length === 0) return entrees;
+  return entrees.filter((e) => {
+    const foin = normalise(`${e.title} ${e.statement} ${e.support}`);
     return mots.every((m) => foin.includes(m));
   });
 }

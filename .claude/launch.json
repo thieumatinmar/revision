@@ -4,8 +4,12 @@
     {
       "name": "app-revision",
       "runtimeExecutable": "python",
-      "runtimeArgs": ["-m", "http.server", "8123"],
-      "port": 8123
+      "runtimeArgs": [
+        "-c",
+        "import os, http.server, socketserver; socketserver.TCPServer.allow_reuse_address = True; socketserver.TCPServer(('', int(os.environ.get('PORT', '8130'))), http.server.SimpleHTTPRequestHandler).serve_forever()"
+      ],
+      "port": 8130,
+      "autoPort": true
     }
   ]
 }

@@ -20,7 +20,8 @@
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
-import { getCard, saveCard, deleteCard, listCategories, listTheorems } from '../store.js';
+import { getCard, saveCard, deleteCard, listCategories, listEntries, kindOf } from '../store.js';
+import { ESPECES } from '../entree.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 import { filtre } from '../recherche.js';
 
@@ -36,10 +37,10 @@ export async function render(ctx) {
   // faudrait deviner à partir de la forme de l'identifiant — fragile.
   const creation = ctx.mode === 'creation';
   const [param] = ctx.params;
-  const [categories, theorems] = await Promise.all([listCategories(), listTheorems()]);
+  const [categories, entries] = await Promise.all([listCategories(), listEntries()]);
 
   const card = creation
-    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [], theoremIds: [] }
+    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [], entryIds: [] }
     : await getCard(param);
 
   if (!card) {
@@ -92,8 +93,8 @@ export async function render(ctx) {
   );
 
   const renvois = champRenvois(
-    Array.isArray(card.theoremIds) ? [...card.theoremIds] : [],
-    theorems,
+    Array.isArray(card.entryIds) ? [...card.entryIds] : [],
+    entries,
     () => planifierApercu(),
   );
 
@@ -132,7 +133,7 @@ export async function render(ctx) {
   // La barre d'actions vit **hors** de la grille : sur écran étroit en aperçu, le
   // formulaire est masqué, et une barre posée dedans emporterait *Enregistrer*
   // avec lui — or le geste réel finit là : je tape, je vérifie, j'enregistre.
-  ctx.root.append(
+  fill(ctx.root,
     grille,
     el('div', { class: 'actions' },
       el('button', { class: 'btn-primary', on: { click: enregistrer } }, 'Enregistrer'),
@@ -159,7 +160,7 @@ export async function render(ctx) {
     fill(zoneApercu,
       el('p', { class: 'small muted' },
         'Aperçu — la carte telle qu’elle se lira, toutes faces révélées.'),
-      faceCarte(valeurs(), { hint: true, back: true, theorems }),
+      faceCarte(valeurs(), { hint: true, back: true, entries }),
     );
   }
 
@@ -199,7 +200,7 @@ export async function render(ctx) {
       back: verso.input.value,
       note: note ? note.input.value : '',
       images: images.valeur(),
-      theoremIds: renvois.valeur(),
+      entryIds: renvois.valeur(),
     };
   }
 
@@ -336,55 +337,60 @@ function champImages(images, auChangement = () => {}) {
 }
 
 /**
- * Les renvois vers la bibliothèque : chercher un théorème, l'attacher, le retirer.
+ * Les renvois vers la bibliothèque : chercher une entrée, l'attacher, la retirer.
  *
  * Une **recherche** et non un menu déroulant : la bibliothèque est faite pour
  * grossir, et un `<select>` de cent cinquante entrées est inutilisable sur le
  * téléphone — c'est-à-dire là où l'on révise. Le filtre est celui de la
  * bibliothèque (`recherche.js`), déjà écrit : mêmes règles, aucune surprise.
  *
- * On n'y **crée pas** de théorème. Attacher, c'est pointer vers ce qui existe ;
+ * On n'y **crée pas** d'entrée. Attacher, c'est pointer vers ce qui existe ;
  * ouvrir un formulaire de création ici ferait deux enregistrements imbriqués
  * dans un écran qui en a déjà un.
  *
- * `theorems` est la bibliothèque chargée par la vue ; `ids` la liste possédée par
+ * Chaque entrée proposée porte sa **pastille** d'espèce : citer la définition
+ * d'un objet ou le théorème qui le concerne n'est pas le même geste, et les deux
+ * portent souvent des titres voisins.
+ *
+ * `entries` est la bibliothèque chargée par la vue ; `ids` la liste possédée par
  * la carte, modifiée en place — c'est elle que `valeur()` rend.
  */
-function champRenvois(ids, theorems, auChangement = () => {}) {
+function champRenvois(ids, entries, auChangement = () => {}) {
   const attaches = el('div', { class: 'renvois-boutons', style: 'margin-bottom:8px' });
   const resultats = el('div', { class: 'renvois-resultats' });
 
   const search = el('input', {
     type: 'search',
-    placeholder: 'Chercher un théorème à citer…',
+    placeholder: 'Chercher une entrée à citer…',
     on: { input: () => dessineResultats() },
   });
 
   const bloc = el('div', { class: 'champ' },
     el('label', { class: 'small muted' },
-      'Renvois — les théorèmes cités, montrés avec le verso'),
+      'Renvois — les entrées citées, montrées avec le verso'),
     attaches,
-    theorems.length > 0
+    entries.length > 0
       ? search
       : el('p', { class: 'small muted' },
           'La bibliothèque est vide : il n’y a encore rien à citer.'),
     resultats,
   );
 
-  /** Les théorèmes attachés, dans l'ordre où on les a posés. */
+  /** Les entrées attachées, dans l'ordre où on les a posées. */
   function dessineAttaches() {
     // Un identifiant inconnu est ignoré plutôt qu'affiché : il ne survivrait pas
     // à l'enregistrement de toute façon, `valeur()` ne rendant que le résolu.
-    const resolus = ids.map((id) => theorems.find((t) => t.id === id)).filter(Boolean);
+    const resolus = ids.map((id) => entries.find((e) => e.id === id)).filter(Boolean);
 
     fill(attaches, resolus.length === 0
       ? el('span', { class: 'small muted' }, 'Aucun renvoi.')
-      : resolus.map((t) => el('span', { class: 'renvoi-pastille' },
-          el('span', {}, t.title || 'Sans titre'),
+      : resolus.map((e) => el('span', { class: 'renvoi-pastille' },
+          el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
+          el('span', {}, e.title || 'Sans titre'),
           el('button', {
             class: 'btn-sm',
             title: 'Retirer ce renvoi',
-            on: { click: () => { ids.splice(ids.indexOf(t.id), 1); redessine(); } },
+            on: { click: () => { ids.splice(ids.indexOf(e.id), 1); redessine(); } },
           }, '✕'),
         )));
   }
@@ -397,17 +403,19 @@ function champRenvois(ids, theorems, auChangement = () => {}) {
     const q = search.value.trim();
     if (!q) return fill(resultats);
 
-    const trouves = filtre(theorems, q).filter((t) => !ids.includes(t.id)).slice(0, 6);
+    const trouves = filtre(entries, q).filter((e) => !ids.includes(e.id)).slice(0, 6);
     fill(resultats, trouves.length === 0
-      ? el('p', { class: 'small muted' }, 'Aucun théorème ne correspond.')
-      : trouves.map((t) => el('button', {
+      ? el('p', { class: 'small muted' }, 'Aucune entrée ne correspond.')
+      : trouves.map((e) => el('button', {
           class: 'btn-sm resultat-renvoi',
           on: { click: () => {
-            ids.push(t.id);
+            ids.push(e.id);
             search.value = '';
             redessine();
           } },
-        }, t.title || 'Sans titre')));
+        },
+          el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
+          e.title || 'Sans titre')));
   }
 
   function redessine() {
@@ -418,7 +426,7 @@ function champRenvois(ids, theorems, auChangement = () => {}) {
 
   dessineAttaches();
 
-  return { bloc, valeur: () => ids.filter((id) => theorems.some((t) => t.id === id)) };
+  return { bloc, valeur: () => ids.filter((id) => entries.some((e) => e.id === id)) };
 }
 
 /**

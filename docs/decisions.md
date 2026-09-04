@@ -762,3 +762,61 @@ un outil de rappel actif, c'est un **fonds structuré** — des théorèmes, des
 définitions, et des cartes qui les citent. L'interrogation se fait ailleurs
 (sessions de travail, papier). Le jour où elle revient dans l'app, elle
 reviendra comme une fonctionnalité conçue pour ça, pas comme un reste.
+
+---
+
+## Théorèmes et définitions : deux espèces d'une même entrée
+
+**Choix** — Une **entrée** (`users/{uid}/library/{id}`) porte une espèce
+(`kind` : `'theorem'` ou `'definition'`) et trois champs communs : `title`,
+`statement`, `support`. Un seul montage, une seule liste, un seul éditeur, une
+seule recherche ; seuls les **libellés** changent — « Titre / Énoncé /
+Esquisse » contre « Nom / Définition / Remarques » — et ils sont tous
+regroupés dans `ESPECES` (`js/entree.js`). L'espèce n'apparaît dans une URL
+qu'à la création (`#/entree/nouveau/definition`), seul moment où le document
+n'existe pas encore.
+
+**Alternative écartée** — (a) une collection `definitions` séparée, avec ses
+propres écrans, copiés du théorème ; (b) deux collections réunies par un
+`listLibrary()` ; (c) des noms de champs propres à chaque espèce (`name`,
+`definition`, `notes` contre `title`, `statement`, `sketch`).
+
+**Raison** — On avait refusé un champ `type` sur `card` (voir « La
+bibliothèque de théorèmes »), et le cas est ici **symétrique inverse**. Ce
+qui condamnait le `type` sur la carte, c'était la différence de
+**comportement** : une carte pose une question et se révèle en deux temps, un
+théorème se lit d'un bloc — le booléen aurait fuité dans le tirage, les
+compteurs, le montage, l'éditeur. Entre un théorème et une définition, il n'y
+a **aucune** différence de comportement : même forme, même lecture d'un bloc,
+même recherche, mêmes renvois, jamais de tirage. Le `kind` ne fuite nulle part
+— il ne sert qu'à choisir trois mots.
+
+(a) faisait payer deux fois chaque évolution : le jour où les images arrivent en
+bibliothèque (report volontaire, déjà acté), il faudrait les écrire dans deux
+éditeurs. (b) déplace le problème au lieu de le supprimer : l'identifiant ne
+suffirait plus à retrouver un document, donc l'espèce se remettrait à voyager
+dans **toutes** les routes — exactement ce qu'on voulait éviter. (c) obligerait
+le tri, la liste et la recherche à demander l'espèce avant de savoir quel champ
+lire, et ferait de `recherche.js` — seul module pur de l'app — un module à cas
+particuliers.
+
+**Le nom de la collection a été changé**, `theorems` → `library`, plutôt que
+gardé tel quel en assumant qu'il mente. Le renommage coûte une migration ; cette
+migration a exactement le même coût aujourd'hui et dans six mois, mais pas le
+même risque : aujourd'hui elle porte sur une poignée de documents et se vérifie
+en trente secondes. Dans le même mouvement, `sketch` est devenu `support` (le
+mot « esquisse » ne veut rien dire sur une définition) et `theoremIds` est
+devenu `entryIds` sur les cartes (un renvoi peut désormais viser une
+définition).
+
+**La migration est non destructive**, et c'est la seule précaution possible
+puisque l'app n'a **aucun export** : `migrateLibrary()` copie sans supprimer
+(`theorems` reste en place comme sauvegarde, à effacer à la main dans la
+console Firebase une fois le résultat constaté), conserve les identifiants (les
+renvois pointent dessus), et sort d'elle-même dès que `library` est non vide.
+Elle tourne à la connexion, comme `seedIfEmpty()` — il n'y a pas d'autre
+endroit possible : pas de Node sur la machine, et les règles Firestore n'ouvrent
+`users/{uid}` qu'à l'utilisateur connecté.
+
+**À retirer plus tard** : `migrateLibrary()` et sa lecture de `theorems`, une
+fois l'ancienne collection supprimée à la main.
