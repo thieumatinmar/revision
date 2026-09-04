@@ -106,7 +106,7 @@ export async function render(ctx) {
   });
 
   const enonce = champ(
-    `${mots.labels.statement} — ${AIDES[kind].statement}`,
+    `${mots.labels.statement} (facultatif) — ${AIDES[kind].statement}`,
     entry.statement,
     EXEMPLES[kind].statement,
   );
@@ -203,11 +203,16 @@ export async function render(ctx) {
     // Le titre est obligatoire, contrairement à celui d'une carte : c'est par lui
     // qu'on retrouve une entrée dans une liste triée par titre, et sans lui la
     // bibliothèque devient un tas.
-    if (!titre.value.trim() || !enonce.input.value.trim()) {
+    //
+    // Le corps, lui, ne l'est plus : une entrée peut naître d'un renvoi posé
+    // depuis une carte, titre seul, et se remplir quand on repasse dessus. Le
+    // refuser ici ferait de cet écran le seul à rejeter ce que l'autre chemin
+    // fabrique — même règle des deux côtés, ou l'incohérence se paie.
+    if (!titre.value.trim()) {
       // Le message vit dans le formulaire : l'afficher sans y revenir
       // reviendrait à ne rien afficher.
       basculer('edition');
-      erreur.textContent = `${mots.labels.title} et ${mots.labels.statement.toLowerCase()} sont obligatoires.`;
+      erreur.textContent = `${mots.labels.title} est obligatoire.`;
       return;
     }
     const enregistree = await saveEntry(valeurs());

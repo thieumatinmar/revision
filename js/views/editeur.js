@@ -20,8 +20,12 @@
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
-import { getCard, saveCard, deleteCard, listCategories, listEntries, kindOf } from '../store.js';
+import {
+  getCard, saveCard, deleteCard, listCategories, listEntries, kindOf,
+  saveEntry, THEOREM, DEFINITION,
+} from '../store.js';
 import { ESPECES } from '../entree.js';
+import { marqueDe } from '../marques.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 import { filtre } from '../recherche.js';
 
@@ -71,8 +75,57 @@ export async function render(ctx) {
 
   const recto = champ('Recto — ce qui est demandé', card.front,
     'Ex. : Inégalité de Bienaymé–Tchebychev : énoncé et hypothèses ?');
-  const verso = champ('Verso — la réponse', card.back,
+  const verso = champ('Verso (facultatif) — le complément, lu après', card.back,
     'Ex. : $$\\P(|X-\\E[X]|\\ge\\varepsilon)\\le \\V(X)/\\varepsilon^2$$');
+
+  // --- Où poser une marque ----------------------------------------------------
+  // La marque d'un renvoi s'écrit dans le recto ou le verso, là où l'on était en
+  // train de taper. On retient donc le dernier point de saisie — champ et
+  // position. Sans lui, il faudrait soit un sélecteur de position, soit taper la
+  // marque à la main, c'est-à-dire les deux choses qu'on voulait éviter.
+  //
+  // C'est un état invisible, et c'est assumé : l'aperçu redessine en 150 ms, on
+  // voit donc immédiatement où le bloc s'est posé.
+  let point = null;
+  [recto, verso].forEach(({ input }) => {
+    const noter = () => { point = { input, at: input.selectionStart }; };
+    ['focus', 'click', 'keyup'].forEach((ev) => input.addEventListener(ev, noter));
+  });
+
+  /**
+   * Écrit la marque d'une entrée au dernier point de saisie.
+   *
+   * Faute de point connu, on écrit à la fin du verso — ou du recto si la carte
+   * n'en a pas encore : mieux vaut une marque visible au mauvais endroit, qu'on
+   * déplace d'un couper-coller, qu'un clic sans effet visible.
+   *
+   * La marque occupe **sa propre ligne**. C'est un bloc, pas un mot dans une
+   * phrase : posée au milieu d'un `$$…$$`, elle couperait la formule en deux
+   * moitiés que KaTeX signalerait toutes les deux en erreur.
+   */
+  function insereMarque(entry) {
+    const cible = point || (verso.input.value.trim()
+      ? { input: verso.input, at: verso.input.value.length }
+      : { input: recto.input, at: recto.input.value.length });
+
+    const zone = cible.input;
+    const at = Math.min(cible.at, zone.value.length);
+    const avant = zone.value.slice(0, at);
+    const apres = zone.value.slice(at);
+
+    // On complète les sauts de ligne manquants, sans en empiler quand ils sont
+    // déjà là : insérer deux fois de suite ne doit pas creuser un trou.
+    const tete = !avant || avant.endsWith('\n\n') ? '' : avant.endsWith('\n') ? '\n' : '\n\n';
+    const queue = !apres || apres.startsWith('\n\n') ? '' : apres.startsWith('\n') ? '\n' : '\n\n';
+    const texte = tete + marqueDe(entry) + queue;
+
+    zone.value = avant + texte + apres;
+    const fin = avant.length + texte.length;
+    zone.setSelectionRange(fin, fin);
+    point = { input: zone, at: fin };
+    zone.focus();
+    planifierApercu();
+  }
 
   // Indication et note sont **en extinction** : on n'en écrit plus de nouvelles.
   // Le champ n'apparaît donc que si la carte en porte déjà une — et le vider
@@ -95,7 +148,7 @@ export async function render(ctx) {
   const renvois = champRenvois(
     Array.isArray(card.entryIds) ? [...card.entryIds] : [],
     entries,
-    () => planifierApercu(),
+    { auChangement: () => planifierApercu(), insere: insereMarque },
   );
 
   // --- Les deux blocs ---------------------------------------------------------
@@ -205,11 +258,15 @@ export async function render(ctx) {
   }
 
   async function enregistrer() {
-    if (!recto.input.value.trim() || !verso.input.value.trim()) {
+    // Seul le recto est exigé. Une carte sans verso est une forme légitime — une
+    // note qui se suffit — autant qu'une question dont la réponse s'écrira plus
+    // tard : l'app ne tranche pas entre les deux et ne marque ni l'une ni
+    // l'autre (docs/decisions.md, « Ce qui nomme est obligatoire… »).
+    if (!recto.input.value.trim()) {
       // Le message vit dans le formulaire : l'afficher sans revenir dessus
       // reviendrait à ne rien afficher du tout.
       basculer('edition');
-      erreur.textContent = 'Le recto et le verso sont obligatoires.';
+      erreur.textContent = 'Le recto est obligatoire.';
       return;
     }
     await saveCard(valeurs());
@@ -337,43 +394,47 @@ function champImages(images, auChangement = () => {}) {
 }
 
 /**
- * Les renvois vers la bibliothèque : chercher une entrée, l'attacher, la retirer.
+ * Les renvois vers la bibliothèque : chercher une entrée, la créer au besoin,
+ * l'attacher, la placer, la retirer.
  *
  * Une **recherche** et non un menu déroulant : la bibliothèque est faite pour
  * grossir, et un `<select>` de cent cinquante entrées est inutilisable sur le
  * téléphone — c'est-à-dire là où l'on révise. Le filtre est celui de la
  * bibliothèque (`recherche.js`), déjà écrit : mêmes règles, aucune surprise.
  *
- * On n'y **crée pas** d'entrée. Attacher, c'est pointer vers ce qui existe ;
- * ouvrir un formulaire de création ici ferait deux enregistrements imbriqués
- * dans un écran qui en a déjà un.
+ * On y **crée** désormais une entrée, ce que ce champ refusait — mais au titre
+ * seul, et sans quitter l'écran : le nom se capture au moment où il passe, le
+ * corps s'écrit quand on repasse dessus (docs/decisions.md, « Créer une entrée
+ * depuis la carte »). L'espèce est demandée à ce moment-là, parce qu'elle est la
+ * seule chose qu'un titre ne dit pas.
  *
  * Chaque entrée proposée porte sa **pastille** d'espèce : citer la définition
  * d'un objet ou le théorème qui le concerne n'est pas le même geste, et les deux
  * portent souvent des titres voisins.
  *
- * `entries` est la bibliothèque chargée par la vue ; `ids` la liste possédée par
- * la carte, modifiée en place — c'est elle que `valeur()` rend.
+ * `entries` est la bibliothèque chargée par la vue, **mutée** ici à la
+ * création : c'est le même tableau que celui passé à l'aperçu, donc le renvoi
+ * s'y résout aussitôt, sans relire Firestore. `ids` est la liste possédée par la
+ * carte, modifiée en place — c'est elle que `valeur()` rend.
  */
-function champRenvois(ids, entries, auChangement = () => {}) {
+function champRenvois(ids, entries, { auChangement = () => {}, insere = () => {} } = {}) {
   const attaches = el('div', { class: 'renvois-boutons', style: 'margin-bottom:8px' });
   const resultats = el('div', { class: 'renvois-resultats' });
+  const etat = el('p', { class: 'small muted', style: 'min-height:1.2em;margin:6px 0 0' });
 
   const search = el('input', {
     type: 'search',
-    placeholder: 'Chercher une entrée à citer…',
+    placeholder: 'Chercher une entrée à citer, ou en créer une…',
     on: { input: () => dessineResultats() },
   });
 
   const bloc = el('div', { class: 'champ' },
     el('label', { class: 'small muted' },
-      'Renvois — les entrées citées, montrées avec le verso'),
+      'Renvois — les entrées citées, en bas de la carte ou là où tu les places'),
     attaches,
-    entries.length > 0
-      ? search
-      : el('p', { class: 'small muted' },
-          'La bibliothèque est vide : il n’y a encore rien à citer.'),
+    search,
     resultats,
+    etat,
   );
 
   /** Les entrées attachées, dans l'ordre où on les a posées. */
@@ -387,6 +448,13 @@ function champRenvois(ids, entries, auChangement = () => {}) {
       : resolus.map((e) => el('span', { class: 'renvoi-pastille' },
           el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
           el('span', {}, e.title || 'Sans titre'),
+          // Poser la marque est un **second** geste, délibéré : attacher sans
+          // placer reste le cas courant, et le renvoi va alors en bas de carte.
+          el('button', {
+            class: 'btn-sm',
+            title: 'Poser ici la marque de ce renvoi',
+            on: { click: () => insere(e) },
+          }, '↓ ici'),
           el('button', {
             class: 'btn-sm',
             title: 'Retirer ce renvoi',
@@ -398,24 +466,72 @@ function champRenvois(ids, entries, auChangement = () => {}) {
   /**
    * Les candidats : au plus six, et jamais ceux déjà attachés — les reproposer
    * inviterait à un doublon que rien n'empêcherait ensuite.
+   *
+   * Les deux boutons de création suivent **toujours**, même quand la recherche
+   * trouve : « Baire » peut exister comme théorème alors qu'on veut citer la
+   * définition. C'est le cas normal, pas un rattrapage d'échec.
    */
   function dessineResultats() {
     const q = search.value.trim();
     if (!q) return fill(resultats);
 
     const trouves = filtre(entries, q).filter((e) => !ids.includes(e.id)).slice(0, 6);
-    fill(resultats, trouves.length === 0
-      ? el('p', { class: 'small muted' }, 'Aucune entrée ne correspond.')
-      : trouves.map((e) => el('button', {
-          class: 'btn-sm resultat-renvoi',
-          on: { click: () => {
-            ids.push(e.id);
-            search.value = '';
-            redessine();
-          } },
-        },
-          el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
-          e.title || 'Sans titre')));
+
+    fill(resultats,
+      trouves.length === 0
+        ? el('p', { class: 'small muted' }, 'Aucune entrée ne correspond.')
+        : trouves.map((e) => el('button', {
+            class: 'btn-sm resultat-renvoi',
+            on: { click: () => {
+              ids.push(e.id);
+              search.value = '';
+              redessine();
+            } },
+          },
+            el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
+            e.title || 'Sans titre')),
+      el('div', { class: 'creation-renvoi' },
+        el('span', { class: 'small muted' }, `Créer « ${q} » :`),
+        boutonCreer(THEOREM, q),
+        boutonCreer(DEFINITION, q),
+      ),
+    );
+  }
+
+  function boutonCreer(kind, titre) {
+    return el('button', {
+      class: 'btn-sm',
+      on: { click: (ev) => cree(kind, titre, ev.currentTarget) },
+    }, `+ ${ESPECES[kind].nom}`);
+  }
+
+  /**
+   * Crée l'entrée, l'attache, et rend la main.
+   *
+   * Titre seul : ni énoncé ni appui. C'est un enregistrement complet malgré
+   * tout — l'entrée existe en bibliothèque dès ce clic, indépendamment du sort
+   * de la carte en cours d'écriture. Annuler la carte ne la retire donc pas, et
+   * c'est voulu : deux enregistrements imbriqués, dont l'un annulerait l'autre,
+   * serait bien plus surprenant.
+   */
+  async function cree(kind, titre, bouton) {
+    bouton.disabled = true;
+    etat.style.color = '';
+    etat.textContent = 'Création…';
+    try {
+      const entree = await saveEntry({ kind, title: titre, statement: '', support: '' });
+      // `entries` est le tableau de la vue : le pousser ici suffit à ce que
+      // l'aperçu résolve aussitôt le renvoi, sans relire la bibliothèque.
+      entries.push(entree);
+      ids.push(entree.id);
+      search.value = '';
+      etat.textContent = `${ESPECES[kind].nom} « ${titre} » créée — son corps reste à écrire.`;
+      redessine();
+    } catch (err) {
+      bouton.disabled = false;
+      etat.style.color = '#e8695f';
+      etat.textContent = 'Création impossible : ' + err.message;
+    }
   }
 
   function redessine() {

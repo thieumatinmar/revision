@@ -35,7 +35,9 @@ _Éviter_: aide, indice, tip
 
 **Verso** :
 La face qui porte la réponse — celle qu'on ne lit qu'après avoir tenté de la
-retrouver.
+retrouver. **Facultatif** : une carte peut n'être qu'un recto. Ce qu'elle est
+alors — une note qui se suffit, ou une question dont la réponse s'écrira plus
+tard — ne se dit nulle part et ne se marque pas ; les deux sont légitimes.
 _Code_: `back`
 _Éviter_: réponse, solution, correction, face B
 
@@ -127,7 +129,9 @@ _Éviter_: notion, concept, énoncé, axiome
 **Énoncé** *(sur un théorème)* / **Définition** *(sur une définition)* :
 Le corps de l'entrée — ce qu'elle affirme ou ce qu'elle pose, hypothèses
 comprises. La partie qu'on doit pouvoir citer juste. **Un seul champ**, deux
-libellés : le mot change avec l'espèce, la donnée non.
+libellés : le mot change avec l'espèce, la donnée non. **Facultatif** : une
+entrée peut n'être qu'un titre, née d'un renvoi posé depuis une carte, et se
+remplir quand on repasse dessus.
 _Code_: `statement`
 _Éviter_: formulation, contenu, texte
 
@@ -145,8 +149,19 @@ Le geste par lequel une carte pointe vers une entrée de la bibliothèque —
 théorème ou définition, indifféremment. Il appartient à la carte et va dans un
 seul sens : l'entrée, elle, se contente d'afficher qui la cite. Un renvoi ne
 contient rien : une carte privée du sien reste une carte entière.
+Il s'affiche en bas de la carte, à moins qu'une **marque** ne le place ailleurs.
 _Code_: `entryIds`
 _Éviter_: lien, référence, citation, rattachement
+
+**Marque** :
+Ce qu'on écrit dans le texte d'une carte pour dire **où** un renvoi doit
+apparaître : `{{renvoi: Théorème de Dini}}`, sur sa propre ligne. Elle ne dit que
+le placement — le renvoi, lui, existe indépendamment d'elle. Une marque qui ne
+désigne plus rien ne perd donc aucun renvoi : celui-ci retombe simplement en bas
+de la carte. On ne la tape jamais : un bouton la pose au point de saisie.
+_Code_: `marqueDe()`, `decoupe()`
+_Éviter_: jeton, balise, ancre, lien, pastille (c'est la marque d'espèce, autre
+chose)
 
 **Cité par** :
 L'autre bout du renvoi, vu depuis l'entrée : les cartes qui pointent vers elle.

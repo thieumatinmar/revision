@@ -84,8 +84,14 @@ export function faceEntree(entry) {
 
     // C'est ce libellé qui dit l'espèce — « Énoncé » ou « Définition ». Une
     // pastille de plus au-dessus du titre ferait redite.
-    el('div', { class: 'face-label' }, mots.labels.statement),
-    renderMath(el('div'), entry.statement),
+    //
+    // Le corps est **facultatif** : une entrée peut naître d'un renvoi posé
+    // depuis une carte, avec son seul titre, et se remplir plus tard. Le libellé
+    // du champ disparaît alors — il annoncerait du vide — mais l'espèce doit
+    // rester lisible, sans quoi on ne saurait plus si l'on regarde un théorème
+    // ou une définition. D'où le repli sur son nom.
+    el('div', { class: 'face-label' }, entry.statement ? mots.labels.statement : mots.nom),
+    entry.statement && renderMath(el('div'), entry.statement),
 
     entry.support && el('hr'),
     entry.support && el('div', { class: 'face-label' }, mots.labels.support),

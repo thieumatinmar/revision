@@ -75,7 +75,11 @@ on l'inscrit ici avec sa frontière.
   dépliage d'un renvoi. Rien n'y est caché : une entrée se consulte, elle
   n'interroge pas. **Seul endroit** où vivent les libellés d'espèce.
 - `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
-  ni stockage. Seul module pur de l'app depuis le retrait du tirage.
+  ni stockage.
+- `js/marques.js` — la marque d'un renvoi dans le texte d'une carte
+  (`{{renvoi: …}}`) : la fabriquer, la lire, découper un texte autour d'elle.
+  **Pur** lui aussi ; n'importe que `normalise` de `recherche.js`. Il dit le
+  **placement**, jamais le renvoi lui-même — qui reste dans `entryIds`.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
   DOM. Un seul appelant aujourd'hui (l'aperçu de l'éditeur), mais le montage
@@ -162,6 +166,10 @@ vocabulaire dans `CONTEXT.md`.
 - `js/app.js` = **coque**. Il connaît les routes, pas les données.
 - **Règle** : aucun accès aux données ni calcul écrit *directement* dans une
   vue. Une vue orchestre, elle ne calcule pas.
+- **`mathtext.js` ne reçoit que du texte pur.** C'est son invariant, et la seule
+  chose qui empêche une carte de casser la page. Une marque de renvoi n'y déroge
+  pas : `carte.js` découpe le texte *autour* d'elle et compose chaque segment
+  séparément — il n'a jamais à produire de HTML actif.
 - **Toujours `fill(ctx.root, …)`, jamais `ctx.root.append(…)`** : `append` est
   la méthode native, qui transforme un enfant `false` ou `null` en nœud de
   texte — on a eu « falsefalse » affiché sur une bibliothèque vide et « null »
@@ -193,8 +201,9 @@ vocabulaire dans `CONTEXT.md`.
   laisserait croire que la logique est vérifiée alors que rien ne l'exécute.
   Voir `docs/decisions.md`, « Gardes du dépôt ».
 - Le **cap** pour quand les vrais tests viendront : `js/recherche.js` (`filtre`,
-  `normalise` — purs, sans I/O ni DOM), puis `js/mathtext.js` — ce dernier
-  demandera un DOM et KaTeX, donc ce n'est pas la première marche.
+  `normalise`) et `js/marques.js` (`decoupe`, `marqueDe`) — purs, sans I/O ni
+  DOM —, puis `js/mathtext.js`, qui demandera un DOM et KaTeX et n'est donc pas
+  la première marche.
 
 ### Décisions d'architecture
 

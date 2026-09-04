@@ -820,3 +820,113 @@ endroit possible : pas de Node sur la machine, et les règles Firestore n'ouvren
 
 **À retirer plus tard** : `migrateLibrary()` et sa lecture de `theorems`, une
 fois l'ancienne collection supprimée à la main.
+
+---
+
+## Ce qui nomme est obligatoire, ce qui développe est facultatif
+
+**Choix** — Une carte n'exige que son **recto** ; le verso devient facultatif.
+Une entrée n'exige que son **titre** ; l'énoncé (ou la définition) devient
+facultatif. Aucun état, aucune pastille, aucun filtre ne distingue ce qui est
+complet de ce qui ne l'est pas.
+
+**Alternative écartée** — Marquer les cartes sans verso et les entrées sans
+corps, d'une pastille dans la liste ou d'un filtre « à compléter ».
+
+**Raison** — L'app est un **fonds** depuis le retrait du test : on y accumule.
+Le geste réel est de capturer ce qui passe — un nom de théorème entendu, une
+formule au tableau — quitte à revenir. Exiger le développement au moment de la
+capture, c'est perdre la capture.
+
+Une carte sans verso est tantôt une note qui se suffit, tantôt une question dont
+la réponse s'écrira plus tard, et l'app **n'a pas à trancher** : c'est la même
+donnée, et seul l'auteur sait laquelle des deux il a écrite. D'où le refus de
+marquer : une pastille « incomplet » ferait passer la note achevée pour un
+brouillon, et le suivi de ce qui reste à faire vit de toute façon hors de l'app
+(voir « Pas de to-do dans l'app »).
+
+La règle vaut **des deux côtés** parce que la création d'une entrée depuis une
+carte fabrique précisément des entrées au titre seul : si l'éditeur d'entrée
+continuait de les refuser, un écran rejetterait à l'enregistrement ce que
+l'autre venait de créer.
+
+---
+
+## Créer une entrée depuis la carte, au titre seul
+
+**Choix** — Le champ *Renvois* de l'éditeur de carte crée une entrée : on tape un
+titre, on choisit l'espèce (deux boutons, `+ Théorème` / `+ Définition`), et
+l'entrée est écrite en bibliothèque puis attachée, sans quitter l'écran. **Titre
+seul** : ni énoncé ni appui. Les deux boutons apparaissent dès que la recherche a
+du texte, y compris quand elle trouve.
+
+**Alternative écartée** — (a) laisser l'interdiction précédente (« attacher,
+c'est pointer vers ce qui existe ») ; (b) un formulaire complet en encart, avec
+énoncé et esquisse ; (c) naviguer vers l'éditeur d'entrée et revenir.
+
+**Raison** — (a) tombait sur l'usage : le moment où l'on réalise qu'un théorème
+mérite sa fiche est précisément celui où on l'écrit dans une carte. Obliger à
+sortir, créer, revenir — en perdant la carte en cours — faisait qu'on ne créait
+pas, et que le renvoi n'existait jamais.
+
+(b) mettait un second enregistrement dans un écran qui en a déjà un, et faisait
+écrire une esquisse de preuve dans une boîte de trois centimètres. (c) coûtait de
+porter l'état non enregistré de la carte à travers une navigation, ce que
+l'app évite partout ailleurs (c'est déjà la raison du dépliage des renvois).
+
+L'entrée créée est écrite **immédiatement**, et n'est pas défaite si l'on annule
+la carte : deux enregistrements imbriqués dont l'un révoque l'autre seraient bien
+plus surprenants qu'une entrée de trop, qui se supprime en deux clics.
+
+Les boutons de création restent visibles même quand la recherche trouve : « Baire »
+peut exister comme théorème alors qu'on veut citer la définition. Ce n'est pas un
+rattrapage d'échec de recherche, c'est le cas normal.
+
+---
+
+## Placer un renvoi dans le texte : la marque
+
+**Choix** — Une **marque** — `{{renvoi: Théorème de Dini}}`, sur sa propre ligne
+du recto ou du verso — dit **où** un renvoi s'affiche. Elle ne porte pas le
+renvoi : celui-ci reste dans `entryIds`, par identifiant. Un renvoi marqué
+s'affiche à l'endroit de sa marque ; les autres restent dans le bloc « Voir
+aussi », en bas, exactement comme avant. La marque se pose par un bouton
+(`↓ ici`) au dernier point de saisie ; on ne la tape jamais. `js/marques.js`
+(module pur) la lit, `js/carte.js` compose chaque segment de texte séparément et
+intercale l'élément entre deux segments.
+
+**Alternative écartée** — (a) le jeton **porte** le renvoi, et `saveCard`
+reconstruit `entryIds` en scannant le texte ; (b) désigner l'entrée par son
+identifiant (`{{renvoi:a7Fk2xY9}}`) ; (c) se contenter de choisir la face
+(renvois du recto / renvois du verso), ou l'ordre des boutons.
+
+**Raison** — Le renvoi ne s'affichait qu'après le verso, pour ne pas donner la
+réponse pendant un tirage. Le tirage n'existe plus (voir « Retrait du test ») :
+plus rien n'est caché, la contrainte est morte, et placer devient possible.
+
+Le partage *quoi / où* est ce qui rend le mécanisme sûr, et c'est pour ça qu'on a
+refusé (a) : aucune migration (les cartes existantes n'ont pas de marque et ne
+bougent pas d'un pixel), aucun texte à réécrire quand une entrée est supprimée
+(`deleteEntry` retire déjà l'identifiant ; la marque orpheline ne désigne
+simplement plus rien), et `saveCard` n'a pas à rescanner le texte — donc le
+« Cité par », qui repose sur `array-contains`, ne peut pas mentir. Une marque est
+un **sur-placement** : sans elle, tout se comporte comme avant.
+
+(b) rendait la source illisible : `{{renvoi: a7Fk2xY9}}` au milieu d'un verso ne
+dit rien à la relecture. Le titre est possible **ici précisément** parce qu'il
+n'est comparé qu'aux entrées attachées à cette carte — une à trois — et non à la
+bibliothèque entière. Renommer une entrée ne casse donc pas un renvoi : la marque
+cesse de résoudre, le renvoi retombe en bas, et l'aperçu le signale en rouge
+plutôt que de déplacer un bloc en silence. Deux entrées attachées de même titre
+(le théorème *et* la définition d'espace de Baire) ne sont pas départagées : on
+refuse de deviner, pour la même raison.
+
+(c) ne répondait pas au besoin — citer *à l'endroit du raisonnement où le
+théorème sert* — et aurait de toute façon été rendu inutile par la marque.
+
+Enfin, l'invariant de `mathtext.js` est **tenu** : il ne reçoit toujours que du
+texte pur, jamais une syntaxe qu'il devrait transformer en HTML actif. C'était
+l'objection principale à l'inline en 2026 ; le découpage la contourne au lieu de
+la nier. Le préfixe `renvoi:` évite la confusion avec des accolades doublées de
+LaTeX (`\frac{{a}}{b}`), et une marque ne peut pas contenir d'accolade — une
+marque non fermée s'arrête ainsi au premier obstacle au lieu d'avaler le verso.

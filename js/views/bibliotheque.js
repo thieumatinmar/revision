@@ -140,7 +140,9 @@ export async function render(ctx) {
           el('span', { class: 'pastille-espece' }, mots.pastille),
           renderMath(el('div', { class: 'name' }), excerpt(entry.title || entry.statement)),
         ),
-        el('div', { class: 'small muted' }, excerpt(stripMath(entry.statement), 70)),
+        // Une entrée peut n'avoir que son titre (créée depuis une carte) : pas
+        // de ligne vide sous le nom dans ce cas.
+        entry.statement && el('div', { class: 'small muted' }, excerpt(stripMath(entry.statement), 70)),
       ),
     );
   }

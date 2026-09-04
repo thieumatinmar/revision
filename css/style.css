@@ -166,7 +166,41 @@ button:active, .btn:active { transform: translateY(1px); }
 .renvois-resultats { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
 .renvois-resultats .resultat-renvoi { text-align: left; }
 
-/* La marque d'espece (Th. / Def.) devant un titre d'entree. Grise et de largeur
+/* Les deux boutons de création, sous les candidats : créer une entrée au titre
+   seul, sans quitter l'éditeur de carte. Séparés du reste des résultats par un
+   trait — c'est un autre geste, on ne clique pas dessus par glissement. */
+.creation-renvoi {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1px dashed var(--line);
+}
+
+/* Un renvoi posé dans le texte par sa marque. Même bouton dépliant que sous
+   « Voir aussi », mais sans étiquette ni trait de séparation : le texte autour
+   dit déjà pourquoi il est là. */
+.renvoi-place { margin: 14px 0; }
+.renvoi-place .card-face {
+  margin-top: 12px;
+  background: var(--bg-soft);
+  border-style: dashed;
+}
+
+/* Une marque qui ne désigne plus rien — entrée renommée, ou deux entrées
+   attachées de même titre. Le renvoi n'est pas perdu (il est retombé sous
+   « Voir aussi ») ; on le signale quand même, avec le rouge des erreurs de
+   KaTeX, pour qu'un bloc ne se déplace pas en silence. */
+.marque-morte {
+  color: #e8695f;
+  font-family: ui-monospace, monospace;
+  font-size: .85em;
+  margin: 10px 0;
+}
+
+/* La pastille d'espece (Th. / Def.) devant un titre d'entree. Grise et de largeur
    fixe : elle doit se voir sans passer devant le titre, et ne pas decaler les
    titres les uns par rapport aux autres d'une ligne a l'autre. L'ecart est tenu
    par le `gap` du conteneur (.row, .renvoi-pastille), jamais par une marge. */
