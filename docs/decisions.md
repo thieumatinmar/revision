@@ -679,3 +679,53 @@ Reporté volontairement : les **images**. `images.js` s'y prêterait, mais
 `champImages()` vit dans `editeur.js` et demanderait d'en être extrait. On livre
 sans, on remplit la bibliothèque, on ajoutera si le manque se fait sentir.
 
+---
+
+## Renvois d'une carte vers un théorème
+
+**Choix** — Une carte porte `theoremIds: string[]`, la liste des théorèmes
+qu'elle cite. Les renvois s'affichent **avec le verso**, sous forme de boutons
+qui **déplient le théorème en place** — on ne quitte pas la carte. L'autre bout
+se lit sur la fiche du théorème (« Cité par »), obtenu par
+`where('theoremIds', 'array-contains', id)`. Supprimer un théorème retire son id
+des cartes qui le citent, dans le **même** `writeBatch` que la suppression.
+
+**Alternative écartée** — (a) une syntaxe de lien dans le texte, façon
+`[[Théorème de Dini]]`, rendue par `mathtext.js` ; (b) un lien de navigation
+ordinaire vers `#/theoreme/{id}` ; (c) refuser la suppression d'un théorème
+cité, comme on refuse celle d'un chapitre non vide.
+
+**Raison** — (a) obligeait à choisir par quoi référencer, et les deux réponses
+sont mauvaises : par **titre**, renommer un théorème casse tous les renvois sans
+rien dire ; par **id**, on tape `[[a7Fk2…]]` à la main, ce qui exige de toute
+façon un sélecteur — l'inline n'aurait donc rien économisé. Et ça faisait de
+`mathtext.js` un producteur de HTML actif, alors que son invariant est
+précisément d'échapper tout ce qui n'est pas une formule : c'est la seule chose
+qui empêche une carte de casser la page. La syntaxe inline reste possible plus
+tard **par-dessus** ce choix, les renvois étant déjà des ids.
+
+(b) aurait cassé le test. `test.js` garde tout son état en mémoire — mode,
+position, verso révélé : naviguer le perd, et l'on revient à un test qui repart
+en aléatoire à la carte 1. Or le geste visé dure dix secondes (« l'énoncé exact,
+c'était quoi ? »). D'où le dépliage.
+
+Ce dépliage impose une contrainte qu'il faut tenir : `faceCarte()` est un
+composant **pur**, sans accès au store. Ce sont donc les vues qui chargent les
+théorèmes et les lui passent (`faceCarte(card, { back, theorems })`). Ce n'est
+pas un détour : les **titres** doivent de toute façon s'afficher avant tout clic,
+donc rien ne peut être chargé au clic. `test.js` lit la bibliothèque une fois au
+démarrage — une requête, comme la bibliothèque elle-même.
+
+(c) confondait deux relations. Un chapitre **contient** ses cartes, et les
+supprimer avec lui détruirait des données ; un renvoi ne contient rien. Refuser
+aurait imposé de lire toutes les cartes avant chaque suppression pour empêcher un
+geste sans conséquence. Retirer les ids en cascade est plus juste que les laisser
+mourir sur place : la donnée reste vraie, et l'atomicité du batch évite l'état
+bâtard « théorème parti, renvois restés ». L'affichage reste malgré tout tolérant
+à un id inconnu — un appareil hors ligne peut réécrire une carte avec un renvoi
+périmé —, mais c'est un filet, pas le mécanisme.
+
+Enfin, le renvoi ne s'affiche **jamais avant le verso** : nommer « Théorème de
+Dini » sous une carte qui demande quel théorème donne la convergence uniforme,
+c'est donner la réponse. Même règle que les images, pour la même raison.
+

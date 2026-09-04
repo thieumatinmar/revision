@@ -8,7 +8,7 @@
 //
 //   users/{uid}/categories/{id}   { name, order }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
-//                                   images: string[], order? }
+//                                   images: string[], theoremIds: string[], order? }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
 // c'est-à-dire pas encore placée dans son chapitre. Un seul état, une seule
@@ -28,7 +28,7 @@ import { db } from './firebase.js';
 import { currentUid } from './auth.js';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, deleteField,
-  writeBatch, query, where, orderBy,
+  writeBatch, query, where, orderBy, arrayRemove,
 } from '../vendor/firebase/firebase-firestore.js';
 
 /** Les 12 titres du programme officiel 2027 (../ressources/programme_officiel_2027.md). */
@@ -221,6 +221,9 @@ export async function saveCard(card) {
     back: champs.back || '',
     note: champs.note || '',
     images: Array.isArray(champs.images) ? champs.images : [],
+    // Les renvois vers la bibliothèque : des identifiants, jamais des titres —
+    // renommer un théorème ne doit pas casser ce qui pointe vers lui.
+    theoremIds: Array.isArray(champs.theoremIds) ? champs.theoremIds : [],
   };
   if (id) {
     // L'écriture remplace le document entier : sans ce report, `order`
@@ -320,6 +323,44 @@ export async function saveTheorem(theorem) {
   return { id: d.id, ...donnees };
 }
 
+/**
+ * Les cartes qui **citent** ce théorème.
+ *
+ * `array-contains` est une requête native : Firestore indexe les tableaux tout
+ * seul, il n'y a donc pas d'index composite à déclarer, et la réponse vient de
+ * son cache local quand on est hors ligne. On ne charge pas toutes les cartes
+ * pour en filtrer trois.
+ *
+ * Le tri se fait ici, faute d'ordre commun : ces cartes viennent de chapitres
+ * différents, où leurs positions ne se comparent pas.
+ */
+export async function cardsCiting(theoremId) {
+  const snap = await getDocs(query(col('cards'), where('theoremIds', 'array-contains', theoremId)));
+  return snap.docs.map(toObj)
+    .sort((a, b) => (a.title || a.front || '').localeCompare(b.title || b.front || '', 'fr'));
+}
+
+/**
+ * Supprime un théorème **et les renvois qui pointent vers lui**.
+ *
+ * Les deux dans le même `writeBatch`, donc de façon atomique : sans ça, un
+ * échec entre les deux laisserait l'état bâtard « théorème parti, renvois
+ * restés », c'est-à-dire des pointeurs vers rien.
+ *
+ * On nettoie plutôt que de laisser mourir les identifiants sur place : la donnée
+ * reste vraie, et rien n'a besoin d'un écran de maintenance plus tard. Les vues
+ * restent malgré tout tolérantes à un identifiant inconnu — un appareil hors
+ * ligne peut réécrire une carte avec un renvoi périmé — mais c'est un filet, pas
+ * le mécanisme.
+ *
+ * Plafond assumé : un `writeBatch` fait 500 écritures. Il faudrait qu'un
+ * théorème soit cité par 499 cartes pour le toucher.
+ */
 export async function deleteTheorem(id) {
-  await deleteDoc(ref('theorems', id));
+  const citantes = await cardsCiting(id);
+  const batch = writeBatch(db);
+  citantes.forEach((c) => batch.set(ref('cards', c.id), { theoremIds: arrayRemove(id) }, { merge: true }));
+  batch.delete(ref('theorems', id));
+  await batch.commit();
+  return citantes.length;
 }

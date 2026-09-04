@@ -17,7 +17,7 @@
 
 import { el, fill } from '../dom.js';
 import { faceTheoreme } from '../theoreme.js';
-import { getTheorem, saveTheorem, deleteTheorem } from '../store.js';
+import { getTheorem, saveTheorem, deleteTheorem, cardsCiting } from '../store.js';
 
 /** Délai avant de recomposer l'aperçu, en ms — voir `editeur.js`. */
 const DELAI_APERCU = 150;
@@ -164,7 +164,17 @@ export async function render(ctx) {
   }
 
   async function supprimer() {
-    if (!confirm('Supprimer définitivement ce théorème ?')) return;
+    // On compte les cartes citantes **avant** de demander : supprimer retire
+    // aussi leurs renvois, et l'on ne fait pas confirmer une conséquence qu'on
+    // n'a pas montrée.
+    const citantes = await cardsCiting(theorem.id);
+    const avertissement = citantes.length > 0
+      ? `
+
+${citantes.length} carte${citantes.length > 1 ? 's le citent' : ' le cite'} :`
+        + ` ${citantes.length > 1 ? 'leurs renvois seront retirés' : 'son renvoi sera retiré'}.`
+      : '';
+    if (!confirm(`Supprimer définitivement ce théorème ?${avertissement}`)) return;
     await deleteTheorem(theorem.id);
     location.hash = '#/bibliotheque';
   }

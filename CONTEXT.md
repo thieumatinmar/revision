@@ -113,6 +113,20 @@ bibliothèque un cours, qu'on ne parcourt plus.
 _Code_: `sketch`
 _Éviter_: démonstration, preuve, démo, plan, idée
 
+**Renvoi** :
+Le geste par lequel une carte pointe vers un théorème de la bibliothèque. Il
+appartient à la carte et va dans un seul sens — le théorème, lui, se contente
+d'afficher qui le cite. Un renvoi ne contient rien : une carte privée du sien
+reste une carte entière.
+_Code_: `theoremIds`
+_Éviter_: lien, référence, citation, rattachement
+
+**Cité par** :
+L'autre bout du renvoi, vu depuis le théorème : les cartes qui pointent vers
+lui. Ce n'est pas une donnée du théorème — c'est une question posée aux cartes.
+_Code_: `cardsCiting()`
+_Éviter_: rétrolien, backlink, cartes liées
+
 ## Le travail
 
 **Test** :

@@ -17,7 +17,7 @@
 // l'éditeur doit afficher **le même** montage, sous peine de mentir.
 
 import { el, fill } from '../dom.js';
-import { listCards, getCategory } from '../store.js';
+import { listCards, getCategory, listTheorems } from '../store.js';
 import { faceCarte } from '../carte.js';
 import { nextCard, MODES } from '../quiz.js';
 
@@ -25,7 +25,12 @@ export async function render(ctx) {
   const categoryId = ctx.params[0];
   // `listCards` rend déjà les cartes dans l'ordre du chapitre : la vue n'a rien
   // à trier, elle ne fait que parcourir.
-  const [category, cards] = await Promise.all([getCategory(categoryId), listCards(categoryId)]);
+  // La bibliothèque est lue **une fois**, au démarrage : `faceCarte` est un
+  // composant pur, il ne lit pas le store, et les titres des renvois doivent
+  // s'afficher dès le verso — donc rien ne peut être chargé au moment du clic.
+  const [category, cards, theorems] = await Promise.all([
+    getCategory(categoryId), listCards(categoryId), listTheorems(),
+  ]);
 
   ctx.setTitle(category ? category.name : 'Test');
   ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Retour'), null);
@@ -103,7 +108,7 @@ export async function render(ctx) {
 
       // Le montage de la carte vit dans `carte.js` : l'aperçu de l'éditeur
       // affiche exactement le même, avec les deux faces révélées.
-      faceCarte(card, { hint: showHint, back: showBack }),
+      faceCarte(card, { hint: showHint, back: showBack, theorems }),
 
       el('div', { class: 'actions' },
         // L'indication ne s'offre que si la carte en a une, et disparaît une

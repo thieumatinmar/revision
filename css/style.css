@@ -129,6 +129,43 @@ button:active, .btn:active { transform: translateY(1px); }
    ajouter d'étiquette sur chaque ligne, qui volerait la place du texte. */
 .list li.non-rangee { border-style: dashed; }
 
+/* « Voir aussi » : les renvois d'une carte vers la bibliothèque. Séparés du
+   verso par un trait, comme le verso l'est du recto — c'est un autre registre :
+   on a fini de répondre, on regarde ailleurs. */
+.renvois { margin-top: 18px; border-top: 1px dashed var(--line); padding-top: 14px; }
+.renvois-boutons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+/* Le théorème déplié : encastré dans la carte, pas posé dessus. Fond neutre et
+   pas de bordure propre, sinon on lit deux cartes superposées. */
+.renvois .card-face {
+  margin-top: 12px;
+  background: var(--bg-soft);
+  border-style: dashed;
+}
+
+/* « Cité par », sous la fiche d'un théorème : l'autre bout du renvoi. */
+.cite-par { margin-top: 26px; }
+.cite-par .face-label { margin-bottom: 10px; }
+
+/* Un renvoi attaché, dans l'éditeur : le titre et sa croix, d'un bloc — pour
+   qu'on lise « ceci, avec son bouton de retrait » et non deux éléments. */
+.renvoi-pastille {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 6px 4px 10px;
+  background: var(--bg-soft);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  font-size: .88rem;
+}
+.renvoi-pastille button { padding: 2px 6px; line-height: 1; }
+
+/* Les candidats de la recherche : empilés, pleine largeur, pour être touchables
+   au pouce — ce ne sont pas des étiquettes mais des cibles. */
+.renvois-resultats { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.renvois-resultats .resultat-renvoi { text-align: left; }
+
 /* La bibliothèque, sur l'accueil : un rayon à part, sous les chapitres.
    Même habillage qu'une ligne de liste — c'est la même nature de geste (ouvrir
    un rayon) — mais détaché par une marge et un trait, pour qu'on lise « et
