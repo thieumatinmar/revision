@@ -930,3 +930,48 @@ l'objection principale à l'inline en 2026 ; le découpage la contourne au lieu 
 la nier. Le préfixe `renvoi:` évite la confusion avec des accolades doublées de
 LaTeX (`\frac{{a}}{b}`), et une marque ne peut pas contenir d'accolade — une
 marque non fermée s'arrête ainsi au premier obstacle au lieu d'avaler le verso.
+
+
+## La source d'un théorème : texte libre, et sur le théorème seul
+
+**Choix** — Une entrée porte un champ `source` : où la démonstration est faite en
+entier (livre et page, poly, rapport de jury). **Texte libre**, facultatif,
+affiché en dernier et en petit, inclus dans le filtre de la bibliothèque. Il est
+écrit en base pour les **deux** espèces, mais **seul le théorème l'expose** :
+`ESPECES` ne lui donne un libellé — « Démonstration dans » — que pour le
+théorème, et les écrans testent ce libellé, jamais l'espèce.
+
+**Alternative écartée** — (a) une liste structurée `[{ book, page }]` ; (b) un
+`if (kind === THEOREM)` dans chacun des trois écrans concernés (éditeur, montage,
+recherche) ; (c) le libellé donné aussi à la définition.
+
+**Raison** — Le besoin est modeste et il vaut mieux ne pas prétendre l'inverse :
+retrouver, six mois plus tard, dans quel livre la preuve est écrite. Le filtre de
+la bibliothèque étant déjà un filtre plein texte, ajouter `source` au foin donne
+la quasi-totalité de ce que (a) promettait — taper « gourdon » sort la liste —
+pour une ligne de code. (a) coûtait en revanche une interface à lignes
+(ajouter/retirer), et surtout une **saisie normalisée** qu'on ne tiendrait pas :
+au premier « gourdon, analyse » écrit à côté de « Gourdon *Analyse* », le
+regroupement par livre ment, ce qui est pire que de ne pas l'offrir. Le texte
+libre, lui, ne promet rien qu'il ne tienne. Un troisième argument a pesé : toutes
+les sources ne sont pas des livres, et `{ book, page }` aurait obligé à mentir
+sur la forme d'un poly ou d'un rapport de jury.
+
+Sur (b) : la règle « seul un théorème indique où sa démonstration se lit » est
+une règle d'**interface**, pas de données. L'écrire par l'absence d'un libellé
+dans `ESPECES` la garde là où vivent déjà tous les mots d'espèce — un seul
+endroit —, alors que trois `if (kind === THEOREM)` rouvriraient précisément la
+brèche que « deux espèces d'une même entrée » avait fermée : l'espèce se remet à
+voyager d'écran en écran. Conséquence directe et voulue : **la base garde un seul
+schéma**, `source` vide sur une définition. `listEntries`, le tri et la recherche
+n'ont donc jamais à connaître l'espèce avant de savoir quels champs lire — c'est
+tout l'intérêt du document unique. Et si l'on change d'avis, ouvrir le champ aux
+définitions est **une ligne** dans `ESPECES`, sans migration.
+
+Sur (c) : rien n'interdit qu'une définition cite un livre, mais « Démonstration
+dans » n'aurait pas de sens sur elle, et lui inventer un second libellé aurait
+ajouté du vocabulaire pour un geste que Mathieu ne fait pas. On l'ouvrira le jour
+où le manque se fera sentir, pas avant.
+
+Rien à migrer : une entrée sans `source` est légitime, et c'est l'état de toutes
+celles écrites jusqu'ici.

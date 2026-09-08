@@ -34,14 +34,24 @@ import { THEOREM, DEFINITION, kindOf } from './store.js';
  *   nom       ce qu'on dit au singulier (titres d'écran, boutons, messages)
  *   pluriel   pour les compteurs (« 3 définitions »)
  *   pastille  la marque courte, en tête de ligne dans la liste
- *   labels    l'intitulé de chacun des trois champs
+ *   labels    l'intitulé de chacun des champs
+ *
+ * **La définition n'a pas de `source`**, et c'est délibéré : c'est ici, par
+ * l'absence d'un libellé, que s'écrit « seule un théorème indique où sa
+ * démonstration est faite ». Les écrans testent `mots.labels.source`, jamais
+ * l'espèce — sans quoi un `if (kind === THEOREM)` apparaîtrait dans l'éditeur,
+ * dans le montage et dans la recherche, et l'espèce recommencerait à voyager.
+ * Ouvrir le champ aux définitions un jour, c'est ajouter une ligne ici.
  */
 export const ESPECES = {
   [THEOREM]: {
     nom: 'Théorème',
     pluriel: 'théorèmes',
     pastille: 'Th.',
-    labels: { title: 'Titre', statement: 'Énoncé', support: 'Esquisse' },
+    labels: {
+      title: 'Titre', statement: 'Énoncé', support: 'Esquisse',
+      source: 'Démonstration dans',
+    },
   },
   [DEFINITION]: {
     nom: 'Définition',
@@ -75,6 +85,11 @@ export const kindDuSegment = (segment) => (segment === 'definition' ? DEFINITION
 export function faceEntree(entry) {
   const mots = espece(entry);
 
+  // Deux conditions, et les deux comptent : le libellé dit que l'espèce a ce
+  // champ, la valeur qu'il est rempli. C'est le seul endroit du montage où la
+  // source se décide — et il ne nomme aucune espèce.
+  const source = mots.labels.source && entry.source;
+
   return el('div', { class: 'card-face' },
     // Le titre nomme l'entrée : sans lui, on ne saurait pas de quoi on parle
     // dans une liste. Il reste néanmoins tolérant au vide, comme sur la carte.
@@ -96,5 +111,13 @@ export function faceEntree(entry) {
     entry.support && el('hr'),
     entry.support && el('div', { class: 'face-label' }, mots.labels.support),
     entry.support && renderMath(el('div'), entry.support),
+
+    // La source vient en dernier, et en petit : c'est une provenance, pas du
+    // contenu à réviser. Placée plus haut, elle s'interposerait entre le titre
+    // et ce que le théorème dit, ou couperait l'énoncé de son esquisse. Pas de
+    // `hr` non plus — le libellé sépare assez, et un trait pour une ligne
+    // ferait de la référence une section.
+    source && el('div', { class: 'face-label' }, mots.labels.source),
+    source && renderMath(el('div', { class: 'small muted' }), entry.source),
   );
 }

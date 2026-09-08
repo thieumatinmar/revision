@@ -32,10 +32,15 @@ export function normalise(texte) {
 /**
  * Les entrées qui correspondent à la requête.
  *
- * La recherche porte sur les **trois** champs réunis (titre, corps, appui) :
- * chercher dans l'esquisse d'une preuve ou dans les remarques d'une définition
- * est un vrai geste — « qu'est-ce qui s'appuie sur Baire ? » — et ça ne coûte
- * pas une ligne de plus.
+ * La recherche porte sur **tous** les champs réunis (titre, corps, appui,
+ * source) : chercher dans l'esquisse d'une preuve ou dans les remarques d'une
+ * définition est un vrai geste — « qu'est-ce qui s'appuie sur Baire ? » — et ça
+ * ne coûte pas une ligne de plus.
+ *
+ * La source y est pour une raison précise : elle est stockée en texte libre, et
+ * c'est ce filtre qui tient lieu de « montre-moi les théorèmes du Gourdon ». Le
+ * jour où l'on structurerait la source en (livre, page), c'est cette ligne qui
+ * deviendrait un vrai index (docs/decisions.md, « La source d'un théorème »).
  *
  * Le filtre **ne connaît pas les espèces** : théorèmes et définitions portent les
  * mêmes noms de champs, et c'est l'appelant qui restreint à une espèce s'il le
@@ -49,7 +54,13 @@ export function filtre(entrees, requete) {
   const mots = normalise(requete).split(/\s+/).filter(Boolean);
   if (mots.length === 0) return entrees;
   return entrees.filter((e) => {
-    const foin = normalise(`${e.title} ${e.statement} ${e.support}`);
+    // `|| ''` sur chaque champ : sans lui, un champ absent injecte le mot
+    // « undefined » dans le foin — et taper « undef » ramènerait la moitié de
+    // la bibliothèque. Le cas devient courant avec la source, que peu d'entrées
+    // portent.
+    const foin = normalise(
+      [e.title, e.statement, e.support, e.source].map((c) => c || '').join(' '),
+    );
     return mots.every((m) => foin.includes(m));
   });
 }

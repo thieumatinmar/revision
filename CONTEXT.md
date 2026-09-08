@@ -144,6 +144,16 @@ cours, qu'on ne parcourt plus. **Un seul champ**, là encore.
 _Code_: `support`
 _Éviter_: démonstration, preuve, plan, note (déjà pris, et en extinction)
 
+**Source** *(sur un théorème)* :
+Où la démonstration est faite en entier : un livre et sa page, un poly, un
+rapport de jury. Elle dit **d'où lire**, jamais ce qu'il faut savoir — ce qui
+doit tenir en tête vit dans l'énoncé et l'esquisse. Facultative, en texte libre,
+et **propre au théorème** : une définition n'en porte pas, parce qu'on ne
+démontre pas une définition.
+_Code_: `source`
+_Éviter_: référence (déjà pris — c'est justement le mot qu'on évite pour le
+Renvoi), bibliographie, livre (une source n'est pas toujours un livre), preuve
+
 **Renvoi** :
 Le geste par lequel une carte pointe vers une entrée de la bibliothèque —
 théorème ou définition, indifféremment. Il appartient à la carte et va dans un

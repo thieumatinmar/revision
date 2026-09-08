@@ -9,7 +9,7 @@
 //   users/{uid}/categories/{id}   { name, order }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
 //                                   images: string[], entryIds: string[], order? }
-//   users/{uid}/library/{id}      { kind, title, statement, support }
+//   users/{uid}/library/{id}      { kind, title, statement, support, source }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
 // c'est-à-dire pas encore placée dans son chapitre. Un seul état, une seule
@@ -269,7 +269,7 @@ export async function deleteCard(id) {
 //
 // Une **entrée** vit dans `users/{uid}/library/{id}` :
 //
-//   { kind: 'theorem' | 'definition', title, statement, support }
+//   { kind: 'theorem' | 'definition', title, statement, support, source }
 //
 // **Deux espèces, un seul document.** Un théorème et une définition ont la même
 // forme — un nom, un corps, un appui facultatif — et le même comportement : on
@@ -360,6 +360,12 @@ export async function saveEntry(entry) {
     title: champs.title || '',
     statement: champs.statement || '',
     support: champs.support || '',
+    // Où lire la démonstration en entier. Le champ est écrit pour **les deux**
+    // espèces, vide sur une définition : un seul schéma, donc `listEntries`, la
+    // recherche et le tri n'ont jamais à demander l'espèce avant de lire. C'est
+    // l'interface qui réserve la source au théorème (`ESPECES`, entree.js), pas
+    // la base.
+    source: champs.source || '',
   };
   if (id) {
     await setDoc(ref('library', id), donnees);

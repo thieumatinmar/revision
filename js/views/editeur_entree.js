@@ -41,6 +41,7 @@ const EXEMPLES = {
     title: 'Ex. : Théorème de Dini',
     statement: 'Ex. : Soit $(f_n)$ une suite croissante de fonctions continues sur un compact $K$…',
     support: 'Ex. : 1) poser $g_n = f - f_n$ ; 2) recouvrement ouvert ; 3) extraire un sous-recouvrement fini.',
+    source: 'Ex. : Gourdon, Analyse, p. 214 · Rudin, ch. 7',
   },
   definition: {
     title: 'Ex. : Idéal d’un anneau',
@@ -54,6 +55,7 @@ const AIDES = {
   theorem: {
     statement: 'ce que le théorème affirme, hypothèses comprises',
     support: 'les étapes et les leviers, pas la preuve rédigée',
+    source: 'où lire la démonstration en entier — livre, poly, rapport de jury',
   },
   definition: {
     statement: 'ce que la notion est, exactement',
@@ -117,6 +119,18 @@ export async function render(ctx) {
     EXEMPLES[kind].support,
   );
 
+  // La source n'existe que pour l'espèce qui la nomme — une définition n'a pas
+  // de libellé `source` dans `ESPECES`, donc pas de champ ici. `null`, que `el`
+  // et `fill` ignorent : c'est tout le mécanisme, et il n'y a pas un seul test
+  // sur l'espèce.
+  const source = mots.labels.source
+    ? champ(
+      `${mots.labels.source} (facultatif) — ${AIDES[kind].source}`,
+      entry.source,
+      EXEMPLES[kind].source,
+    )
+    : null;
+
   const erreur = el('p', { class: 'small', style: 'color:#e8695f;min-height:1.2em' });
 
   // --- Les deux blocs ---------------------------------------------------------
@@ -127,6 +141,7 @@ export async function render(ctx) {
     ),
     enonce.bloc,
     support.bloc,
+    source && source.bloc,
     erreur,
   );
 
@@ -172,7 +187,8 @@ export async function render(ctx) {
     );
   }
 
-  [titre, enonce.input, support.input]
+  [titre, enonce.input, support.input, source && source.input]
+    .filter(Boolean)
     .forEach((entree) => entree.addEventListener('input', planifierApercu));
 
   dessineApercu();
@@ -196,6 +212,10 @@ export async function render(ctx) {
       title: titre.value.trim(),
       statement: enonce.input.value,
       support: support.input.value,
+      // Explicitement vide quand l'espèce n'a pas ce champ, plutôt que de
+      // laisser passer l'ancienne valeur par le `...entry` : une définition ne
+      // peut pas en saisir, elle ne doit pas non plus en traîner une.
+      source: source ? source.input.value : '',
     };
   }
 
