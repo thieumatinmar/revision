@@ -26,6 +26,7 @@ import {
 } from '../store.js';
 import { ESPECES } from '../entree.js';
 import { marqueDe } from '../marques.js';
+import { surEnregistrement } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 import { filtre } from '../recherche.js';
 
@@ -55,7 +56,19 @@ export async function render(ctx) {
     return;
   }
 
-  const retour = `#/cartes/${card.categoryId}`;
+  // Où l'on revient. Ce n'est pas figé : le chapitre est un champ du formulaire,
+  // et un enregistrement sans quitter peut le changer sous nos pieds. Les deux
+  // liens de sortie sont donc gardés sous la main et recalculés (`majRetour`) —
+  // sinon *Annuler* renverrait vers le chapitre d'où la carte vient de partir.
+  let retour = `#/cartes/${card.categoryId}`;
+  const retourHaut = el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler');
+  const retourBas = el('a', { class: 'btn', href: retour }, 'Annuler');
+
+  function majRetour() {
+    retour = `#/cartes/${categorie.value}`;
+    retourHaut.href = retour;
+    retourBas.href = retour;
+  }
 
   ctx.setTitle(creation ? 'Nouvelle carte' : 'Modifier');
 
@@ -67,7 +80,7 @@ export async function render(ctx) {
     on: { click: () => basculer(mode === 'edition' ? 'apercu' : 'edition') },
   }, 'Aperçu');
 
-  ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler'), bascule);
+  ctx.setHeader(retourHaut, bascule);
 
   // --- Champs -----------------------------------------------------------------
   const categorie = el('select', {},
@@ -183,9 +196,12 @@ export async function render(ctx) {
   // passage en grand écran — un style en ligne bat toujours la feuille.
   const grille = el('div', { class: 'editeur' }, formulaire, zoneApercu);
 
-  // Supprimer ne concerne que l'édition : en aperçu, on regarde une carte, on ne
-  // la détruit pas.
-  const zoneSuppression = creation ? null : el('div', { style: 'margin-top:28px;text-align:center' },
+  // Supprimer ne concerne pas l'aperçu — on y regarde une carte, on ne la
+  // détruit pas — ni une carte qui n'existe pas encore. La zone est pourtant
+  // construite dans les deux cas : depuis qu'un Ctrl+S peut créer la carte sans
+  // quitter l'écran, « pas encore enregistrée » est un état qui se termine, et
+  // `visibiliteSuppression()` la dévoile à ce moment-là.
+  const zoneSuppression = el('div', { style: 'margin-top:28px;text-align:center' },
     el('button', {
       class: 'btn-sm',
       style: 'color:#e8695f',
@@ -193,17 +209,32 @@ export async function render(ctx) {
     }, 'Supprimer cette carte'),
   );
 
+  function visibiliteSuppression() {
+    zoneSuppression.style.display = (mode === 'apercu' || !card.id) ? 'none' : '';
+  }
+
+  // Le témoin de l'enregistrement sans quitter. Il vit hors de la barre — dont le
+  // CSS étire chaque enfant à parts égales — et hors du formulaire, masqué en
+  // aperçu sur écran étroit. Sans lui, Ctrl+S serait un geste sans réponse.
+  const temoin = el('p', { class: 'temoin small muted' });
+
   // La barre d'actions vit **hors** de la grille : sur écran étroit en aperçu, le
   // formulaire est masqué, et une barre posée dedans emporterait *Enregistrer*
   // avec lui — or le geste réel finit là : je tape, je vérifie, j'enregistre.
   fill(ctx.root,
     grille,
     el('div', { class: 'actions' },
-      el('button', { class: 'btn-primary', on: { click: enregistrer } }, 'Enregistrer'),
-      el('a', { class: 'btn', href: retour }, 'Annuler'),
+      el('button', { class: 'btn-primary', on: { click: () => enregistrer() } }, 'Enregistrer'),
+      retourBas,
     ),
+    temoin,
     zoneSuppression,
   );
+
+  // Ctrl+S enregistre et **reste**. Le bouton, lui, enregistre et part : les deux
+  // gestes ne sont pas le même, et le raccourci sert précisément à ne pas devoir
+  // choisir entre « je sécurise ce que j'ai tapé » et « j'ai fini ».
+  surEnregistrement(ctx.root, () => enregistrer({ rester: true }));
 
   // --- Aperçu vivant ----------------------------------------------------------
   // Toute frappe redessine la carte, après une courte pause. Le chapitre n'y
@@ -285,6 +316,8 @@ export async function render(ctx) {
   /** Visage courant sous 900 px : 'edition' ou 'apercu'. */
   let mode = 'edition';
 
+  visibiliteSuppression();
+
   /**
    * Passe d'un visage à l'autre, sur écran étroit uniquement. Le formulaire
    * n'est que masqué : ses valeurs restent lisibles par `valeurs()` et
@@ -294,7 +327,7 @@ export async function render(ctx) {
     mode = vers;
     const enApercu = vers === 'apercu';
     grille.classList.toggle('en-apercu', enApercu);
-    if (zoneSuppression) zoneSuppression.style.display = enApercu ? 'none' : '';
+    visibiliteSuppression();
     bascule.textContent = enApercu ? '‹ Édition' : 'Aperçu';
     window.scrollTo(0, 0);
   }
@@ -316,7 +349,21 @@ export async function render(ctx) {
     };
   }
 
-  async function enregistrer() {
+  /**
+   * Vrai pendant une écriture. Un Ctrl+S maintenu, ou un clic pendant que la
+   * précédente écriture court, lancerait deux créations concurrentes — c'est-à-
+   * dire deux cartes, aucune des deux ne portant l'identifiant que l'autre vient
+   * d'adopter.
+   */
+  let enCours = false;
+
+  /**
+   * @param {{ rester?: boolean }} options `rester` vient du raccourci : on
+   *   enregistre et l'écran ne bouge pas. Le bouton, lui, part vers la liste.
+   */
+  async function enregistrer({ rester = false } = {}) {
+    if (enCours) return;
+
     // Seul le recto est exigé. Une carte sans verso est une forme légitime — une
     // note qui se suffit — autant qu'une question dont la réponse s'écrira plus
     // tard : l'app ne tranche pas entre les deux et ne marque ni l'une ni
@@ -326,11 +373,45 @@ export async function render(ctx) {
       // reviendrait à ne rien afficher du tout.
       basculer('edition');
       erreur.textContent = 'Le recto est obligatoire.';
+      temoin.textContent = '';
       return;
     }
-    await saveCard(valeurs());
-    // La catégorie a pu changer : on repart de celle qui vient d'être choisie.
-    location.hash = `#/cartes/${categorie.value}`;
+
+    enCours = true;
+    erreur.textContent = '';
+    temoin.textContent = 'Enregistrement…';
+    try {
+      const enregistree = await saveCard(valeurs());
+
+      // **Adoption de l'identifiant.** Sans elle, un second Ctrl+S sur une carte
+      // qui vient de naître en créerait une deuxième : `saveCard` crée quand on
+      // ne lui donne pas d'`id`. `card` est l'objet que `valeurs()` étale, donc
+      // l'écrire ici suffit à ce que tout l'écran devienne une modification.
+      card.id = enregistree.id;
+      card.categoryId = enregistree.categoryId;
+      majRetour();
+
+      if (!rester) {
+        location.hash = retour;
+        return;
+      }
+
+      // L'adresse cessait de dire la vérité : elle annonçait une création alors
+      // que la carte existe. `replaceState` la corrige **sans** déclencher
+      // `hashchange`, donc sans relancer le rendu et sans perdre la saisie en
+      // cours — un rechargement retrouve désormais ce qui est en base.
+      if (location.hash !== `#/carte/${card.id}`) {
+        history.replaceState(null, '', `#/carte/${card.id}`);
+      }
+      visibiliteSuppression();
+      temoin.textContent = 'Enregistré à ' + new Date().toLocaleTimeString('fr-FR');
+    } catch (err) {
+      basculer('edition');
+      erreur.textContent = 'Enregistrement impossible : ' + err.message;
+      temoin.textContent = '';
+    } finally {
+      enCours = false;
+    }
   }
 
   async function supprimer() {

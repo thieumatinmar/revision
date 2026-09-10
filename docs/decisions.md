@@ -978,6 +978,67 @@ celles écrites jusqu'ici.
 
 ---
 
+## Saisie en lot : un format texte délimité, jamais JSON
+
+**Choix** — Le lot qu'on colle dans l'app est du **texte à lignes**, avec des
+en-têtes en début de ligne : `@@ <type>` ouvre un enregistrement, `@ <champ>`
+ouvre un champ, tout le reste est du contenu, pris tel quel.
+
+**Alternative écartée** — JSON, le réflexe : `JSON.parse` est gratuit, le format
+est sans ambiguïté et sait porter des tableaux.
+
+**Raison** — JSON exige d'échapper l'antislash, c'est-à-dire exactement ce que
+l'app sert à stocker. Le comportement mesuré est le pire possible, parce qu'il
+est **mixte** :
+
+    "\frac{a}{b}"     → parse SANS ERREUR → "\x0crac{a}{b}"   (formfeed + « rac »)
+    "\begin{cases}"   → parse SANS ERREUR → "\x08egin{cases}" (backspace + « egin »)
+    "\to"             → parse SANS ERREUR → tabulation + « o »
+    "\neq"            → parse SANS ERREUR → saut de ligne + « eq »
+    "\R"              → ERREUR de syntaxe
+
+Le LaTeX standard traverse donc `JSON.parse` **silencieusement corrompu** — une
+carte s'enregistre avec un caractère de contrôle à la place de sa formule, et
+rien ne le signale —, tandis que les macros maison (`\R`, `\P`, `\dd`, `\ind`),
+qui ne sont pas des échappements valides, font échouer le lot **entier**. Bruyant
+sur ce qui nous appartient, muet sur ce qui est standard : les deux mauvais
+comportements réunis.
+
+Doubler tous les antislashs à la production supprimerait le problème, mais
+reporte la charge sur la relecture : `$\int_0^1 f(t)\,\mathrm{d}t$` ne se
+relit pas, et un lot qu'on ne peut pas relire avant de le coller est un lot qu'on
+colle en aveugle.
+
+Le texte délimité passe les antislashs tels quels — on écrit le LaTeX comme dans
+l'éditeur — et **dégrade bien** : une ligne mal formée fait échouer *un*
+enregistrement, pas les quarante autres.
+
+Le prix assumé : un parseur maison là où `JSON.parse` était gratuit. Il est
+**pur** (ni DOM, ni réseau, ni stockage) et rejoint `recherche.js` et
+`marques.js` au rayon des modules testables — c'est-à-dire du côté du code dont
+on sait vérifier le comportement, pas du côté de celui qu'on espère juste.
+
+Trois choix à l'intérieur du format :
+
+- **`@@` et `@` en début de ligne** — rien dans une carte ne commence une ligne
+  par une arobase, ni le LaTeX, ni la prose. `##` aurait été plus familier, mais
+  du markdown collé depuis ailleurs le produit.
+- **Aucune donnée sur la ligne d'en-tête** (`@@ theoreme`, et le titre en champ).
+  La forme courte `@@ theoreme: Théorème de Dini` aurait porté, sur une carte, le
+  *chapitre* et non le titre : une asymétrie qui demandait un paragraphe de
+  justification, donc une mauvaise forme. Chaque enregistrement se lit pareil.
+- **Noms de champs en français**, ceux du glossaire, avec les deux libellés
+  d'espèce (`enonce`/`esquisse` contre `definition`/`remarques`) menant au même
+  champ stocké — le format parle la langue de l'interface, comme `ESPECES`.
+
+> Ceci ne revient pas sur « Sync bidirectionnelle obligatoire (et non
+> export/import manuel) » : celle-là écartait l'export/import comme **mécanisme
+> de synchronisation entre appareils**, rôle que Firestore tient toujours seul.
+> Ici, l'import est un **canal de saisie** — une alternative à taper au clavier,
+> pas au transfert.
+
+---
+
 ## L'éditeur est un plan de travail, pas un document
 
 **Choix** — Au-dessus de 900 px, l'écran d'édition tient dans la hauteur de la
@@ -1029,3 +1090,54 @@ Deux réglages qui ne se devinent pas :
 Sous 900 px, rien de tout cela ne s'applique — un visage à la fois, la page
 défile comme avant. C'est le chemin étroit, pas le cas nominal : la saisie se
 fait sur PC.
+
+## Enregistrer sans quitter — Ctrl+S
+
+**Choix** — `Ctrl+S` (`Cmd+S`) enregistre et **reste** sur l'écran, dans les deux
+éditeurs. Le bouton *Enregistrer* garde son sens : enregistrer **et** partir. En
+création, le premier raccourci fabrique le document, l'éditeur **adopte
+l'identifiant** rendu par le store, et l'adresse passe de « nouvelle » à
+« modifier » par `history.replaceState`.
+
+**Alternative écartée** — un second bouton *Enregistrer et rester* à côté du
+premier. Deux boutons voisins qui ne diffèrent que par ce qu'ils font *après*
+obligent à lire avant chaque clic, pour un geste qu'on répète toutes les deux
+minutes. Le raccourci ne coûte rien à l'écran, et c'est celui que tout le monde
+a déjà dans les doigts.
+
+**Raison** — La saisie d'une carte un peu fournie dure dix minutes, et jusqu'ici
+le seul moyen de la mettre à l'abri était de quitter l'écran, donc de perdre le
+fil. Le vrai besoin n'est pas d'enregistrer plus souvent, c'est de ne pas avoir à
+choisir entre « je sécurise ce que je viens de taper » et « j'ai fini ».
+
+Le point non-évident est **l'adoption de l'identifiant**. `saveCard` et
+`saveEntry` créent quand on ne leur donne pas d'`id` : sans adoption, un second
+raccourci sur une carte qui vient de naître en créerait une deuxième, puis une
+troisième — et l'écran continuerait d'afficher la première. D'où trois
+conséquences en cascade :
+
+- **L'adresse doit suivre.** Elle annonçait une création alors que le document
+  existe ; un rechargement rendait un formulaire vide sur du contenu déjà en
+  base. `replaceState` la corrige **sans** déclencher `hashchange`, donc sans
+  relancer le rendu ni perdre la saisie en cours.
+- **Les liens de sortie doivent suivre.** Le chapitre est un champ du formulaire :
+  après un enregistrement qui l'a changé, *Annuler* renverrait vers le chapitre
+  d'où la carte vient de partir. Ils sont donc recalculés, pas figés au montage.
+- **Supprimer doit apparaître.** Le bouton n'existait qu'en modification. « Pas
+  encore enregistrée » est désormais un état qui se termine sans quitter l'écran,
+  et la zone est construite dans les deux cas, dévoilée à l'adoption.
+
+Un **verrou** (`enCours`) garde l'écriture : un `Ctrl+S` maintenu lancerait deux
+créations concurrentes, dont aucune ne porterait l'identifiant que l'autre vient
+d'adopter.
+
+L'écouteur vit sur `document` et non sur la racine de l'écran — le geste doit
+marcher même quand le focus a quitté le formulaire — et **se retire lui-même**
+dès qu'il constate que son écran a quitté la page : la coque ne prévient jamais
+une vue qu'elle est remplacée. Le contrôle tourne avant même de regarder la
+touche, donc un orphelin disparaît à la première frappe qui suit une navigation.
+
+**Limite assumée** — le titre d'en-tête continue d'afficher « Nouvelle carte »
+après le premier enregistrement. `ctx.setTitle` n'est lu qu'avant l'attache de la
+vue ; ouvrir une porte dans la coque pour ce seul mot coûterait plus que le
+défaut, que le témoin *Enregistré à …* dément de toute façon.

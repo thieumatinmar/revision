@@ -25,6 +25,7 @@
 import { el, fill } from '../dom.js';
 import { faceEntree, espece, kindDuSegment } from '../entree.js';
 import { getEntry, saveEntry, deleteEntry, kindOf } from '../store.js';
+import { surEnregistrement } from '../raccourcis.js';
 
 /** Délai avant de recomposer l'aperçu, en ms — voir `editeur.js`. */
 const DELAI_APERCU = 150;
@@ -86,8 +87,18 @@ export async function render(ctx) {
   const mots = espece(entry);
 
   // Depuis une modification, on revient à l'entrée qu'on vient de corriger ;
-  // depuis une création, il n'y a pas encore de détail où revenir.
-  const retour = creation ? '#/bibliotheque' : `#/entree/${entry.id}`;
+  // depuis une création, il n'y a pas encore de détail où revenir. Ce n'est donc
+  // pas figé : un enregistrement sans quitter fait naître ce détail, et les deux
+  // liens de sortie doivent alors pointer dessus plutôt que sur la liste.
+  let retour = creation ? '#/bibliotheque' : `#/entree/${entry.id}`;
+  const retourHaut = el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler');
+  const retourBas = el('a', { class: 'btn', href: retour }, 'Annuler');
+
+  function majRetour() {
+    retour = `#/entree/${entry.id}`;
+    retourHaut.href = retour;
+    retourBas.href = retour;
+  }
 
   ctx.setTitle(creation ? `Nouveau — ${mots.nom.toLowerCase()}` : `Modifier — ${mots.nom.toLowerCase()}`);
 
@@ -97,7 +108,7 @@ export async function render(ctx) {
     on: { click: () => basculer(mode === 'edition' ? 'apercu' : 'edition') },
   }, 'Aperçu');
 
-  ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: retour }, '‹ Annuler'), bascule);
+  ctx.setHeader(retourHaut, bascule);
 
   // --- Champs -----------------------------------------------------------------
   // Le titre est sur une seule ligne : c'est un nom, pas un texte. Le LaTeX y est
@@ -152,7 +163,11 @@ export async function render(ctx) {
   // étroit survivrait au passage en grand écran.
   const grille = el('div', { class: 'editeur' }, formulaire, zoneApercu);
 
-  const zoneSuppression = creation ? null : el('div', { style: 'margin-top:28px;text-align:center' },
+  // Supprimer ne concerne pas l'aperçu, ni une entrée qui n'existe pas encore.
+  // La zone est pourtant construite dans les deux cas : depuis qu'un Ctrl+S peut
+  // créer l'entrée sans quitter l'écran, « pas encore enregistrée » est un état
+  // qui se termine, et `visibiliteSuppression()` la dévoile à ce moment-là.
+  const zoneSuppression = el('div', { style: 'margin-top:28px;text-align:center' },
     el('button', {
       class: 'btn-sm',
       style: 'color:#e8695f',
@@ -160,16 +175,31 @@ export async function render(ctx) {
     }, `Supprimer cette ${mots.nom.toLowerCase()}`),
   );
 
+  function visibiliteSuppression() {
+    zoneSuppression.style.display = (mode === 'apercu' || !entry.id) ? 'none' : '';
+  }
+
+  // Le témoin de l'enregistrement sans quitter — hors de la barre, dont le CSS
+  // étire chaque enfant à parts égales, et hors du formulaire, masqué en aperçu
+  // sur écran étroit. Sans lui, Ctrl+S serait un geste sans réponse.
+  const temoin = el('p', { class: 'temoin small muted' });
+
   // La barre d'actions vit **hors** de la grille : sur écran étroit en aperçu, le
   // formulaire est masqué, et une barre posée dedans emporterait *Enregistrer*.
   fill(ctx.root,
     grille,
     el('div', { class: 'actions' },
-      el('button', { class: 'btn-primary', on: { click: enregistrer } }, 'Enregistrer'),
-      el('a', { class: 'btn', href: retour }, 'Annuler'),
+      el('button', { class: 'btn-primary', on: { click: () => enregistrer() } }, 'Enregistrer'),
+      retourBas,
     ),
+    temoin,
     zoneSuppression,
   );
+
+  // Ctrl+S enregistre et **reste** ; le bouton enregistre et part. Deux gestes
+  // distincts, pour ne pas avoir à choisir entre sécuriser ce qu'on vient de
+  // taper et déclarer qu'on a fini.
+  surEnregistrement(ctx.root, () => enregistrer({ rester: true }));
 
   // --- Aperçu vivant ----------------------------------------------------------
   let minuteur = null;
@@ -196,11 +226,13 @@ export async function render(ctx) {
   /** Visage courant sous 900 px : 'edition' ou 'apercu'. */
   let mode = 'edition';
 
+  visibiliteSuppression();
+
   function basculer(vers) {
     mode = vers;
     const enApercu = vers === 'apercu';
     grille.classList.toggle('en-apercu', enApercu);
-    if (zoneSuppression) zoneSuppression.style.display = enApercu ? 'none' : '';
+    visibiliteSuppression();
     bascule.textContent = enApercu ? '‹ Édition' : 'Aperçu';
     window.scrollTo(0, 0);
   }
@@ -219,7 +251,20 @@ export async function render(ctx) {
     };
   }
 
-  async function enregistrer() {
+  /**
+   * Vrai pendant une écriture. Un Ctrl+S maintenu, ou un clic pendant que la
+   * précédente écriture court, lancerait deux créations concurrentes — donc deux
+   * entrées, aucune ne portant l'identifiant que l'autre vient d'adopter.
+   */
+  let enCours = false;
+
+  /**
+   * @param {{ rester?: boolean }} options `rester` vient du raccourci : on
+   *   enregistre et l'écran ne bouge pas. Le bouton, lui, part vers le détail.
+   */
+  async function enregistrer({ rester = false } = {}) {
+    if (enCours) return;
+
     // Le titre est obligatoire, contrairement à celui d'une carte : c'est par lui
     // qu'on retrouve une entrée dans une liste triée par titre, et sans lui la
     // bibliothèque devient un tas.
@@ -233,10 +278,44 @@ export async function render(ctx) {
       // reviendrait à ne rien afficher.
       basculer('edition');
       erreur.textContent = `${mots.labels.title} est obligatoire.`;
+      temoin.textContent = '';
       return;
     }
-    const enregistree = await saveEntry(valeurs());
-    location.hash = `#/entree/${enregistree.id}`;
+
+    enCours = true;
+    erreur.textContent = '';
+    temoin.textContent = 'Enregistrement…';
+    try {
+      const enregistree = await saveEntry(valeurs());
+
+      // **Adoption de l'identifiant.** Sans elle, un second Ctrl+S sur une entrée
+      // qui vient de naître en créerait une deuxième : `saveEntry` crée quand on
+      // ne lui donne pas d'`id`. `entry` est l'objet que `valeurs()` étale, donc
+      // l'écrire ici suffit à ce que tout l'écran devienne une modification.
+      entry.id = enregistree.id;
+      majRetour();
+
+      if (!rester) {
+        location.hash = retour;
+        return;
+      }
+
+      // L'adresse annonçait une création alors que l'entrée existe.
+      // `replaceState` la corrige **sans** déclencher `hashchange`, donc sans
+      // relancer le rendu ni perdre la saisie en cours — et un rechargement
+      // retrouve désormais ce qui est en base.
+      if (location.hash !== `#/entree/${entry.id}/editer`) {
+        history.replaceState(null, '', `#/entree/${entry.id}/editer`);
+      }
+      visibiliteSuppression();
+      temoin.textContent = 'Enregistré à ' + new Date().toLocaleTimeString('fr-FR');
+    } catch (err) {
+      basculer('edition');
+      erreur.textContent = 'Enregistrement impossible : ' + err.message;
+      temoin.textContent = '';
+    } finally {
+      enCours = false;
+    }
   }
 
   async function supprimer() {

@@ -80,6 +80,9 @@ on l'inscrit ici avec sa frontière.
   (`{{renvoi: …}}`) : la fabriquer, la lire, découper un texte autour d'elle.
   **Pur** lui aussi ; n'importe que `normalise` de `recherche.js`. Il dit le
   **placement**, jamais le renvoi lui-même — qui reste dans `entryIds`.
+- `js/raccourcis.js` — les raccourcis clavier d'un écran, un seul aujourd'hui :
+  **Ctrl+S enregistre sans quitter** (`surEnregistrement`). Il ne sait pas ce
+  qu'il enregistre — on lui passe l'action. Ni store, ni DOM construit, ni vue.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
   DOM. Un seul appelant aujourd'hui (l'aperçu de l'éditeur), mais le montage

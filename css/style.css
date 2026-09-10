@@ -301,6 +301,12 @@ button:active, .btn:active { transform: translateY(1px); }
 .actions { display: flex; gap: 8px; margin-top: 16px; }
 .actions > * { flex: 1; }
 
+/* Le témoin de l'enregistrement sans quitter (Ctrl+S). Sous la barre et non
+   dedans : `.actions > *` étire chaque enfant à parts égales, un texte y volerait
+   un tiers de la largeur aux deux boutons. La hauteur est réservée d'avance,
+   sinon l'apparition du message pousserait la page sous le curseur. */
+.temoin { text-align: center; min-height: 1.3em; margin: 10px 0 0; }
+
 /* ---------------------------------------------------------------- Ã‰diteur */
 
 .champ { margin-bottom: 22px; }
