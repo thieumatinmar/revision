@@ -106,6 +106,66 @@ export function render(node, source) {
 }
 
 /**
+ * Découpe une source en **blocs**, séparés par une ligne vide.
+ *
+ * Sert à l'ancrage de l'aperçu sur le curseur : un verso composé d'un seul nœud
+ * ne dit pas *où* l'on écrit, un verso composé de blocs le dit au paragraphe
+ * près. Chaque bloc porte `at`, sa position dans la source — le seul lien
+ * possible entre un curseur dans une zone de saisie et un nœud à l'écran.
+ *
+ * Deux précautions, et ce sont elles qui font que ce découpage vit ici plutôt
+ * que dans `carte.js` :
+ *
+ *   — le séparateur reste **collé au bloc qui précède**. Le texte s'affiche en
+ *     `pre-wrap` : jeter la ligne vide changerait l'espacement de toutes les
+ *     cartes, pour un découpage que le lecteur n'est pas censé voir.
+ *   — un `$$…$$` à cheval sur une ligne vide n'est **pas** coupé : coupé, il
+ *     donnerait deux moitiés que KaTeX signalerait toutes les deux en erreur.
+ *     Seul ce fichier sait ce qu'est un délimiteur, d'où la règle — on fusionne
+ *     tant que le bloc laisse un délimiteur ouvert.
+ */
+export function paragraphes(source) {
+  const src = String(source ?? '');
+  const separateur = /\n[ \t]*\n/g;
+  const bruts = [];
+  let debut = 0;
+  let coupe;
+
+  while ((coupe = separateur.exec(src)) !== null) {
+    const fin = coupe.index + coupe[0].length;
+    bruts.push({ texte: src.slice(debut, fin), at: debut });
+    debut = fin;
+  }
+  bruts.push({ texte: src.slice(debut), at: debut });
+
+  const blocs = [];
+  for (const brut of bruts) {
+    const dernier = blocs[blocs.length - 1];
+    if (dernier && ouvert(dernier.texte)) dernier.texte += brut.texte;
+    else blocs.push({ ...brut });
+  }
+
+  return blocs.filter((b) => b.texte.trim());
+}
+
+/**
+ * Vrai si le texte laisse un délimiteur mathématique non refermé.
+ *
+ * On compte les **délimiteurs**, pas les dollars : `$$` en est un seul, et
+ * compter les caractères ferait passer `$$a` (ouvert) pour équilibré.
+ */
+function ouvert(texte) {
+  let n = 0;
+  for (let i = 0; i < texte.length; i += 1) {
+    if (texte[i] === '\\' && texte[i + 1] === '$') { i += 1; continue; }
+    if (texte[i] !== '$') continue;
+    n += 1;
+    if (texte[i + 1] === '$') i += 1;
+  }
+  return n % 2 === 1;
+}
+
+/**
  * Version courte, pour les listes.
  *
  * On ne coupe jamais au milieu d'une formule : une source tronquée à

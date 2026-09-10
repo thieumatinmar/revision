@@ -50,10 +50,14 @@ export function marqueDe(entry) {
  *   decoupe('a\n\n{{renvoi: Dini}}\n\nb', [dini])
  *   → [{ texte: 'a' }, { entry: dini }, { texte: 'b' }]
  *
- * Trois formes de segment, et une seule clé chacune :
- *   { texte }    du texte à composer
- *   { entry }    une marque résolue : l'entrée à déplier ici
- *   { inconnu }  une marque qui ne désigne rien parmi `renvois` — le titre brut
+ * Trois formes de segment :
+ *   { texte, at }  du texte à composer, et sa position dans la source
+ *   { entry }      une marque résolue : l'entrée à déplier ici
+ *   { inconnu }    une marque qui ne désigne rien parmi `renvois` — le titre brut
+ *
+ * `at` existe pour l'aperçu de l'éditeur, qui doit savoir quel nœud à l'écran
+ * correspond au curseur. C'est une **position dans la source**, pas un compteur
+ * de segments : le texte étant rogné, l'offset ne se retrouverait pas après coup.
  *
  * `renvois` est la liste des entrées **attachées à la carte**, déjà résolues par
  * l'appelant. On ne cherche pas plus loin : une marque ne crée pas de renvoi,
@@ -76,18 +80,21 @@ export function decoupe(texte, renvois = []) {
 
   let trouve;
   while ((trouve = MOTIF.exec(source)) !== null) {
-    pousseTexte(segments, source.slice(curseur, trouve.index));
+    pousseTexte(segments, source.slice(curseur, trouve.index), curseur);
     segments.push(resout(trouve[1], renvois));
     curseur = trouve.index + trouve[0].length;
   }
-  pousseTexte(segments, source.slice(curseur));
+  pousseTexte(segments, source.slice(curseur), curseur);
 
   return segments;
 }
 
-function pousseTexte(segments, brut) {
+/** `debut` est la position de `brut` dans la source ; le rognage la décale. */
+function pousseTexte(segments, brut, debut) {
   const texte = brut.trim();
-  if (texte) segments.push({ texte });
+  if (!texte) return;
+  const blancs = brut.length - brut.trimStart().length;
+  segments.push({ texte, at: debut + blancs });
 }
 
 /**

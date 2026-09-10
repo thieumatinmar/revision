@@ -316,10 +316,17 @@ textarea, select, input {
   padding: 10px 12px;
 }
 textarea {
-  /* ~8 lignes visibles. Le LaTeX déborde vite, et l'éditeur n'a plus ni barre
-     d'insertion ni boîte de rendu à loger sous le champ : la place va à la saisie. */
-  min-height: 200px;
-  resize: vertical;
+  /* La zone grandit avec son contenu (`ajuste`, views/editeur.js) : ce plancher
+     n'est plus la hauteur de travail, seulement celle d'un champ vide. D'où sa
+     baisse — un recto de deux lignes n'a plus à réserver huit lignes de vide.
+
+     `resize` n'a plus d'objet : la frappe suivante reprendrait la main sur la
+     hauteur, et une poignée qui se fait défaire toute seule est pire que pas de
+     poignée. `overflow` masqué pour la même raison — à hauteur du contenu, la
+     barre de défilement du champ ne servirait qu'à clignoter. */
+  min-height: 88px;
+  resize: none;
+  overflow-y: hidden;
   /* Police Ã  chasse fixe : on Ã©crit du LaTeX, les accolades doivent s'aligner. */
   font-family: ui-monospace, "SFMono-Regular", Consolas, monospace;
   font-size: .92rem;
@@ -338,16 +345,39 @@ input[type="search"] { margin-bottom: 14px; }
 @media (min-width: 900px) {
   /* L'éditeur est le seul écran à deux colonnes : lui seul s'élargit. Étaler
      les listes de chapitres sur 1180 px les rendrait illisibles. `:has` cible
-     la vue depuis la feuille, sans faire connaître les écrans à app.js. */
-  main:has(.editeur) { max-width: 1180px; }
+     la vue depuis la feuille, sans faire connaître les écrans à app.js.
+
+     Il est aussi le seul écran qui ne se **lit** pas : c'est un plan de travail.
+     D'où la hauteur bornée et le défilement rendu à chaque volet — la page, elle,
+     ne bouge plus. Sans ça l'aperçu ne pouvait pas suivre le curseur : il n'y
+     avait rien à faire défiler, et un `sticky` ne se commande pas. Effet de bord
+     bienvenu : la barre *Enregistrer* reste sous la main, et un verso long ne
+     chasse plus l'aperçu de l'écran.
+
+     76 px = l'en-tête collant. `min-height: 0` est indispensable : sans lui un
+     enfant de grille refuse de rétrécir sous son contenu, et `overflow` n'a
+     jamais l'occasion de s'appliquer. */
+  main:has(.editeur) {
+    max-width: 1180px;
+    height: calc(100vh - 76px);
+    padding-bottom: 16px;
+    display: flex;
+    flex-direction: column;
+  }
 
   .editeur {
     display: grid;
     grid-template-columns: 1fr 1fr;
     gap: 28px;
-    /* Sans ça, la colonne s'étire sur toute la hauteur et `sticky` n'a plus
-       rien contre quoi coller : l'aperçu ne suivrait pas le défilement. */
-    align-items: start;
+    flex: 1;
+    min-height: 0;
+  }
+
+  .editeur-champs,
+  .editeur-apercu {
+    min-height: 0;
+    overflow-y: auto;
+    padding-right: 10px;             /* que la barre ne mange pas le texte */
   }
 
   /* Les deux colonnes sont là : la bascule n'a plus d'objet, et un état
@@ -355,11 +385,7 @@ input[type="search"] { margin-bottom: 14px; }
   .bascule-apercu { display: none; }
   .editeur.en-apercu .editeur-champs { display: block; }
   .editeur-apercu,
-  .editeur.en-apercu .editeur-apercu {
-    display: block;
-    position: sticky;
-    top: 76px;                       /* juste sous l'en-tête collant */
-  }
+  .editeur.en-apercu .editeur-apercu { display: block; }
 }
 
 /* ---------------------------------------------------------------- Images */
@@ -423,6 +449,13 @@ input[type="search"] { margin-bottom: 14px; }
 .bandeau-maj button { background: rgba(255, 255, 255, .18); border-color: transparent; color: #fff; }
 
 /* ---------------------------------------------------------------- Maths */
+
+/* Un bloc de texte composé — l'unité d'ancrage entre la saisie et l'aperçu.
+   Le liseré ne marque que le bloc où se trouve le curseur : sans repère, on ne
+   saurait pas si l'aperçu a suivi ou s'il s'est arrêté ailleurs. Le retrait
+   négatif rattrape le sien, pour que le texte reste aligné sur le reste. */
+.bloc { border-left: 2px solid transparent; padding-left: 8px; margin-left: -10px; }
+.bloc-actif { border-left-color: var(--accent); }
 
 .mathtext { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mathtext .katex-display { margin: .6em 0; overflow-x: auto; overflow-y: hidden; }

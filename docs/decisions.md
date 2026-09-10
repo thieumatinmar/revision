@@ -975,3 +975,57 @@ où le manque se fera sentir, pas avant.
 
 Rien à migrer : une entrée sans `source` est légitime, et c'est l'état de toutes
 celles écrites jusqu'ici.
+
+---
+
+## L'éditeur est un plan de travail, pas un document
+
+**Choix** — Au-dessus de 900 px, l'écran d'édition tient dans la hauteur de la
+fenêtre : la page ne défile plus, chaque volet défile pour lui. Les zones de
+saisie épousent leur contenu au lieu d'ouvrir une fenêtre de huit lignes, et
+l'aperçu **vient chercher le curseur** — il amène sous les yeux le bloc qu'on est
+en train d'écrire, et le souligne d'un liseré.
+
+**Alternative écartée** — Garder le défilement de page et l'aperçu en `sticky`,
+en se contentant de borner sa hauteur. Une ligne de CSS au lieu de trois fichiers
+touchés.
+
+**Raison** — Le défaut n'était pas cosmétique, il était structurel : *rien ne
+défilait indépendamment*. L'aperçu collé ne pouvait pas suivre le curseur, faute
+d'avoir quoi que ce soit à faire défiler, et sur un verso long il fallait pousser
+la page entière — ce qui emportait la barre *Enregistrer* et l'en-tête avec.
+Trois barres de défilement imbriquées (la zone de saisie, la page, l'aperçu) pour
+un seul geste : écrire.
+
+Ce qui rend le suivi possible est le point non-évident, et c'est là qu'est le
+vrai coût. Un verso composé en **un seul nœud** ne dit pas *où* l'on écrit. Il
+fallait donc des ancres, d'où trois changements en cascade :
+
+- `mathtext.js` sait découper une source en **blocs** séparés par une ligne vide,
+  parce qu'il est le seul à savoir ce qu'est un délimiteur : un `$$…$$` à cheval
+  sur une ligne vide ne doit pas être coupé, sans quoi KaTeX signale deux moitiés
+  fausses. Le séparateur reste collé au bloc qui précède — le texte s'affiche en
+  `pre-wrap`, et le jeter changerait l'espacement de toutes les cartes.
+- `marques.js` fait porter à chaque segment de texte sa **position dans la
+  source**. Elle ne se retrouve pas après coup : les segments sont rognés.
+- `carte.js` compose un nœud par bloc, étiqueté de sa face et de sa position.
+
+Rien n'y change à l'œil : le découpage suit les lignes vides, qui séparaient
+déjà. Ce qu'on y gagne est une carte montée où l'on peut **désigner un endroit**,
+et le principe vaudra au-delà de l'aperçu.
+
+Deux réglages qui ne se devinent pas :
+
+- **On ne fait défiler que si le bloc est hors champ.** Réaligner à chaque frappe
+  ferait sauter l'aperçu à chaque retour à la ligne — pire que de scroller
+  soi-même. Le liseré, lui, suit toujours : sans repère, on ne saurait pas si
+  l'aperçu a suivi ou s'il regarde ailleurs.
+- **Les zones de saisie grandissent au lieu de défiler.** Une hauteur fixe
+  imbrique le défilement du champ dans celui de la colonne, et on passe son temps
+  à faire glisser la mauvaise des deux barres. `resize` disparaît du même coup :
+  la frappe suivante reprendrait la main sur la hauteur, et une poignée qui se
+  fait défaire toute seule est pire que pas de poignée.
+
+Sous 900 px, rien de tout cela ne s'applique — un visage à la fois, la page
+défile comme avant. C'est le chemin étroit, pas le cas nominal : la saisie se
+fait sur PC.

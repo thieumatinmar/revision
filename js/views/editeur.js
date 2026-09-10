@@ -35,6 +35,9 @@ import { filtre } from '../recherche.js';
  */
 const DELAI_APERCU = 150;
 
+/** Air laissé au-dessus du bloc quand l'aperçu vient chercher le curseur, en px. */
+const MARGE_SUIVI = 24;
+
 export async function render(ctx) {
   // `ctx.mode` vient de la route (voir app.js) : il dit si le premier paramètre
   // désigne un chapitre (création) ou une carte (modification). Sans lui, il
@@ -86,10 +89,14 @@ export async function render(ctx) {
   //
   // C'est un état invisible, et c'est assumé : l'aperçu redessine en 150 ms, on
   // voit donc immédiatement où le bloc s'est posé.
+  //
+  // Ce même point sert à l'aperçu : il dit où l'on écrit, donc quel bloc de la
+  // carte montée doit être sous les yeux. D'où `input` dans la liste — taper
+  // déplace le curseur autant que le déplacer.
   let point = null;
   [recto, verso].forEach(({ input }) => {
-    const noter = () => { point = { input, at: input.selectionStart }; };
-    ['focus', 'click', 'keyup'].forEach((ev) => input.addEventListener(ev, noter));
+    const noter = () => { point = { input, at: input.selectionStart }; suit(); };
+    ['focus', 'click', 'keyup', 'input'].forEach((ev) => input.addEventListener(ev, noter));
   });
 
   /**
@@ -124,6 +131,9 @@ export async function render(ctx) {
     zone.setSelectionRange(fin, fin);
     point = { input: zone, at: fin };
     zone.focus();
+    // La marque a rallongé le texte sans qu'aucune frappe ne l'annonce : la
+    // hauteur de la zone ne se rattraperait qu'au caractère suivant.
+    ajuste(zone);
     planifierApercu();
   }
 
@@ -215,6 +225,47 @@ export async function render(ctx) {
         'Aperçu — la carte telle qu’elle se lira, toutes faces révélées.'),
       faceCarte(valeurs(), { hint: true, back: true, entries }),
     );
+    // La carte vient d'être remontée : les blocs d'avant n'existent plus, et
+    // l'aperçu est revenu en haut. On le ramène là où l'on écrit.
+    suit();
+  }
+
+  /**
+   * Amène sous les yeux le bloc de la carte où se trouve le curseur, et le
+   * souligne.
+   *
+   * Le lien est l'**offset** : `carte.js` étiquette chaque paragraphe composé de
+   * la face dont il vient et de sa position dans la source (`data-champ`,
+   * `data-at`). Le bloc courant est donc le dernier de cette face dont la
+   * position ne dépasse pas le curseur.
+   *
+   * On ne fait défiler **que si le bloc est hors champ**. Réaligner à chaque
+   * frappe ferait sauter l'aperçu sous les yeux à chaque retour à la ligne — pire
+   * que de scroller soi-même. Le liseré, lui, suit toujours : sans repère, on ne
+   * saurait pas si l'aperçu a suivi ou s'il regarde ailleurs.
+   *
+   * Sous 900 px la colonne n'a pas de défilement propre (voir la feuille de
+   * style) : `scrollTop` n'y fait rien, et c'est très bien — on n'a alors qu'un
+   * visage à la fois de toute façon.
+   */
+  function suit() {
+    const blocs = [...zoneApercu.querySelectorAll('.bloc')];
+    blocs.forEach((b) => b.classList.remove('bloc-actif'));
+    if (!point) return;
+
+    const champ = point.input === recto.input ? 'front' : 'back';
+    const at = Math.min(point.at, point.input.value.length);
+    const cible = blocs
+      .filter((b) => b.dataset.champ === champ && Number(b.dataset.at) <= at)
+      .pop();
+    if (!cible) return;
+
+    cible.classList.add('bloc-actif');
+
+    const vue = zoneApercu.getBoundingClientRect();
+    const bloc = cible.getBoundingClientRect();
+    if (bloc.top >= vue.top && bloc.bottom <= vue.bottom) return;
+    zoneApercu.scrollTop += bloc.top - vue.top - MARGE_SUIVI;
   }
 
   [titre.input, recto.input, verso.input, indication && indication.input, note && note.input]
@@ -222,6 +273,14 @@ export async function render(ctx) {
     .forEach((entree) => entree.addEventListener('input', planifierApercu));
 
   dessineApercu();
+
+  // La vue est encore détachée du document à cet instant (voir app.js), et
+  // `scrollHeight` y vaut 0 : ajuster la hauteur des zones de saisie maintenant
+  // les écraserait toutes à zéro. On attend donc le montage.
+  requestAnimationFrame(() => {
+    [recto, verso, indication, note].filter(Boolean).forEach((c) => c.ajuste());
+    suit();
+  });
 
   /** Visage courant sous 900 px : 'edition' ou 'apercu'. */
   let mode = 'edition';
@@ -556,11 +615,32 @@ function champRenvois(ids, entries, { auChangement = () => {}, insere = () => {}
  */
 function champ(libelle, valeur, placeholder) {
   const input = el('textarea', { placeholder, value: valeur || '' });
+  input.addEventListener('input', () => ajuste(input));
 
   const bloc = el('div', { class: 'champ' },
     el('label', { class: 'small muted' }, libelle),
     input,
   );
 
-  return { bloc, input };
+  return { bloc, input, ajuste: () => ajuste(input) };
+}
+
+/**
+ * La zone de saisie épouse son contenu.
+ *
+ * Une hauteur fixe impose un défilement **dans** le champ, imbriqué dans celui
+ * de la colonne : sur un verso long, on passe son temps à faire glisser la
+ * mauvaise des deux barres, et on perd de vue le reste du formulaire. En
+ * laissant la zone grandir, il ne reste qu'une seule surface qui défile — la
+ * colonne — et l'aperçu, qui a désormais la sienne, ne bouge plus avec.
+ *
+ * `height: auto` d'abord : sans cette remise à zéro, `scrollHeight` ne
+ * redescend jamais et la zone ne peut que grandir, même après un effacement.
+ *
+ * `+ 2` : `scrollHeight` compte le remplissage mais pas les bordures, et il
+ * manquerait deux pixels — assez pour qu'une barre de défilement apparaisse.
+ */
+function ajuste(input) {
+  input.style.height = 'auto';
+  input.style.height = `${input.scrollHeight + 2}px`;
 }

@@ -13,7 +13,7 @@
 // rien — on lui donne une carte, il rend un élément.
 
 import { el, fill } from './dom.js';
-import { render as renderMath } from './mathtext.js';
+import { render as renderMath, paragraphes } from './mathtext.js';
 import { faceEntree } from './entree.js';
 import { decoupe } from './marques.js';
 
@@ -68,7 +68,7 @@ export function faceCarte(card, { hint = false, back = false, entries = [] } = {
     card.title
       ? renderMath(el('div', { class: 'titre-carte' }), card.title)
       : el('div', { class: 'face-label' }, 'Recto'),
-    corps(segRecto, depliage),
+    corps(segRecto, depliage, 'front'),
 
     hint && card.hint && el('div', { class: 'hint' },
       el('div', { class: 'face-label' }, 'Indication'),
@@ -81,7 +81,7 @@ export function faceCarte(card, { hint = false, back = false, entries = [] } = {
     // au texte.
     back && (card.back || images.length > 0) && el('hr'),
     back && card.back && el('div', { class: 'face-label' }, 'Verso'),
-    back && card.back && corps(segVerso, depliage),
+    back && card.back && corps(segVerso, depliage, 'back'),
 
     // Les images font partie de la réponse : elles n'apparaissent donc qu'avec
     // le verso, jamais avant.
@@ -108,10 +108,25 @@ export function faceCarte(card, { hint = false, back = false, entries = [] } = {
  * seule chose qui empêche une carte de casser la page. Une marque n'est donc
  * jamais du HTML : elle est un endroit où l'on cesse de composer du texte pour
  * insérer un élément, puis où l'on reprend.
+ *
+ * Un segment se compose en **un nœud par paragraphe**, chacun étiqueté de la
+ * face dont il vient et de sa position dans la source. Rien ne change à l'œil —
+ * le découpage suit les lignes vides, qui séparaient déjà visuellement. Ce que
+ * ça donne, c'est une carte où l'on peut **désigner un endroit** : l'aperçu de
+ * l'éditeur s'en sert pour suivre le curseur (`views/editeur.js`), et un texte
+ * monolithique ne l'aurait jamais permis.
+ *
+ * `champ` vaut `'front'` ou `'back'` : deux paragraphes peuvent porter le même
+ * offset, un dans chaque face, et sans lui l'aperçu sauterait de l'une à l'autre.
  */
-function corps(segments, depliage) {
+function corps(segments, depliage, champ) {
   return segments.map((s) => {
-    if (s.texte !== undefined) return renderMath(el('div'), s.texte);
+    if (s.texte !== undefined) {
+      return paragraphes(s.texte).map((bloc) => renderMath(
+        el('div', { class: 'bloc', dataset: { champ, at: String(s.at + bloc.at) } }),
+        bloc.texte,
+      ));
+    }
     if (s.entry) return el('div', { class: 'renvoi-place' }, ...depliage.attache(s.entry));
     // Une marque qui ne désigne plus rien : le renvoi, lui, n'est pas perdu — il
     // est retombé dans « Voir aussi ». On le dit quand même, au lieu de laisser
