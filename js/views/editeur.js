@@ -26,7 +26,7 @@ import {
 } from '../store.js';
 import { ESPECES } from '../entree.js';
 import { marqueDe } from '../marques.js';
-import { surEnregistrement } from '../raccourcis.js';
+import { surEnregistrement, surCollageImages } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 import { filtre } from '../recherche.js';
 
@@ -236,6 +236,22 @@ export async function render(ctx) {
   // choisir entre « je sécurise ce que j'ai tapé » et « j'ai fini ».
   surEnregistrement(ctx.root, () => enregistrer({ rester: true }));
 
+  // Ctrl+V d'une image (capture d'écran…) l'ajoute aux images, où que soit le
+  // focus. La réponse passe par le **témoin** et non par le seul champ Images :
+  // celui-ci est souvent hors champ quand on colle depuis le verso, et un geste
+  // sans réponse visible ferait coller deux fois.
+  surCollageImages(ctx.root, async (files) => {
+    temoin.style.color = '';
+    temoin.textContent = 'Image en cours de traitement…';
+    const refus = await images.ajouter(files);
+    if (refus.length) {
+      temoin.style.color = '#e8695f';
+      temoin.textContent = 'Image non ajoutée : ' + refus.join(', ');
+    } else {
+      temoin.textContent = `Image ajoutée — ${images.resume()}`;
+    }
+  });
+
   // --- Aperçu vivant ----------------------------------------------------------
   // Toute frappe redessine la carte, après une courte pause. Le chapitre n'y
   // change rien : il range la carte, il ne s'affiche pas dessus.
@@ -298,6 +314,47 @@ export async function render(ctx) {
     if (bloc.top >= vue.top && bloc.bottom <= vue.bottom) return;
     zoneApercu.scrollTop += bloc.top - vue.top - MARGE_SUIVI;
   }
+
+  /**
+   * Le chemin inverse de `suit()` : un clic dans l'aperçu ramène le curseur dans
+   * le formulaire, au début du paragraphe cliqué. On lit, on voit la coquille,
+   * on clique dessus — sans avoir à la rechercher dans la source.
+   *
+   * Début du paragraphe et non caractère exact : une fois le LaTeX composé par
+   * KaTeX, plus rien ne relie un pixel de l'aperçu à une position dans la source.
+   * `data-at`, lui, est exact.
+   *
+   * Ne réagit **pas** :
+   *   - sur un bouton ou un lien — le dépliage d'un renvoi et « Ouvrir la fiche »
+   *     gardent leur rôle ;
+   *   - quand du texte vient d'être sélectionné — on voulait copier, pas écrire ;
+   *   - sous 900 px — un seul visage à la fois, on y lit : toucher la carte ferait
+   *     sortir le clavier. Le seuil est celui de la feuille de style.
+   */
+  zoneApercu.addEventListener('click', (ev) => {
+    if (!matchMedia('(min-width: 900px)').matches) return;
+    if (ev.target.closest('button, a')) return;
+    if (!getSelection().isCollapsed) return;
+
+    if (ev.target.closest('.titre-carte')) {
+      titre.input.focus();
+      return;
+    }
+
+    const bloc = ev.target.closest('.bloc');
+    if (!bloc) return;
+    const zone = bloc.dataset.champ === 'front' ? recto.input : verso.input;
+    const at = Math.min(Number(bloc.dataset.at), zone.value.length);
+
+    // Le curseur d'abord, le focus ensuite : `focus` déclenche `noter`, qui lit
+    // `selectionStart`. Et le point est posé à la main, parce que si la zone a
+    // déjà le focus, `focus()` ne déclenche rien.
+    zone.setSelectionRange(at, at);
+    zone.focus({ preventScroll: true });
+    point = { input: zone, at };
+    suit();
+    montreCurseur(zone, at);
+  });
 
   [titre.input, recto.input, verso.input, indication && indication.input, note && note.input]
     .filter(Boolean)
@@ -466,42 +523,67 @@ function champImages(images, auChangement = () => {}) {
   const bouton = el('button', { type: 'button', class: 'btn-sm', on: { click: () => fichier.click() } },
     'Ajouter une image');
 
-  fichier.addEventListener('change', async () => {
+  fichier.addEventListener('change', () => {
     const choisis = [...fichier.files];
     fichier.value = '';                      // pour pouvoir reprendre le même fichier
-    if (choisis.length === 0) return;
+    ajouter(choisis);
+  });
+
+  /**
+   * Ajoute des fichiers image : réduction, contrôle du budget, redessin.
+   *
+   * Deux appelants : le bouton (sélecteur de fichier) et le collage, qui arrive
+   * de la vue. Un seul tuyau pour les deux, sinon le budget et la réduction
+   * finiraient par diverger d'un chemin à l'autre.
+   *
+   * @param {File[]} files
+   * @returns {Promise<string[]>} les refus, lisibles — vide si tout est passé
+   */
+  async function ajouter(files) {
+    if (files.length === 0) return [];
 
     bouton.disabled = true;
     etat.style.color = 'var(--fg-dim)';
     etat.textContent = 'Traitement…';
     const refus = [];
 
-    for (const f of choisis) {
+    for (const f of files) {
+      // Une capture collée n'a pas toujours de nom : on dit alors ce qu'elle est.
+      const nom = f.name || 'image collée';
       try {
         const url = await depuisFichier(f);
         // On vérifie le budget **après** réduction : refuser sur la taille du
         // fichier d'origine rejetterait des photos de 4 Mo qui tiennent en 150 Ko.
         if (poidsTotal(images) + url.length > BUDGET) {
-          refus.push(f.name);
+          refus.push(nom + ' (budget dépassé)');
           continue;
         }
         images.push(url);
       } catch (err) {
-        refus.push(f.name + ' (' + err.message + ')');
+        refus.push(nom + ' (' + err.message + ')');
       }
     }
 
     bouton.disabled = false;
     if (refus.length) {
       etat.style.color = '#e8695f';
-      etat.textContent = 'Non ajouté, budget dépassé : ' + refus.join(', ')
+      etat.textContent = 'Non ajouté : ' + refus.join(', ')
         + '. Supprime une image existante pour faire de la place.';
     } else {
       etat.textContent = '';
     }
     dessiner();
     auChangement();
-  });
+    return refus;
+  }
+
+  /** « 3 images — 240 Ko sur 700 Ko utilisés. » — lu par la jauge et le témoin. */
+  function resume() {
+    return images.length === 0
+      ? 'Aucune image.'
+      : `${images.length} image${images.length > 1 ? 's' : ''} — `
+        + `${formatePoids(poidsTotal(images))} sur ${formatePoids(BUDGET)} utilisés.`;
+  }
 
   function dessiner() {
     fill(galerie, images.map((url, i) => el('div', { class: 'vignette' },
@@ -514,11 +596,7 @@ function champImages(images, auChangement = () => {}) {
       }, '×'),
     )));
 
-    const total = poidsTotal(images);
-    jauge.textContent = images.length === 0
-      ? 'Aucune image.'
-      : `${images.length} image${images.length > 1 ? 's' : ''} — `
-        + `${formatePoids(total)} sur ${formatePoids(BUDGET)} utilisés.`;
+    jauge.textContent = resume();
   }
 
   const bloc = el('div', { class: 'champ' },
@@ -530,7 +608,7 @@ function champImages(images, auChangement = () => {}) {
   );
 
   dessiner();
-  return { bloc, valeur: () => [...images] };
+  return { bloc, valeur: () => [...images], ajouter, resume };
 }
 
 /**
@@ -724,4 +802,27 @@ function champ(libelle, valeur, placeholder) {
 function ajuste(input) {
   input.style.height = 'auto';
   input.style.height = `${input.scrollHeight + 2}px`;
+}
+
+/**
+ * Fait défiler la colonne du formulaire jusqu'à la ligne `at` d'une zone.
+ *
+ * `focus()` ne suffit pas : la zone épouse son contenu (`ajuste`), elle n'a donc
+ * pas de défilement propre, et le navigateur se contente de montrer son **haut**
+ * — sur un verso long, le curseur reste hors champ.
+ *
+ * La ligne est estimée en comptant les retours à la ligne avant `at`. Les lignes
+ * repliées par la largeur ne sont pas comptées : l'estimation tombe un peu haut
+ * sur un long paragraphe, jamais en dessous. On vise le tiers haut de la
+ * colonne, ce qui absorbe l'écart.
+ */
+function montreCurseur(zone, at) {
+  const colonne = zone.closest('.editeur-champs');
+  if (!colonne) return;
+  const style = getComputedStyle(zone);
+  const ligne = parseFloat(style.lineHeight) || parseFloat(style.fontSize) * 1.4;
+  const rang = zone.value.slice(0, at).split('\n').length - 1;
+  const y = zone.getBoundingClientRect().top + parseFloat(style.paddingTop) + rang * ligne;
+  const vue = colonne.getBoundingClientRect();
+  colonne.scrollTop += y - vue.top - vue.height / 3;
 }

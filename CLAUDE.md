@@ -27,13 +27,15 @@ est une phase d'accumulation. L'interrogation se fait en session de travail ou
 sur papier. Le suivi de ce qu'il reste à faire se gère hors de l'app.
 
 > Le contexte de la préparation (profil, planning, avancement) vit dans le
-> dossier parent : `../CLAUDE.md`, `../planning.md`, `../ressources.md`.
+> dossier parent : `../CLAUDE.md` et `../ressources officielles/ressources.md`
+> (le planning est fixé par la prépa agreg, hors projet).
 > Ici, on ne parle que de l'app.
 
 ## Deux cibles, une seule base de code
 
-L'app doit tourner **sur le PC et sur le téléphone**. Le choix d'architecture
-n'est pas encore arrêté — c'est le premier sujet à griller (voir *Décisions*).
+L'app doit tourner **sur le PC et sur le téléphone**. L'architecture est
+arrêtée : PWA sans build (modules ES), Firebase (Auth + Firestore), hébergement
+GitHub Pages, service worker pour le hors-ligne — raisons dans `docs/decisions.md`.
 Contrainte de fond à garder en tête : réviser doit rester possible **hors ligne**
 (métro, salle d'examen blanc), et les données doivent pouvoir **passer d'un
 appareil à l'autre**.
@@ -80,9 +82,11 @@ on l'inscrit ici avec sa frontière.
   (`{{renvoi: …}}`) : la fabriquer, la lire, découper un texte autour d'elle.
   **Pur** lui aussi ; n'importe que `normalise` de `recherche.js`. Il dit le
   **placement**, jamais le renvoi lui-même — qui reste dans `entryIds`.
-- `js/raccourcis.js` — les raccourcis clavier d'un écran, un seul aujourd'hui :
-  **Ctrl+S enregistre sans quitter** (`surEnregistrement`). Il ne sait pas ce
-  qu'il enregistre — on lui passe l'action. Ni store, ni DOM construit, ni vue.
+- `js/raccourcis.js` — les raccourcis clavier d'un écran : **Ctrl+S enregistre
+  sans quitter** (`surEnregistrement`), **Ctrl+V colle une image**
+  (`surCollageImages`, le texte gagne dans une zone de saisie). Il ne sait pas ce
+  qu'il enregistre ni où vont les images — on lui passe l'action. Ni store, ni
+  DOM construit, ni vue.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper
   DOM. Un seul appelant aujourd'hui (l'aperçu de l'éditeur), mais le montage

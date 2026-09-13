@@ -1141,3 +1141,26 @@ touche, donc un orphelin disparaît à la première frappe qui suit une navigati
 après le premier enregistrement. `ctx.setTitle` n'est lu qu'avant l'attache de la
 vue ; ouvrir une porte dans la coque pour ce seul mot coûterait plus que le
 défaut, que le témoin *Enregistré à …* dément de toute façon.
+
+## Coller une image dans une carte
+
+**Choix** — Dans l'éditeur de carte, `Ctrl+V` d'une image l'ajoute aux images,
+**où que soit le focus**. Même tuyau que le bouton (réduction, budget), et la
+réponse s'affiche dans le **témoin** de la barre d'actions. Règle de priorité :
+si le presse-papiers porte du **texte** et que le focus est dans une zone de
+saisie, le collage texte gagne et aucune image n'est prise. Cartes seulement :
+les entrées n'ont toujours pas d'images.
+
+**Alternative écartée** — (a) coller seulement quand le focus est sur le champ
+*Images* ; (b) faire défiler jusqu'au champ *Images* pour montrer l'ajout.
+
+**Raison** — Le geste réel est *capture d'écran, Ctrl+V*, en pleine rédaction du
+verso. (a) imposait un clic de visée à chaque fois ; (b) arrachait le curseur du
+texte qu'on écrit. Le témoin est déjà la réponse visible d'un geste clavier
+(Ctrl+S) : il sert ici au même titre.
+
+La règle de priorité est le point non-évident. Copier depuis Word, OneNote ou une
+page web met **texte et image** dans le presse-papiers ; sans elle, coller un
+paragraphe dans le verso ajouterait une image fantôme. Une capture d'écran ne
+porte qu'une image, donc le cas nominal n'est pas touché. Prix assumé : pour
+coller l'image d'un contenu Word, il faut cliquer hors d'une zone de saisie.
