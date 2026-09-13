@@ -68,13 +68,30 @@ _Éviter_: prévisualisation, simulation, mode lecture, rendu
 ## L'organisation
 
 **Catégorie** :
-Le rangement d'une carte, calqué sur les titres du programme officiel.
+Le rangement d'une carte, quel que soit son niveau : un chapitre ou un
+sous-chapitre. Une carte en a exactement une. Le mot sert partout où le niveau
+ne change rien — ranger, déplacer, ordonner, compter les cartes.
 _Code_: `category`
-_Éviter_: chapitre, thème, tag, matière
+_Éviter_: thème, tag, matière, dossier
+
+**Chapitre** :
+Une catégorie de premier niveau, calquée sur un titre du programme officiel.
+Il peut porter des cartes directement, des sous-chapitres, ou les deux à la
+fois.
+_Code_: catégorie sans `parentId`
+_Éviter_: titre (c'est le mot du programme, et déjà celui d'une carte), section
+
+**Sous-chapitre** :
+Une catégorie rattachée à un chapitre, pour le découper. Il ne se découpe pas
+lui-même, et il reste attaché au chapitre sous lequel il a été créé.
+_Code_: catégorie portant un `parentId`
+_Éviter_: sous-catégorie, section, rubrique, partie, dossier
 
 **Ordre** :
 La place d'une carte à l'intérieur de sa catégorie, décidée à la main. Deux
-catégories ont chacune leur ordre ; il n'en existe pas de global.
+catégories ont chacune leur ordre ; il n'en existe pas de global. Un chapitre et
+ses sous-chapitres sont des catégories distinctes : passer de l'un à l'autre, c'est
+changer de catégorie.
 _Code_: `order`
 _Éviter_: rang, position, index, tri
 

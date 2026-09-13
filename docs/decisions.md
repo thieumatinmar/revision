@@ -165,6 +165,10 @@ jour. Le cas réel qui gêne (une carte de probabilités qui sert aussi à l'opt
 de l'oral) se règle en créant une catégorie de plus le jour où le besoin est
 concret, plutôt qu'en généralisant le modèle par avance.
 
+> **Rouverte en partie** par « Sous-chapitres : un niveau, dans la même
+> collection » : une carte a toujours une seule catégorie, mais les catégories
+> ne sont plus une liste plate.
+
 ---
 
 ## Pas de to-do dans l'app
@@ -1189,3 +1193,65 @@ les deux laisserait une copie sans place, ou un trou dans l'ordre. Le non-rangé
 reste non rangé parce que cette zone est triée par identifiant aléatoire :
 « juste après » n'y existe pas. Prix assumé de (a) écarté : un clic de trop
 laisse un doublon en base, qu'on supprime à la main.
+
+---
+
+## Sous-chapitres : un niveau, dans la même collection
+
+**Choix** — Un chapitre peut être découpé en **sous-chapitres**, sur **un seul
+niveau** : un sous-chapitre ne se découpe pas. Concrètement :
+
+- **Données** — même collection `categories`, avec un champ facultatif
+  `parentId`. Sans lui, c'est un chapitre ; avec, un sous-chapitre. Une carte
+  garde un unique `categoryId`, qui pointe vers l'un ou l'autre. `order` devient
+  un ordre **entre frères**. C'est `store.js` qui refuse un `parentId` désignant
+  un sous-chapitre : la base, elle, ne garantit pas le niveau unique.
+- **Mélange autorisé** — un chapitre peut porter à la fois des cartes et des
+  sous-chapitres.
+- **Accueil** — les chapitres seuls, avec un compteur **cumulé** (cartes propres
+  + cartes des sous-chapitres). L'écran d'un chapitre montre ses sous-chapitres,
+  puis ses propres cartes.
+- **Recherche** — dans l'écran d'un chapitre, elle couvre aussi ses
+  sous-chapitres ; chaque résultat venu d'un sous-chapitre en porte le nom.
+- **Gestion** — tout dans l'écran « Gérer » : sous-chapitres indentés sous leur
+  chapitre, mêmes gestes (renommer, ↑/↓ entre frères, ×), un champ de création
+  par chapitre. Supprimer un sous-chapitre non vide est refusé ; supprimer un
+  chapitre qui a des sous-chapitres, même vides, aussi.
+- **Déplacer une carte** — un seul `<select>` listant l'arbre, sous-chapitres
+  indentés par préfixe de texte. Changer de catégorie fait perdre la place, entre
+  un chapitre et ses sous-chapitres comme ailleurs.
+- **Niveau figé** — une catégorie naît chapitre ou sous-chapitre et le reste :
+  ni changement de parent, ni promotion, ni rétrogradation.
+
+**Alternative écartée** — (a) un arbre à profondeur libre ; (b) une collection
+`subcategories` à part, avec un `subcategoryId` sur la carte ; (c) interdire les
+cartes directement dans un chapitre découpé ; (d) l'arbre déplié sur l'accueil ;
+(e) une recherche limitée aux cartes propres du chapitre.
+
+**Raison** — Cette entrée **rouvre** « Une seule catégorie par carte, en liste
+plate », qui avait écarté l'arborescence au nom de « un test = une catégorie = un
+tirage ». Le test a été retiré depuis : la raison est tombée, et un chapitre de
+programme de plusieurs dizaines de cartes ne se relit plus d'un bloc.
+
+Le reste suit une seule ligne : **l'état existant doit rester légitime**. Sans
+`parentId`, les douze chapitres sont déjà des chapitres — ni migration, ni règle
+Firestore à revoir, puisque tout reste sous `users/{uid}/categories`. Le mélange
+autorisé (c) évite de devoir reclasser tout un chapitre au moment d'y créer le
+premier sous-chapitre, et d'inventer un « divers » — la zone fourre-tout déjà
+refusée pour les catégories. Une collection à part (b) aurait mis sur la carte
+deux champs à tenir cohérents entre eux, désaccordables depuis un appareil hors
+ligne ; avec un seul `categoryId`, l'incohérence n'est pas écrivable, et
+`listCards`, `moveCard`, l'ordre et le refus de suppression marchent tels quels.
+
+Le niveau unique et figé coupe tout le coût d'un arbre — rendu récursif, cycles,
+déplacement d'un nœud avec ses enfants — pour un besoin réel qui tient en un
+découpage. Le compteur cumulé et la recherche étendue (e) répondent au même
+piège : sans eux, **découper un chapitre le ferait paraître vidé**, et la
+recherche mentirait d'autant plus qu'on range finement.
+
+Prix assumés : créer une carte dans un sous-chapitre depuis l'accueil coûte un
+tap de plus ; un sous-chapitre créé sous le mauvais chapitre se recrée, et ses
+cartes redeviennent non rangées. Le jour où ça gêne, changer de parent n'est
+qu'une réécriture de `parentId` — les cartes ne bougent pas. La recherche étendue
+passe par des requêtes `in`, découpées en tranches de 30 identifiants (le
+plafond Firestore) : le nombre de sous-chapitres n'est donc pas borné.

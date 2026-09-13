@@ -6,7 +6,7 @@
 //
 // Arborescence dans Firestore :
 //
-//   users/{uid}/categories/{id}   { name, order }
+//   users/{uid}/categories/{id}   { name, order, parentId? }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
 //                                   images: string[], entryIds: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
@@ -65,10 +65,58 @@ function ref(nom, id) {
 const toObj = (d) => ({ id: d.id, ...d.data() });
 
 // ---------------------------------------------------------------- Catégories
+//
+// Deux niveaux, **une seule collection** (docs/decisions.md, « Sous-chapitres ») :
+//
+//   - un **chapitre** ne porte pas de `parentId` ;
+//   - un **sous-chapitre** porte le `parentId` de son chapitre.
+//
+// Les douze chapitres écrits avant cette fonctionnalité n'ont pas le champ : ils
+// sont donc déjà des chapitres, sans rien migrer. Une carte, elle, ne sait pas à
+// quel niveau elle vit — son `categoryId` pointe vers l'un ou l'autre.
+//
+// `order` est un ordre **entre frères** : les chapitres entre eux, et les
+// sous-chapitres d'un même chapitre entre eux.
+//
+// Le niveau unique n'est garanti par rien dans la base : c'est `createCategory`,
+// seul endroit où un `parentId` s'écrit, qui refuse de rattacher un
+// sous-chapitre à un autre sous-chapitre.
 
+/** Une catégorie est un **sous-chapitre** quand elle désigne un chapitre parent. */
+export const isSubchapter = (cat) => typeof cat.parentId === 'string' && cat.parentId !== '';
+
+/** Toutes les catégories, les deux niveaux mélangés, triées par `order`. */
 export async function listCategories() {
   const snap = await getDocs(query(col('categories'), orderBy('order')));
   return snap.docs.map(toObj);
+}
+
+/**
+ * L'arbre des catégories : les chapitres dans leur ordre, chacun portant
+ * `children`, ses sous-chapitres dans leur ordre.
+ *
+ * Le regroupement se fait ici, pour qu'aucune vue n'ait à le refaire — et à le
+ * refaire différemment d'une autre.
+ *
+ * Filet : un sous-chapitre dont le parent n'existe plus (suppression faite
+ * depuis un autre appareil pendant qu'un premier était hors ligne) est affiché
+ * **comme un chapitre**. Le faire disparaître rendrait ses cartes introuvables ;
+ * `deleteCategory` empêche ce cas, mais ne peut rien contre deux écritures
+ * concurrentes.
+ *
+ * Les objets renvoyés sont des copies : ajouter `children` ne touche pas la
+ * liste plate que l'appelant pourrait tenir à côté.
+ */
+export async function listChapters() {
+  const toutes = await listCategories();
+  const ids = new Set(toutes.map((c) => c.id));
+  const estChapitre = (c) => !isSubchapter(c) || !ids.has(c.parentId);
+
+  const chapitres = toutes.filter(estChapitre).map((c) => ({ ...c, children: [] }));
+  const parId = new Map(chapitres.map((c) => [c.id, c]));
+  // `toutes` est déjà trié par `order` : pousser dans l'ordre de lecture suffit.
+  toutes.filter((c) => !estChapitre(c)).forEach((s) => parId.get(s.parentId).children.push({ ...s }));
+  return chapitres;
 }
 
 export async function getCategory(id) {
@@ -76,10 +124,31 @@ export async function getCategory(id) {
   return d.exists() ? toObj(d) : null;
 }
 
-export async function createCategory(name) {
+/**
+ * Crée un chapitre, ou un sous-chapitre si `parentId` est donné.
+ *
+ * La nouvelle catégorie prend la dernière place **parmi ses frères** : compter
+ * toutes les catégories donnerait à un premier sous-chapitre la position 12,
+ * ce qui ne veut rien dire sous un chapitre qui n'en a aucun autre.
+ *
+ * C'est ici que tient le niveau unique : un parent introuvable, ou qui est
+ * lui-même un sous-chapitre, est refusé.
+ */
+export async function createCategory(name, parentId = null) {
+  if (parentId) {
+    const parent = await getCategory(parentId);
+    if (!parent) throw new Error('Chapitre parent introuvable.');
+    if (isSubchapter(parent)) throw new Error('Un sous-chapitre ne se découpe pas.');
+  }
   const existantes = await listCategories();
-  const d = await addDoc(col('categories'), { name, order: existantes.length });
-  return { id: d.id, name, order: existantes.length };
+  const freres = existantes.filter((c) => (parentId ? c.parentId === parentId : !isSubchapter(c)));
+  const donnees = { name, order: freres.length };
+  // Pas de `parentId: null` sur un chapitre : l'absence du champ **est** l'état
+  // « chapitre », comme sur les douze documents d'origine. Deux représentations
+  // du même état finiraient par diverger dans une requête.
+  if (parentId) donnees.parentId = parentId;
+  const d = await addDoc(col('categories'), donnees);
+  return { id: d.id, ...donnees };
 }
 
 export async function renameCategory(id, name) {
@@ -104,15 +173,27 @@ export async function setCategoriesOrder(orderedIds) {
   await batch.commit();
 }
 
+/** Les sous-chapitres d'un chapitre, dans leur ordre. */
+async function listSubchapters(chapterId) {
+  // Filtre par `where`, tri en mémoire : `where` + `orderBy` sur deux champs
+  // différents exigerait un index composite déclaré à la main.
+  const snap = await getDocs(query(col('categories'), where('parentId', '==', chapterId)));
+  return snap.docs.map(toObj).sort((a, b) => a.order - b.order);
+}
+
 /**
- * Supprime une catégorie — **refuse** si elle contient des cartes.
+ * Supprime une catégorie — **refuse** si elle contient des cartes, ou si c'est
+ * un chapitre qui a encore des sous-chapitres, même vides.
  * Décision actée : aucune donnée ne disparaît par effet de bord, et il n'existe
  * pas de zone « sans catégorie » où reléguer les orphelines.
  */
 export async function deleteCategory(id) {
-  const cartes = await listCards(id);
+  const [cartes, sous] = await Promise.all([listCards(id), listSubchapters(id)]);
+  if (sous.length > 0) {
+    throw new Error(`Ce chapitre a ${sous.length} sous-chapitre(s). Supprime-les d'abord.`);
+  }
   if (cartes.length > 0) {
-    throw new Error(`Ce chapitre contient ${cartes.length} carte(s). Vide-le ou déplace-les d'abord.`);
+    throw new Error(`Cette catégorie contient ${cartes.length} carte(s). Vide-la ou déplace-les d'abord.`);
   }
   await deleteDoc(ref('categories', id));
 }
@@ -155,6 +236,35 @@ export async function listCards(categoryId) {
   return snap.docs.map(toObj).sort(compareCards);
 }
 
+/** Plafond de valeurs d'un `where(…, 'in', …)` Firestore. */
+const IN_MAX = 30;
+
+/**
+ * Les cartes **d'un chapitre et de ses sous-chapitres** — pour la recherche de
+ * l'écran d'un chapitre, qui mentirait si elle ignorait ce qu'on a découpé.
+ *
+ * Ordre renvoyé : les cartes propres au chapitre d'abord, puis celles de chaque
+ * sous-chapitre dans l'ordre des sous-chapitres ; à l'intérieur de chaque
+ * catégorie, l'ordre habituel (`compareCards`). Les positions de deux catégories
+ * ne se comparent pas, d'où ce groupement plutôt qu'un tri unique.
+ *
+ * Une requête `in` par tranche de 30 identifiants : le plafond Firestore ne
+ * devient donc pas une limite du nombre de sous-chapitres.
+ */
+export async function listCardsUnder(chapterId) {
+  const sous = await listSubchapters(chapterId);
+  const ids = [chapterId, ...sous.map((s) => s.id)];
+
+  const tranches = [];
+  for (let i = 0; i < ids.length; i += IN_MAX) tranches.push(ids.slice(i, i + IN_MAX));
+  const snaps = await Promise.all(
+    tranches.map((t) => getDocs(query(col('cards'), where('categoryId', 'in', t)))));
+
+  const rang = new Map(ids.map((id, i) => [id, i]));
+  return snaps.flatMap((s) => s.docs.map(toObj))
+    .sort((a, b) => (rang.get(a.categoryId) - rang.get(b.categoryId)) || compareCards(a, b));
+}
+
 /**
  * Réécrit la position des cartes **rangées** d'un chapitre, à partir de la liste
  * ordonnée de leurs identifiants — même geste que `setCategoriesOrder`, et pour
@@ -172,26 +282,44 @@ export async function setCardsOrder(orderedIds) {
 }
 
 /**
- * Compteurs par chapitre, en **une seule** requête :
- * `Map(categoryId → { total, unplaced })`.
+ * Compteurs par catégorie : `Map(categoryId → { total, unplaced, cumulative })`.
  *
  * L'accueil affiche douze compteurs : douze requêtes séparées seraient douze
  * allers-retours pour afficher un écran. On lit toutes les cartes une fois et on
  * compte ici — à l'échelle d'une préparation personnelle, c'est le bon compromis.
  *
- * `unplaced` sert à l'écran de gestion : voir d'un coup d'œil quels chapitres
- * contiennent des cartes qui n'ont pas encore de place.
+ * - `total` — les cartes rangées **directement** dans la catégorie ;
+ * - `unplaced` — parmi elles, celles qui n'ont pas de place : l'écran de gestion
+ *   s'en sert pour montrer où il reste de l'ordre à mettre ;
+ * - `cumulative` — sur un chapitre, `total` plus les cartes de ses
+ *   sous-chapitres ; sur un sous-chapitre, `total`. C'est le compteur de
+ *   l'accueil : sans lui, découper un chapitre le ferait paraître vidé.
+ *
+ * Seules les catégories qui portent au moins une carte, ou un sous-chapitre qui
+ * en porte, figurent dans la table : l'appelant replie sur zéro.
  */
 export async function countByCategory() {
-  const snap = await getDocs(col('cards'));
+  const [snap, categories] = await Promise.all([getDocs(col('cards')), listCategories()]);
   const compte = new Map();
+  const entree = (id) => {
+    if (!compte.has(id)) compte.set(id, { total: 0, unplaced: 0, cumulative: 0 });
+    return compte.get(id);
+  };
+
   snap.forEach((d) => {
     const donnees = d.data();
-    const cat = donnees.categoryId;
-    const c = compte.get(cat) || { total: 0, unplaced: 0 };
+    const c = entree(donnees.categoryId);
     c.total += 1;
+    c.cumulative += 1;
     if (typeof donnees.order !== 'number') c.unplaced += 1;
-    compte.set(cat, c);
+  });
+
+  // Report des sous-chapitres sur leur chapitre. Même filet que `listChapters` :
+  // un parent disparu ne reçoit rien, le sous-chapitre garde son propre compte.
+  const ids = new Set(categories.map((c) => c.id));
+  categories.forEach((cat) => {
+    if (!isSubchapter(cat) || !ids.has(cat.parentId) || !compte.has(cat.id)) return;
+    entree(cat.parentId).cumulative += compte.get(cat.id).total;
   });
   return compte;
 }
