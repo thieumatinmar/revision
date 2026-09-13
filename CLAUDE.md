@@ -69,6 +69,11 @@ on l'inscrit ici avec sa frontière.
   Arborescence `users/{uid}/categories`, `users/{uid}/cards` et
   `users/{uid}/library` : c'est cette forme qui rend la règle de sécurité
   tenable en une ligne, la changer obligerait à revoir les règles publiées.
+  Les **deux niveaux** de catégorie vivent dans la même collection : un
+  sous-chapitre porte un `parentId`, un chapitre non. `listChapters()` rend
+  l'arbre, `flattenChapters()` le remet à plat pour un `<select>`,
+  `listCardsUnder()` lit un chapitre et ses sous-chapitres ; le niveau unique
+  est tenu par `createCategory`, rien d'autre.
   Porte aussi `migrateLibrary()`, migration unique et non destructive de
   l'ancienne collection `theorems` — à retirer une fois celle-ci effacée.
 - `js/entree.js` — **composant** : monte une entrée (`faceEntree(entry)`), et
