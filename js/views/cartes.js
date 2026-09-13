@@ -1,5 +1,5 @@
-// views/cartes.js — les cartes d'un chapitre : relire, chercher, ouvrir, créer,
-// dupliquer, ordonner, déplacer.
+// views/cartes.js — les cartes d'une catégorie (chapitre ou sous-chapitre) :
+// relire, chercher, ouvrir, créer, dupliquer, ordonner, déplacer.
 //
 // La recherche filtre sans repasser par le routeur : elle doit répondre à chaque
 // frappe, et rien n'a changé en base entre deux caractères tapés.
@@ -14,28 +14,63 @@
 // haut : sans cette séparation, la première pression sur une flèche rangerait
 // implicitement tout le chapitre et le repère « non rangée » disparaîtrait sans
 // qu'on l'ait décidé.
+//
+// **Sur un chapitre découpé** (docs/decisions.md, « Sous-chapitres ») :
+//
+//   - sans recherche, ses sous-chapitres s'affichent en tête, comme des liens,
+//     puis ses cartes propres ;
+//   - en recherche, les cartes des sous-chapitres qui correspondent s'ajoutent
+//     aux siennes, chacune avec le nom de son sous-chapitre. Sans ça, découper un
+//     chapitre ferait mentir « Aucune carte ne correspond ».
+//
+// Une carte venue d'un sous-chapitre s'ouvre, se duplique et se déplace, mais ne
+// s'ordonne pas d'ici : sa place se compte dans son sous-chapitre, pas dans cette
+// liste.
 
 import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
-  listCards, getCategory, listCategories, moveCard, setCardsOrder, isPlaced,
-  duplicateCard,
+  listChapters, flattenChapters, listCards, listCardsUnder, moveCard, setCardsOrder,
+  isPlaced, duplicateCard,
 } from '../store.js';
+
+/** Libellé d'une destination dans un `<select>` : les sous-chapitres indentés. */
+const libelle = (cat) => (cat.depth === 1 ? '   └ ' : '') + cat.name;
 
 export async function render(ctx) {
   const categoryId = ctx.params[0];
-  const [category, cards, categories] = await Promise.all([
-    getCategory(categoryId), listCards(categoryId), listCategories(),
-  ]);
+
+  const arbre = await listChapters();
+  const categories = flattenChapters(arbre);
+  const category = categories.find((c) => c.id === categoryId) || null;
+  // Le nœud de l'arbre, s'il s'agit d'un chapitre : c'est lui qui porte ses
+  // sous-chapitres. Sur un sous-chapitre, `chapitre` est null.
+  const chapitre = arbre.find((c) => c.id === categoryId) || null;
+  const sousChapitres = chapitre ? chapitre.children : [];
+  const parent = category && category.depth === 1
+    ? arbre.find((c) => c.id === category.parentId) : null;
+
+  // Une seule lecture de cartes : sur un chapitre, lui et ses sous-chapitres
+  // (la recherche en a besoin, et les compteurs des sous-chapitres en sortent) ;
+  // sur un sous-chapitre, ses seules cartes.
+  const toutes = sousChapitres.length > 0 ? await listCardsUnder(categoryId) : await listCards(categoryId);
+  const cards = toutes.filter((c) => c.categoryId === categoryId);
+  // Les cartes des sous-chapitres, dans l'ordre des sous-chapitres.
+  const autres = toutes.filter((c) => c.categoryId !== categoryId);
+  const nomSous = new Map(sousChapitres.map((s) => [s.id, s.name]));
 
   ctx.setTitle(category ? category.name : 'Cartes');
   ctx.setHeader(
-    el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Chapitres'),
+    // Depuis un sous-chapitre, on remonte à son chapitre, pas à l'accueil :
+    // c'est de là qu'on vient, et c'est là qu'on choisit le sous-chapitre voisin.
+    parent
+      ? el('a', { class: 'btn btn-sm btn-ghost', href: `#/cartes/${parent.id}` }, `‹ ${parent.name}`)
+      : el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Chapitres'),
     el('a', { class: 'btn btn-sm btn-primary', href: `#/carte/nouvelle/${categoryId}` }, '+ Carte'),
   );
 
-  // Les chapitres où l'on peut ranger une carte : tous sauf celui-ci.
-  const destinations = categories.filter((c) => c.id !== categoryId);
+  // Les catégories où l'on peut ranger une carte : toutes sauf la sienne.
+  const destinationsDe = (card) => categories.filter((c) => c.id !== card.categoryId);
 
   // Les deux zones. `listCards` livre déjà les rangées en tête, dans l'ordre.
   const rangees = cards.filter(isPlaced);
@@ -48,14 +83,14 @@ export async function render(ctx) {
 
   const search = el('input', {
     type: 'search',
-    placeholder: 'Chercher…',
+    placeholder: sousChapitres.length > 0 ? 'Chercher, sous-chapitres compris…' : 'Chercher…',
     on: { input: (e) => { query = e.target.value.trim().toLowerCase(); paint(); } },
   });
 
   const list = el('div');
   // `fill` et non `append` : le `append` natif écrirait « false » à l'écran
   // quand le chapitre est vide (voir dom.js).
-  fill(ctx.root, cards.length > 0 && search, list);
+  fill(ctx.root, toutes.length > 0 && search, list);
 
   // On cherche dans les cinq champs : une carte se retrouve aussi bien par sa
   // réponse ou par un mot de la note que par son recto.
@@ -65,53 +100,93 @@ export async function render(ctx) {
   function paint() {
     const rangeesVues = rangees.filter(correspond);
     const nonRangeesVues = nonRangees.filter(correspond);
-    const total = rangeesVues.length + nonRangeesVues.length;
-
-    if (total === 0) {
-      fill(list, el('p', { class: 'empty' },
-        query ? 'Aucune carte ne correspond.' : 'Aucune carte dans ce chapitre.',
-        el('br'),
-        !query && el('a', {
-          class: 'btn btn-primary', href: `#/carte/nouvelle/${categoryId}`, style: 'margin-top:16px',
-        }, 'Créer la première'),
-      ));
-      return;
-    }
+    // Les cartes des sous-chapitres ne s'affichent qu'en recherche : sans elle,
+    // on y accède par leur sous-chapitre.
+    const autresVues = query ? autres.filter(correspond) : [];
+    const total = rangeesVues.length + nonRangeesVues.length + autresVues.length;
 
     fill(list,
-      el('p', { class: 'small muted' },
-        `${total} carte${total > 1 ? 's' : ''}`
-        + (query ? ` trouvée${total > 1 ? 's' : ''}` : '')),
+      !query && blocSousChapitres(),
       annonce && el('p', { class: 'small', style: 'color:var(--fg-dim)' }, annonce),
-      el('ul', { class: 'list' },
-        rangeesVues.flatMap((c) => ligne(c, rangees.indexOf(c))),
+      total === 0 ? vide() : [
+        el('p', { class: 'small muted' },
+          `${total} carte${total > 1 ? 's' : ''}`
+          + (query ? ` trouvée${total > 1 ? 's' : ''}` : '')),
+        el('ul', { class: 'list' },
+          rangeesVues.flatMap((c) => ligne(c, rangees.indexOf(c))),
 
-        // Séparateur : il n'apparaît que s'il reste des cartes sans place.
-        nonRangeesVues.length > 0 && el('li', { class: 'separateur' },
-          el('span', { class: 'grow small muted' },
-            `Non rangées — ${nonRangeesVues.length}`),
-          // Tout ranger d'un coup : sur un chapitre entier jamais ordonné,
-          // c'est ce qui évite quarante pressions avant de pouvoir affiner.
-          !query && nonRangees.length > 1 && el('button', {
-            class: 'btn-sm',
-            title: 'Ranger toutes ces cartes à la suite, dans l’ordre affiché',
-            on: { click: rangerTout },
-          }, 'Tout ranger'),
+          // Séparateur : il n'apparaît que s'il reste des cartes sans place.
+          nonRangeesVues.length > 0 && el('li', { class: 'separateur' },
+            el('span', { class: 'grow small muted' },
+              `Non rangées — ${nonRangeesVues.length}`),
+            // Tout ranger d'un coup : sur un chapitre entier jamais ordonné,
+            // c'est ce qui évite quarante pressions avant de pouvoir affiner.
+            !query && nonRangees.length > 1 && el('button', {
+              class: 'btn-sm',
+              title: 'Ranger toutes ces cartes à la suite, dans l’ordre affiché',
+              on: { click: rangerTout },
+            }, 'Tout ranger'),
+          ),
+
+          nonRangeesVues.flatMap((c) => ligne(c, null)),
+
+          autresVues.length > 0 && el('li', { class: 'separateur' },
+            el('span', { class: 'grow small muted' },
+              `Dans les sous-chapitres — ${autresVues.length}`)),
+
+          autresVues.flatMap((c) => ligne(c, null)),
         ),
+      ],
+    );
+  }
 
-        nonRangeesVues.flatMap((c) => ligne(c, null)),
-      ),
+  /**
+   * Les sous-chapitres, en tête de l'écran d'un chapitre. Compteur de chacun :
+   * ses cartes, lues dans la même requête que celles du chapitre.
+   */
+  function blocSousChapitres() {
+    if (sousChapitres.length === 0) return null;
+    return el('ul', { class: 'list', style: 'margin-bottom:18px' },
+      sousChapitres.map((s) => {
+        const n = autres.filter((c) => c.categoryId === s.id).length;
+        return el('li', {},
+          el('a', { class: 'grow', href: `#/cartes/${s.id}`, style: 'text-decoration:none;color:inherit' },
+            el('div', { class: 'name' }, s.name),
+            el('div', { class: 'small muted' }, n === 0 ? 'aucune carte' : `${n} carte${n > 1 ? 's' : ''}`),
+          ),
+          el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${s.id}`, title: 'Nouvelle carte dans ce sous-chapitre' }, '+'),
+        );
+      }),
+    );
+  }
+
+  /** Ce qu'on affiche quand aucune carte n'est visible. */
+  function vide() {
+    if (query) return el('p', { class: 'empty' }, 'Aucune carte ne correspond.');
+    // Un chapitre découpé dont toutes les cartes sont dans ses sous-chapitres
+    // n'est pas « vide » : on ne lui propose pas de créer « la première ».
+    if (sousChapitres.length > 0) {
+      return el('p', { class: 'small muted' }, 'Aucune carte directement dans ce chapitre.');
+    }
+    return el('p', { class: 'empty' },
+      'Aucune carte dans ce chapitre.',
+      el('br'),
+      el('a', {
+        class: 'btn btn-primary', href: `#/carte/nouvelle/${categoryId}`, style: 'margin-top:16px',
+      }, 'Créer la première'),
     );
   }
 
   /**
    * Une ligne. `position` est le rang dans la zone rangée, ou `null` quand la
-   * carte n'a pas encore de place.
+   * carte n'a pas encore de place — ou quand elle vient d'un sous-chapitre, où
+   * sa place ne se compte pas dans cette liste.
    */
   function ligne(card, position) {
     const placee = position !== null;
+    const sous = nomSous.get(card.categoryId) || null;
 
-    const item = el('li', { class: placee ? null : 'non-rangee' },
+    const item = el('li', { class: placee || sous ? null : 'non-rangee' },
       // Le titre, quand il existe, tient la ligne principale et le recto passe
       // en dessous. Sans titre, le recto reprend cette place : une liste où
       // certaines lignes seraient vides serait illisible.
@@ -119,6 +194,7 @@ export async function render(ctx) {
         renderMath(el('div', { class: 'name' }), excerpt(card.title || card.front)),
         el('div', { class: 'small muted' },
           card.title ? excerpt(stripMath(card.front), 70) : excerpt(stripMath(card.back), 70)),
+        sous && el('div', { class: 'small', style: 'color:var(--accent)' }, `↳ ${sous}`),
       ),
 
       // Les flèches n'ont de sens que sur la liste complète : dans une liste
@@ -137,8 +213,9 @@ export async function render(ctx) {
       }, '↓'),
 
       // « Ranger » reste possible même en cours de recherche : ajouter à la fin
-      // ne dépend pas des voisins affichés.
-      !placee && el('button', {
+      // ne dépend pas des voisins affichés. Pas sur une carte de sous-chapitre :
+      // la ranger ici la placerait dans une liste qui n'est pas la sienne.
+      !placee && !sous && el('button', {
         class: 'btn-sm',
         title: 'Donner une place à cette carte, à la fin des cartes rangées',
         on: { click: () => ranger(card) },
@@ -152,8 +229,8 @@ export async function render(ctx) {
 
       el('button', {
         class: 'btn-sm',
-        title: 'Déplacer vers un autre chapitre',
-        disabled: destinations.length === 0,
+        title: 'Déplacer vers une autre catégorie',
+        disabled: destinationsDe(card).length === 0,
         on: { click: () => { deplacementDe = deplacementDe === card.id ? null : card.id; annonce = null; paint(); } },
       }, '⇄'),
     );
@@ -162,18 +239,17 @@ export async function render(ctx) {
 
     // Le sélecteur prend la place d'une ligne de liste, sous la carte concernée :
     // le regard est déjà là, et rien ne se déplace hors de l'écran.
+    const destinations = destinationsDe(card);
     const choix = el('select', {},
       el('option', { value: '' }, 'Déplacer vers…'),
-      destinations.map((c) => el('option', { value: c.id }, c.name)),
+      destinations.map((c) => el('option', { value: c.id }, libelle(c))),
     );
     choix.addEventListener('change', async () => {
       if (!choix.value) return;
       const cible = destinations.find((c) => c.id === choix.value);
       choix.disabled = true;
       await moveCard(card.id, cible.id);
-      // La carte quitte ce chapitre : on la retire de la liste affichée plutôt
-      // que de tout recharger — l'écran ne montre que ce chapitre-ci.
-      retirer(card);
+      replacer(card, cible.id);
       deplacementDe = null;
       annonce = `Carte déplacée vers « ${cible.name} ».`;
       paint();
@@ -206,7 +282,11 @@ export async function render(ctx) {
     bouton.disabled = true;
     try {
       const copie = await duplicateCard(card.id);
-      if (isPlaced(copie)) {
+      if (copie.categoryId !== categoryId) {
+        // Copie d'une carte de sous-chapitre : elle reste dans ce sous-chapitre,
+        // on la glisse juste après l'original dans la liste des résultats.
+        autres.splice(autres.indexOf(card) + 1, 0, copie);
+      } else if (isPlaced(copie)) {
         rangees.splice(rangees.indexOf(card) + 1, 0, copie);
         renumeroter();
       } else {
@@ -222,11 +302,23 @@ export async function render(ctx) {
     paint();
   }
 
-  /** Retire une carte des deux zones (elle a changé de chapitre). */
-  function retirer(card) {
-    const zone = isPlaced(card) ? rangees : nonRangees;
-    const i = zone.indexOf(card);
-    if (i >= 0) zone.splice(i, 1);
+  /**
+   * Recopie en mémoire un déplacement que le store vient d'écrire : la carte
+   * quitte sa liste, perd sa place, et reparaît là où elle reste visible depuis
+   * cet écran — non rangée si elle arrive dans cette catégorie, parmi les
+   * cartes des sous-chapitres si elle arrive dans l'un d'eux. Ailleurs, elle
+   * disparaît simplement de l'écran, qui ne montre que ce chapitre-ci.
+   */
+  function replacer(card, cibleId) {
+    for (const zone of [rangees, nonRangees, autres]) {
+      const i = zone.indexOf(card);
+      if (i >= 0) zone.splice(i, 1);
+    }
+    if (rangees.length > 0) renumeroter();
+    card.categoryId = cibleId;
+    delete card.order;
+    if (cibleId === categoryId) nonRangees.push(card);
+    else if (nomSous.has(cibleId)) autres.push(card);
   }
 
   /**

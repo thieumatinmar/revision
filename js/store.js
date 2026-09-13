@@ -119,6 +119,21 @@ export async function listChapters() {
   return chapitres;
 }
 
+/**
+ * L'arbre de `listChapters()` remis à plat, **dans l'ordre de lecture** : chaque
+ * chapitre suivi de ses sous-chapitres. Chaque élément porte `depth` — 0 pour un
+ * chapitre, 1 pour un sous-chapitre — et plus de `children`.
+ *
+ * C'est la forme qu'attend un `<select>` de destination : une seule liste, où le
+ * chapitre reste choisissable. Le libellé (indentation) appartient à la vue.
+ */
+export function flattenChapters(chapters) {
+  return chapters.flatMap(({ children, ...chap }) => [
+    { ...chap, depth: 0 },
+    ...children.map((s) => ({ ...s, depth: 1 })),
+  ]);
+}
+
 export async function getCategory(id) {
   const d = await getDoc(ref('categories', id));
   return d.exists() ? toObj(d) : null;
