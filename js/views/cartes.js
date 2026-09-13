@@ -1,5 +1,5 @@
 // views/cartes.js — les cartes d'un chapitre : relire, chercher, ouvrir, créer,
-// ordonner, déplacer.
+// dupliquer, ordonner, déplacer.
 //
 // La recherche filtre sans repasser par le routeur : elle doit répondre à chaque
 // frappe, et rien n'a changé en base entre deux caractères tapés.
@@ -19,6 +19,7 @@ import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listCards, getCategory, listCategories, moveCard, setCardsOrder, isPlaced,
+  duplicateCard,
 } from '../store.js';
 
 export async function render(ctx) {
@@ -145,6 +146,12 @@ export async function render(ctx) {
 
       el('button', {
         class: 'btn-sm',
+        title: 'Dupliquer cette carte',
+        on: { click: (ev) => dupliquer(card, ev.currentTarget) },
+      }, '⧉'),
+
+      el('button', {
+        class: 'btn-sm',
         title: 'Déplacer vers un autre chapitre',
         disabled: destinations.length === 0,
         on: { click: () => { deplacementDe = deplacementDe === card.id ? null : card.id; annonce = null; paint(); } },
@@ -181,6 +188,38 @@ export async function render(ctx) {
         }, 'Annuler'),
       ),
     )];
+  }
+
+  /**
+   * Duplique une carte. La place et la marque du titre sont décidées par le
+   * store (`duplicateCard`) ; ici, on ne fait que recopier en mémoire ce qu'il
+   * vient d'écrire, pour ne pas relire tout le chapitre.
+   *
+   * Le bouton est désactivé pendant l'écriture : un double clic ferait deux
+   * copies. Il n'est pas réactivé au succès — `paint()` redessine la ligne.
+   *
+   * Pas de réponse optimiste, contrairement aux flèches : l'identifiant de la
+   * copie ne se connaît qu'après l'appel, et une ligne sans identifiant
+   * n'ouvrirait rien.
+   */
+  async function dupliquer(card, bouton) {
+    bouton.disabled = true;
+    try {
+      const copie = await duplicateCard(card.id);
+      if (isPlaced(copie)) {
+        rangees.splice(rangees.indexOf(card) + 1, 0, copie);
+        renumeroter();
+      } else {
+        // Même tri que `listCards` pour les non rangées : par identifiant.
+        nonRangees.push(copie);
+        nonRangees.sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+      }
+      annonce = 'Carte dupliquée.';
+    } catch (err) {
+      annonce = 'Duplication impossible : ' + err.message;
+    }
+    deplacementDe = null;
+    paint();
   }
 
   /** Retire une carte des deux zones (elle a changé de chapitre). */

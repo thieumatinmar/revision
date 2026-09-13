@@ -261,6 +261,72 @@ export async function moveCard(id, categoryId) {
   await setDoc(ref('cards', id), { categoryId, order: deleteField() }, { merge: true });
 }
 
+/** La marque que porte le titre d'une copie. */
+const MARQUE_COPIE = '(copie)';
+
+/**
+ * Duplique une carte, **en base, tout de suite** — aucun éditeur ne s'ouvre.
+ *
+ * Deux écarts délibérés à la règle « une carte naît non rangée »
+ * (docs/decisions.md, « Dupliquer une carte ») :
+ *
+ * 1. **Place** — si l'original est rangé, la copie prend la position juste
+ *    après lui et les suivantes descendent d'un cran : on duplique pour faire
+ *    une variante, et la variante se lit à côté de ce dont elle varie. Si
+ *    l'original n'est pas rangé, la copie ne l'est pas non plus : les non
+ *    rangées sont triées par identifiant, tiré au hasard, et « juste après » n'y
+ *    veut rien dire.
+ * 2. **Titre** — suffixé de « (copie) », ou réduit à « (copie) » sur une carte
+ *    sans titre : c'est ce qui distingue les deux lignes, sans toucher au recto.
+ *
+ * On relit l'original plutôt que de recevoir la carte affichée : une liste
+ * ouverte depuis dix minutes dupliquerait sinon un contenu périmé.
+ *
+ * Tout passe par **un seul** `writeBatch` : ni copie sans sa place, ni chapitre
+ * renuméroté autour d'une copie absente. L'identifiant vient de
+ * `doc(col('cards'))`, qui le tire côté client, avant toute écriture — c'est ce
+ * qui permet de le glisser dans la renumérotation du même lot.
+ *
+ * @returns {Promise<object>} la copie, avec son `id` (et son `order` si rangée)
+ */
+export async function duplicateCard(id) {
+  const original = await getCard(id);
+  if (!original) throw new Error('Carte introuvable.');
+
+  // Mêmes champs que `saveCard`, écrits explicitement : pas d'`id` ni d'`order`
+  // hérités, et les tableaux recopiés pour ne rien partager avec l'original.
+  const copie = {
+    categoryId: original.categoryId,
+    title: original.title ? `${original.title} ${MARQUE_COPIE}` : MARQUE_COPIE,
+    front: original.front || '',
+    hint: original.hint || '',
+    back: original.back || '',
+    note: original.note || '',
+    images: Array.isArray(original.images) ? [...original.images] : [],
+    // Mêmes renvois : la copie cite ce que l'original cite, et apparaîtra donc
+    // aussi dans le « Cité par » de ces entrées.
+    entryIds: Array.isArray(original.entryIds) ? [...original.entryIds] : [],
+  };
+
+  const nouvelle = doc(col('cards'));
+  const batch = writeBatch(db);
+
+  if (isPlaced(original)) {
+    // Renumérotation de 0, comme `setCardsOrder`, et pour la même raison : des
+    // positions trouées finissent en doublons. Seules les rangées sont touchées.
+    const rangees = (await listCards(original.categoryId)).filter(isPlaced).map((c) => c.id);
+    rangees.splice(rangees.indexOf(id) + 1, 0, nouvelle.id);
+    rangees.forEach((cid, order) => {
+      if (cid === nouvelle.id) copie.order = order;
+      else batch.set(ref('cards', cid), { order }, { merge: true });
+    });
+  }
+
+  batch.set(nouvelle, copie);
+  await batch.commit();
+  return { id: nouvelle.id, ...copie };
+}
+
 export async function deleteCard(id) {
   await deleteDoc(ref('cards', id));
 }

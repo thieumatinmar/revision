@@ -1164,3 +1164,28 @@ page web met **texte et image** dans le presse-papiers ; sans elle, coller un
 paragraphe dans le verso ajouterait une image fantôme. Une capture d'écran ne
 porte qu'une image, donc le cas nominal n'est pas touché. Prix assumé : pour
 coller l'image d'un contenu Word, il faut cliquer hors d'une zone de saisie.
+
+## Dupliquer une carte
+
+**Choix** — Un bouton ⧉ sur chaque ligne de la liste d'un chapitre écrit la
+copie **en base, tout de suite**, sans ouvrir l'éditeur (`duplicateCard`,
+store.js). La copie emporte tous les champs, renvois et images compris. Son titre
+est suffixé de « (copie) » — ou vaut « (copie) » seul si l'original n'en a pas.
+Si l'original est **rangé**, la copie prend la place juste après lui et les
+suivantes descendent ; s'il ne l'est pas, la copie ne l'est pas non plus.
+
+**Alternative écartée** — (a) ouvrir un éditeur pré-rempli, sans rien écrire
+avant l'enregistrement ; (b) une copie non rangée, comme toute carte créée ;
+(c) une copie identique, sans marque.
+
+**Raison** — On duplique pour faire une variante, et la variante se lit à côté
+de ce dont elle varie : c'est ce qui justifie l'écart à la règle « une carte naît
+non rangée » (b). La marque (c) est le prix de la contiguïté : deux lignes identiques côte à côte, on ne
+sait plus laquelle on vient de créer. Sur une carte sans titre, elle devient le
+titre plutôt que de toucher au recto.
+
+Copie et renumérotation partent dans **un seul `writeBatch`** : un échec entre
+les deux laisserait une copie sans place, ou un trou dans l'ordre. Le non-rangé
+reste non rangé parce que cette zone est triée par identifiant aléatoire :
+« juste après » n'y existe pas. Prix assumé de (a) écarté : un clic de trop
+laisse un doublon en base, qu'on supprime à la main.
