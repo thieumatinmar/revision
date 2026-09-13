@@ -6,7 +6,7 @@
       "runtimeExecutable": "python",
       "runtimeArgs": [
         "-c",
-        "import os, http.server, socketserver; socketserver.TCPServer.allow_reuse_address = True; socketserver.TCPServer(('', int(os.environ.get('PORT', '8130'))), http.server.SimpleHTTPRequestHandler).serve_forever()"
+        "import os, http.server; http.server.ThreadingHTTPServer.allow_reuse_address = True; http.server.ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('PORT', '8130'))), http.server.SimpleHTTPRequestHandler).serve_forever()"
       ],
       "port": 8130,
       "autoPort": true

@@ -129,6 +129,13 @@ button:active, .btn:active { transform: translateY(1px); }
    ajouter d'étiquette sur chaque ligne, qui volerait la place du texte. */
 .list li.non-rangee { border-style: dashed; }
 
+/* Sous-chapitre, dans l'écran de gestion : indenté sous son chapitre. Le trait à
+   gauche dit l'appartenance mieux qu'un simple décalage, qui se perd sur mobile. */
+.list li.sous-chapitre {
+  margin-left: 22px;
+  border-left: 3px solid var(--line);
+}
+
 /* « Voir aussi » : les renvois d'une carte vers la bibliothèque. Séparés du
    verso par un trait, comme le verso l'est du recto — c'est un autre registre :
    on a fini de répondre, on regarde ailleurs. */
