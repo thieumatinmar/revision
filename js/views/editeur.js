@@ -21,7 +21,7 @@
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
 import {
-  getCard, saveCard, deleteCard, listCategories, listEntries, kindOf,
+  getCard, saveCard, deleteCard, listChapters, flattenChapters, listEntries, kindOf,
   saveEntry, THEOREM, DEFINITION,
 } from '../store.js';
 import { ESPECES } from '../entree.js';
@@ -45,7 +45,10 @@ export async function render(ctx) {
   // faudrait deviner à partir de la forme de l'identifiant — fragile.
   const creation = ctx.mode === 'creation';
   const [param] = ctx.params;
-  const [categories, entries] = await Promise.all([listCategories(), listEntries()]);
+  // Les catégories dans l'ordre de l'arbre : chaque chapitre suivi de ses
+  // sous-chapitres, pour que le sélecteur se lise comme l'accueil.
+  const [arbre, entries] = await Promise.all([listChapters(), listEntries()]);
+  const categories = flattenChapters(arbre);
 
   const card = creation
     ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [], entryIds: [] }
@@ -83,8 +86,13 @@ export async function render(ctx) {
   ctx.setHeader(retourHaut, bascule);
 
   // --- Champs -----------------------------------------------------------------
+  // Une seule liste : le chapitre reste choisissable, ses sous-chapitres sont
+  // indentés sous lui. L'indentation passe par le texte de l'option — le CSS sur
+  // `<option>` est ignoré par la plupart des navigateurs mobiles. Même libellé
+  // que le sélecteur « ⇄ » de views/cartes.js : à changer ensemble.
   const categorie = el('select', {},
-    categories.map((c) => el('option', { value: c.id, selected: c.id === card.categoryId }, c.name)),
+    categories.map((c) => el('option', { value: c.id, selected: c.id === card.categoryId },
+      (c.depth === 1 ? '   └ ' : '') + c.name)),
   );
 
   const titre = champTitre(card.title);

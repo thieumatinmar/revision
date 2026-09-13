@@ -5,16 +5,19 @@
 // une requête.
 
 import { el } from '../dom.js';
-import { listCategories, countByCategory, countEntries, THEOREM, DEFINITION } from '../store.js';
+import { listChapters, countByCategory, countEntries, THEOREM, DEFINITION } from '../store.js';
 
 export async function render(ctx) {
-  // Deux requêtes pour tout l'écran, quel que soit le nombre de chapitres.
+  // Quelques requêtes pour tout l'écran, quel que soit le nombre de chapitres.
+  // `listChapters` ne rend que le premier niveau — les sous-chapitres se
+  // découvrent dans l'écran de leur chapitre (docs/decisions.md, « Sous-chapitres »).
   const [categories, compte, entrees] = await Promise.all([
-    listCategories(), countByCategory(), countEntries(),
+    listChapters(), countByCategory(), countEntries(),
   ]);
-  // `countByCategory` renvoie { total, unplaced } : l'accueil ne montre que le
-  // total, le détail des non rangées appartient à l'écran de gestion.
-  const counts = categories.map((c) => (compte.get(c.id) || { total: 0 }).total);
+  // Le compteur **cumulé** : les cartes du chapitre et de ses sous-chapitres.
+  // Sans lui, découper un chapitre le ferait paraître vidé. Le détail des non
+  // rangées appartient à l'écran de gestion.
+  const counts = categories.map((c) => (compte.get(c.id) || { cumulative: 0 }).cumulative);
 
   // À gauche, la coque met l'accès au compte : ici on ne pose que la droite.
   ctx.setHeader(null, el('a', { class: 'btn btn-sm btn-ghost', href: '#/chapitres' }, 'Gérer'));
