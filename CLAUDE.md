@@ -287,6 +287,12 @@ outre en connaissance de cause).
 > son cache et masque les fichiers modifiés — on croit que le code n'a pas
 > changé. Dans la console : `navigator.serviceWorker.getRegistrations()` puis
 > `.unregister()`, et `caches.keys()` puis `caches.delete()`.
+>
+> **Second piège, vécu aussi** : même sans service worker, le **cache HTTP** du
+> navigateur ressert un module ES inchangé d'URL — `python -m http.server`
+> n'envoie aucun `Cache-Control`. Le serveur de `.claude/launch.json` envoie
+> `Cache-Control: no-store` pour cette raison ; avec `python -m http.server`,
+> recharger en vidant le cache (Ctrl+Maj+R).
 
 ## Firebase
 

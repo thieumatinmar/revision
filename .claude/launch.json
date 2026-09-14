@@ -6,7 +6,7 @@
       "runtimeExecutable": "python",
       "runtimeArgs": [
         "-c",
-        "import os, http.server; http.server.ThreadingHTTPServer.allow_reuse_address = True; http.server.ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('PORT', '8130'))), http.server.SimpleHTTPRequestHandler).serve_forever()"
+        "import os, http.server as h; B = h.SimpleHTTPRequestHandler; H = type('H', (B,), {'end_headers': lambda self: (self.send_header('Cache-Control', 'no-store'), B.end_headers(self))}); h.ThreadingHTTPServer.allow_reuse_address = True; h.ThreadingHTTPServer(('127.0.0.1', int(os.environ.get('PORT', '8130'))), H).serve_forever()"
       ],
       "port": 8130,
       "autoPort": true
