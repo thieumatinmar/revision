@@ -7,8 +7,10 @@
 //
 // Les sous-chapitres s'affichent indentés sous leur chapitre, avec les mêmes
 // gestes. Les flèches n'échangent qu'**entre frères** : un chapitre avec un
-// chapitre, un sous-chapitre avec un sous-chapitre du même chapitre. Le niveau
-// d'une catégorie est figé à la création — aucun geste ne le change.
+// chapitre, un sous-chapitre avec un sous-chapitre du même chapitre. Changer
+// d'étage, c'est **rattacher** (⤴) : un sélecteur sous la ligne, qui couvre
+// promotion, rétrogradation et changement de parent (docs/decisions.md,
+// « Rattacher une catégorie »).
 //
 // Le renommage se valide à la perte de focus plutôt qu'avec un bouton
 // « Enregistrer » : corriger une coquille dans un titre ne mérite pas deux clics.
@@ -26,7 +28,7 @@ import { el, fill } from '../dom.js';
 import { VERSION } from '../version.js';
 import {
   listChapters, countByCategory, createCategory, renameCategory,
-  deleteCategory, setCategoriesOrder,
+  deleteCategory, setCategoriesOrder, attachCategory,
 } from '../store.js';
 
 export async function render(ctx) {
@@ -40,13 +42,17 @@ export async function render(ctx) {
   );
 
   // L'arbre : chaque chapitre porte `children`, ses sous-chapitres ordonnés.
-  const [chapitres, compte] = await Promise.all([listChapters(), countByCategory()]);
+  // `let` : un rattachement réorganise l'arbre, qu'on relit alors en entier.
+  let [chapitres, compte] = await Promise.all([listChapters(), countByCategory()]);
   const compteDe = (id) => compte.get(id) || { total: 0, unplaced: 0 };
 
   // Message attaché à une catégorie : { id, texte, type } ou null.
   let annonce = null;
   // Chapitre dont le champ « nouveau sous-chapitre » est ouvert (un seul à la fois).
   let creationSous = null;
+  // Catégorie dont le sélecteur « Rattacher à… » est ouvert (un seul à la fois,
+  // et jamais en même temps qu'un champ de création).
+  let rattachementDe = null;
 
   const dire = (id, texte, type) => { annonce = { id, texte, type }; dessiner(); };
   const taire = () => { if (annonce) { annonce = null; dessiner(); } };
@@ -115,6 +121,11 @@ export async function render(ctx) {
         on: { click: () => ouvrirCreation(cat) },
       }, '+'),
       el('button', {
+        class: 'btn-sm',
+        title: 'Rattacher à… (changer d’étage)',
+        on: { click: () => ouvrirRattachement(cat) },
+      }, '⤴'),
+      el('button', {
         class: 'btn-sm', title: 'Monter', disabled: i === 0,
         on: { click: () => deplacer(freres, i, -1) },
       }, '↑'),
@@ -136,7 +147,7 @@ export async function render(ctx) {
       ? el('li', { class: 'annonce ' + annonce.type + (parent ? ' sous-chapitre' : '') }, annonce.texte)
       : null;
 
-    return msg ? [li, msg] : [li];
+    return [li, msg, rattachementDe === cat.id && champRattachement(cat, parent)].filter(Boolean);
   }
 
   /**
@@ -169,8 +180,67 @@ export async function render(ctx) {
     );
   }
 
+  /**
+   * Le sélecteur « Rattacher à… », sous la ligne de la catégorie — même motif
+   * que le ⇄ d'une carte.
+   *
+   * « — Chapitre » ramène au premier niveau ; un chapitre place dessous. Le
+   * rattachement actuel est présélectionné, et la catégorie elle-même absente.
+   *
+   * Un chapitre découpé ne peut que rester chapitre : les chapitres sont alors
+   * **désactivés**, pas retirés, et une ligne dit pourquoi — une liste réduite à
+   * une option ferait croire à un bug. Le store refuse de toute façon.
+   */
+  function champRattachement(cat, parent) {
+    const decoupe = !parent && cat.children.length > 0;
+    const actuel = parent ? parent.id : '';
+
+    const choix = el('select', {},
+      el('option', { value: '', selected: !parent }, '— Chapitre (aucun parent)'),
+      chapitres.filter((c) => c.id !== cat.id).map((c) => el('option', {
+        value: c.id, selected: c.id === actuel, disabled: decoupe,
+      }, `Sous « ${c.name} »`)),
+    );
+
+    choix.addEventListener('change', async () => {
+      const cible = choix.value || null;
+      if ((cible || '') === actuel) return;
+      choix.disabled = true;
+      try {
+        await attachCategory(cat.id, cible);
+        // L'arbre entier change de forme (deux listes renumérotées) : on le
+        // relit plutôt que de rejouer la renumérotation en mémoire. Les
+        // compteurs, eux, ne bougent pas — aucune carte n'a changé de catégorie.
+        chapitres = await listChapters();
+        rattachementDe = null;
+        const nom = cible ? chapitres.find((c) => c.id === cible).name : null;
+        dire(cat.id, nom ? `Rattaché à « ${nom} ».` : 'Devenu chapitre.', 'info');
+      } catch (err) {
+        rattachementDe = null;
+        dire(cat.id, err.message, 'erreur');
+      }
+    });
+
+    return el('li', { class: 'annonce info' + (parent ? ' sous-chapitre' : '') },
+      el('div', { class: 'row' },
+        choix,
+        el('button', { class: 'btn-sm', on: { click: () => { rattachementDe = null; dessiner(); } } }, 'Annuler'),
+      ),
+      decoupe && el('div', { class: 'small muted', style: 'margin-top:6px' },
+        `« ${cat.name} » a des sous-chapitres : il ne peut que rester chapitre.`),
+    );
+  }
+
+  function ouvrirRattachement(cat) {
+    annonce = null;
+    creationSous = null;
+    rattachementDe = rattachementDe === cat.id ? null : cat.id;
+    dessiner();
+  }
+
   function ouvrirCreation(chap) {
     annonce = null;
+    rattachementDe = null;
     creationSous = creationSous === chap.id ? null : chap.id;
     dessiner();
   }

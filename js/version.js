@@ -11,4 +11,4 @@
 //
 // **À incrémenter à chaque déploiement.** C'est le seul endroit à toucher.
 
-export const VERSION = '2026-09-13.3';
+export const VERSION = '2026-09-14.1';
