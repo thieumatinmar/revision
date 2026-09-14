@@ -83,9 +83,19 @@ _Éviter_: titre (c'est le mot du programme, et déjà celui d'une carte), secti
 
 **Sous-chapitre** :
 Une catégorie rattachée à un chapitre, pour le découper. Il ne se découpe pas
-lui-même, et il reste attaché au chapitre sous lequel il a été créé.
+lui-même.
 _Code_: catégorie portant un `parentId`
 _Éviter_: sous-catégorie, section, rubrique, partie, dossier
+
+**Rattacher** :
+Changer l'étage d'une catégorie : la placer sous un chapitre, ou la ramener au
+premier niveau. Un seul geste couvre les trois cas — un chapitre qui devient
+sous-chapitre, un sous-chapitre qui devient chapitre, un sous-chapitre qui
+change de chapitre. Ses cartes ne changent pas de catégorie : elles gardent
+leur place. Un chapitre qui a des sous-chapitres ne se rattache pas.
+_Code_: `attachCategory()`
+_Éviter_: convertir, promouvoir, rétrograder, déplacer (c'est ce qu'on fait
+d'une carte)
 
 **Ordre** :
 La place d'une carte à l'intérieur de sa catégorie, décidée à la main. Deux

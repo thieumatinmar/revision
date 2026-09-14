@@ -78,9 +78,9 @@ const toObj = (d) => ({ id: d.id, ...d.data() });
 // `order` est un ordre **entre frères** : les chapitres entre eux, et les
 // sous-chapitres d'un même chapitre entre eux.
 //
-// Le niveau unique n'est garanti par rien dans la base : c'est `createCategory`,
-// seul endroit où un `parentId` s'écrit, qui refuse de rattacher un
-// sous-chapitre à un autre sous-chapitre.
+// Le niveau unique n'est garanti par rien dans la base : ce sont
+// `createCategory` et `attachCategory`, les deux seuls endroits où un `parentId`
+// s'écrit, qui refusent tout ce qui ferait un second niveau.
 
 /** Une catégorie est un **sous-chapitre** quand elle désigne un chapitre parent. */
 export const isSubchapter = (cat) => typeof cat.parentId === 'string' && cat.parentId !== '';
@@ -186,6 +186,77 @@ export async function setCategoriesOrder(orderedIds) {
   const batch = writeBatch(db);
   orderedIds.forEach((id, order) => batch.set(ref('categories', id), { order }, { merge: true }));
   await batch.commit();
+}
+
+/**
+ * **Rattache** une catégorie : sous le chapitre `parentId`, ou au premier niveau
+ * si `parentId` est nul. Un seul geste pour trois cas — un chapitre qui devient
+ * sous-chapitre, un sous-chapitre qui devient chapitre, un sous-chapitre qui
+ * change de chapitre (docs/decisions.md, « Rattacher une catégorie »).
+ *
+ * Refus, pour tenir le niveau unique :
+ *   - le parent visé est introuvable, est un sous-chapitre, ou est la catégorie
+ *     elle-même ;
+ *   - la catégorie est un chapitre qui a des sous-chapitres, et on veut la placer
+ *     sous un autre : ses enfants deviendraient petits-enfants. On ne les
+ *     aplatit ni ne les libère d'office — rien ne bouge par effet de bord.
+ *
+ * La catégorie arrive **à la fin de ses nouveaux frères**, comme à la création.
+ * Anciens et nouveaux frères sont renumérotés de 0 dans le **même** `writeBatch`
+ * que le changement de `parentId` : un trou laissé d'un côté et un « fin =
+ * nombre de frères » de l'autre finiraient en positions doublées, donc en ordre
+ * instable — et un arbre à moitié réécrit serait pire que l'ancien.
+ *
+ * **Aucune écriture sur les cartes** : elles ne changent pas de catégorie, c'est
+ * la catégorie qui change d'étage. Elles gardent donc leur place.
+ *
+ * On relit l'arbre plutôt que de croire l'écran appelant : un sous-chapitre a pu
+ * être ajouté depuis un autre appareil au chapitre qu'on s'apprête à rattacher.
+ *
+ * @returns {Promise<object>} la catégorie telle qu'écrite (`order`, `parentId`?)
+ */
+export async function attachCategory(id, parentId = null) {
+  const cible = parentId || null;
+  const toutes = await listCategories();
+  const cat = toutes.find((c) => c.id === id);
+  if (!cat) throw new Error('Catégorie introuvable.');
+  if (cible === id) throw new Error('Une catégorie ne se rattache pas à elle-même.');
+
+  const actuel = isSubchapter(cat) ? cat.parentId : null;
+  // Déjà là : rien à écrire, et surtout pas de renumérotation gratuite.
+  if (cible === actuel) return { ...cat };
+
+  if (cible) {
+    const parent = toutes.find((c) => c.id === cible);
+    if (!parent) throw new Error('Chapitre parent introuvable.');
+    if (isSubchapter(parent)) throw new Error('Un sous-chapitre ne se découpe pas.');
+    const enfants = toutes.filter((c) => c.parentId === id).length;
+    if (enfants > 0) {
+      throw new Error(`« ${cat.name} » a ${enfants} sous-chapitre${enfants > 1 ? 's' : ''} : `
+        + 'rattache-les ailleurs d’abord.');
+    }
+  }
+
+  // Les frères d'un niveau, sans la catégorie elle-même, dans leur ordre.
+  // `toutes` est déjà trié par `order`.
+  const freresDe = (p) => toutes.filter((c) => c.id !== id
+    && (p ? c.parentId === p : !isSubchapter(c)));
+  const anciens = freresDe(actuel);
+  const nouveaux = freresDe(cible);
+
+  const batch = writeBatch(db);
+  [anciens, nouveaux].forEach((liste) => liste.forEach((c, order) => {
+    batch.set(ref('categories', c.id), { order }, { merge: true });
+  }));
+  const order = nouveaux.length;
+  // Au premier niveau, on **retire** le champ plutôt que d'écrire `null` : son
+  // absence est l'état « chapitre », comme sur les documents d'origine.
+  batch.set(ref('categories', id),
+    { order, parentId: cible ? cible : deleteField() }, { merge: true });
+  await batch.commit();
+
+  const { parentId: _ancien, ...reste } = cat;
+  return cible ? { ...reste, order, parentId: cible } : { ...reste, order };
 }
 
 /** Les sous-chapitres d'un chapitre, dans leur ordre. */

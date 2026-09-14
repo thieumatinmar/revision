@@ -1221,7 +1221,8 @@ niveau** : un sous-chapitre ne se découpe pas. Concrètement :
   indentés par préfixe de texte. Changer de catégorie fait perdre la place, entre
   un chapitre et ses sous-chapitres comme ailleurs.
 - **Niveau figé** — une catégorie naît chapitre ou sous-chapitre et le reste :
-  ni changement de parent, ni promotion, ni rétrogradation.
+  ni changement de parent, ni promotion, ni rétrogradation. *Rouvert le
+  lendemain : voir « Rattacher une catégorie ».*
 
 **Alternative écartée** — (a) un arbre à profondeur libre ; (b) une collection
 `subcategories` à part, avec un `subcategoryId` sur la carte ; (c) interdire les
@@ -1255,3 +1256,46 @@ cartes redeviennent non rangées. Le jour où ça gêne, changer de parent n'est
 qu'une réécriture de `parentId` — les cartes ne bougent pas. La recherche étendue
 passe par des requêtes `in`, découpées en tranches de 30 identifiants (le
 plafond Firestore) : le nombre de sous-chapitres n'est donc pas borné.
+
+---
+
+## Rattacher une catégorie
+
+**Choix** — Un seul geste, **Rattacher à…**, dans l'écran « Gérer » : un
+sélecteur sous la ligne, qui propose « — Chapitre (aucun parent) » puis les
+chapitres. Il couvre la promotion d'un sous-chapitre, la rétrogradation d'un
+chapitre et le changement de parent. Trois règles :
+
+- **Refus** pour un chapitre qui a des sous-chapitres : il ne peut que rester
+  chapitre. Le niveau unique tient toujours, et c'est `attachCategory` (store.js)
+  qui le garantit, comme `createCategory` à la création.
+- **Place** — la catégorie arrive à la fin de ses nouveaux frères. Anciens et
+  nouveaux frères sont renumérotés de 0, dans le même `writeBatch` que le
+  changement de `parentId`.
+- **Cartes intactes** — aucune écriture sur les cartes : même `categoryId`, même
+  place, même état rangé ou non.
+
+**Alternative écartée** — (a) trois boutons distincts, sans changement de parent
+direct ; (b) sur un chapitre découpé, aplatir ses sous-chapitres sous le nouveau
+parent, ou (c) les promouvoir en chapitres ; (d) placer un sous-chapitre promu
+juste après son ancien parent.
+
+**Raison** — Rouvre « Niveau figé », décidé la veille faute de besoin concret :
+le besoin est venu, et le modèle avait été choisi pour que ce soit bon marché.
+
+Les trois opérations sont **une seule écriture** — poser ou retirer `parentId` —
+et un seul geste l'exprime ; trois boutons auraient été trois chemins de code, et
+changer de parent aurait coûté deux gestes avec un état intermédiaire visible.
+Le refus sur un chapitre découpé suit la règle de la suppression : rien ne bouge
+par effet de bord, et aplatir (b) ou libérer (c) auraient été des choix
+arbitraires faits à ta place, sur trois catégories d'un coup. La fin de liste
+est la règle de la création ; « juste après l'ancien parent » (d) ne veut rien
+dire pour un changement de parent.
+
+Les cartes ne perdent pas leur place parce qu'elles **ne changent pas de
+catégorie** : c'est la catégorie qui change d'étage. La règle « changer de
+catégorie fait perdre la place » ne s'applique donc pas.
+
+Prix assumé : promouvoir n'est pas un bouton visible, c'est l'option « aucun
+parent » d'un sélecteur ; dissoudre un chapitre découpé coûte un geste par
+sous-chapitre.
