@@ -13,7 +13,7 @@
 // payer en code une différence qui n'est que de vocabulaire.
 //
 // Écran **distinct** de `editeur.js` en revanche : la carte y traîne un
-// chapitre, des images, des renvois, une indication et une note en extinction.
+// chapitre, des images, une indication et une note en extinction.
 // Rien de tout ça ici. La ressemblance entre les deux fichiers est de
 // structure, pas de contenu.
 //
@@ -34,8 +34,8 @@ const DELAI_APERCU = 150;
  * Les exemples de saisie, par espèce.
  *
  * Ils vivent ici et non dans `ESPECES` : un placeholder appartient à l'écran de
- * saisie, pas au vocabulaire du domaine. `entree.js` sert aussi au détail et au
- * dépliage d'un renvoi, qui n'ont rien à faire d'un exemple de frappe.
+ * saisie, pas au vocabulaire du domaine. `entree.js` sert aussi au détail, qui
+ * n'a rien à faire d'un exemple de frappe.
  */
 const EXEMPLES = {
   theorem: {
@@ -269,10 +269,8 @@ export async function render(ctx) {
     // qu'on retrouve une entrée dans une liste triée par titre, et sans lui la
     // bibliothèque devient un tas.
     //
-    // Le corps, lui, ne l'est plus : une entrée peut naître d'un renvoi posé
-    // depuis une carte, titre seul, et se remplir quand on repasse dessus. Le
-    // refuser ici ferait de cet écran le seul à rejeter ce que l'autre chemin
-    // fabrique — même règle des deux côtés, ou l'incohérence se paie.
+    // Le corps, lui, ne l'est pas : une entrée peut n'être qu'un titre, et se
+    // remplir quand on repasse dessus.
     if (!titre.value.trim()) {
       // Le message vit dans le formulaire : l'afficher sans y revenir
       // reviendrait à ne rien afficher.
@@ -320,12 +318,7 @@ export async function render(ctx) {
 
   async function supprimer() {
     if (!confirm(`Supprimer définitivement cette ${mots.nom.toLowerCase()} ?`)) return;
-    // `deleteEntry` retire aussi les renvois qui pointaient dessus, et dit
-    // combien : la carte concernée n'affichera plus un bouton qui n'ouvre rien.
-    const citantes = await deleteEntry(entry.id);
-    if (citantes > 0) {
-      alert(`Supprimée. ${citantes} renvoi(s) de carte ont été retirés.`);
-    }
+    await deleteEntry(entry.id);
     location.hash = '#/bibliotheque';
   }
 }

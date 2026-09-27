@@ -126,8 +126,7 @@ _Éviter_: base, catalogue, fiches, recueil
 Ce qu'on range en bibliothèque : un **théorème** ou une **définition**. Deux
 espèces d'une même chose — un nom, un corps, un appui facultatif — qui se lisent
 d'un bloc et ne s'interrogent pas. Le mot sert partout où la distinction ne
-change rien : une liste d'entrées, une recherche d'entrées, un renvoi vers une
-entrée.
+change rien : une liste d'entrées, une recherche d'entrées.
 _Code_: `entry`, collection `library`
 _Éviter_: fiche, élément, item, notion (une définition définit une notion, elle
 n'en est pas une)
@@ -149,7 +148,7 @@ _Éviter_: développement, résultat, lemme, propriété, énoncé (c'est une de
 **Définition** :
 Ce qu'une notion **est**, exactement, avec ce qui aide à s'en servir : l'exemple
 qui éclaire, le contre-exemple qui mord. Elle se range dans la même
-bibliothèque et se cite dans les mêmes renvois qu'un théorème.
+bibliothèque qu'un théorème.
 _Code_: entrée dont `kind` vaut `'definition'`
 _Éviter_: notion, concept, énoncé, axiome
 
@@ -157,8 +156,7 @@ _Éviter_: notion, concept, énoncé, axiome
 Le corps de l'entrée — ce qu'elle affirme ou ce qu'elle pose, hypothèses
 comprises. La partie qu'on doit pouvoir citer juste. **Un seul champ**, deux
 libellés : le mot change avec l'espèce, la donnée non. **Facultatif** : une
-entrée peut n'être qu'un titre, née d'un renvoi posé depuis une carte, et se
-remplir quand on repasse dessus.
+entrée peut n'être qu'un titre, et se remplir quand on repasse dessus.
 _Code_: `statement`
 _Éviter_: formulation, contenu, texte
 
@@ -178,30 +176,4 @@ doit tenir en tête vit dans l'énoncé et l'esquisse. Facultative, en texte lib
 et **propre au théorème** : une définition n'en porte pas, parce qu'on ne
 démontre pas une définition.
 _Code_: `source`
-_Éviter_: référence (déjà pris — c'est justement le mot qu'on évite pour le
-Renvoi), bibliographie, livre (une source n'est pas toujours un livre), preuve
-
-**Renvoi** :
-Le geste par lequel une carte pointe vers une entrée de la bibliothèque —
-théorème ou définition, indifféremment. Il appartient à la carte et va dans un
-seul sens : l'entrée, elle, se contente d'afficher qui la cite. Un renvoi ne
-contient rien : une carte privée du sien reste une carte entière.
-Il s'affiche en bas de la carte, à moins qu'une **marque** ne le place ailleurs.
-_Code_: `entryIds`
-_Éviter_: lien, référence, citation, rattachement
-
-**Marque** :
-Ce qu'on écrit dans le texte d'une carte pour dire **où** un renvoi doit
-apparaître : `{{renvoi: Théorème de Dini}}`, sur sa propre ligne. Elle ne dit que
-le placement — le renvoi, lui, existe indépendamment d'elle. Une marque qui ne
-désigne plus rien ne perd donc aucun renvoi : celui-ci retombe simplement en bas
-de la carte. On ne la tape jamais : un bouton la pose au point de saisie.
-_Code_: `marqueDe()`, `decoupe()`
-_Éviter_: jeton, balise, ancre, lien, pastille (c'est la marque d'espèce, autre
-chose)
-
-**Cité par** :
-L'autre bout du renvoi, vu depuis l'entrée : les cartes qui pointent vers elle.
-Ce n'est pas une donnée de l'entrée — c'est une question posée aux cartes.
-_Code_: `cardsCiting()`
-_Éviter_: rétrolien, backlink, cartes liées
+_Éviter_: référence, bibliographie, livre (une source n'est pas toujours un livre), preuve

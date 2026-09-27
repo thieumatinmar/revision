@@ -20,15 +20,9 @@
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
-import {
-  getCard, saveCard, deleteCard, listChapters, flattenChapters, listEntries, kindOf,
-  saveEntry, THEOREM, DEFINITION,
-} from '../store.js';
-import { ESPECES } from '../entree.js';
-import { marqueDe } from '../marques.js';
+import { getCard, saveCard, deleteCard, listChapters, flattenChapters } from '../store.js';
 import { surEnregistrement, surCollageImages } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
-import { filtre } from '../recherche.js';
 
 /**
  * Délai avant de recomposer l'aperçu, en ms. Recomposer tout le KaTeX à chaque
@@ -47,11 +41,11 @@ export async function render(ctx) {
   const [param] = ctx.params;
   // Les catégories dans l'ordre de l'arbre : chaque chapitre suivi de ses
   // sous-chapitres, pour que le sélecteur se lise comme l'accueil.
-  const [arbre, entries] = await Promise.all([listChapters(), listEntries()]);
+  const arbre = await listChapters();
   const categories = flattenChapters(arbre);
 
   const card = creation
-    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [], entryIds: [] }
+    ? { categoryId: param, title: '', front: '', hint: '', back: '', note: '', images: [] }
     : await getCard(param);
 
   if (!card) {
@@ -102,61 +96,16 @@ export async function render(ctx) {
   const verso = champ('Verso (facultatif) — le complément, lu après', card.back,
     'Ex. : $$\\P(|X-\\E[X]|\\ge\\varepsilon)\\le \\V(X)/\\varepsilon^2$$');
 
-  // --- Où poser une marque ----------------------------------------------------
-  // La marque d'un renvoi s'écrit dans le recto ou le verso, là où l'on était en
-  // train de taper. On retient donc le dernier point de saisie — champ et
-  // position. Sans lui, il faudrait soit un sélecteur de position, soit taper la
-  // marque à la main, c'est-à-dire les deux choses qu'on voulait éviter.
-  //
-  // C'est un état invisible, et c'est assumé : l'aperçu redessine en 150 ms, on
-  // voit donc immédiatement où le bloc s'est posé.
-  //
-  // Ce même point sert à l'aperçu : il dit où l'on écrit, donc quel bloc de la
-  // carte montée doit être sous les yeux. D'où `input` dans la liste — taper
+  // --- Le point de saisie ----------------------------------------------------
+  // On retient le dernier point de saisie — champ et position — dans le recto
+  // ou le verso. Il dit où l'on écrit, donc quel bloc de la carte montée doit
+  // être sous les yeux dans l'aperçu. D'où `input` dans la liste — taper
   // déplace le curseur autant que le déplacer.
   let point = null;
   [recto, verso].forEach(({ input }) => {
     const noter = () => { point = { input, at: input.selectionStart }; suit(); };
     ['focus', 'click', 'keyup', 'input'].forEach((ev) => input.addEventListener(ev, noter));
   });
-
-  /**
-   * Écrit la marque d'une entrée au dernier point de saisie.
-   *
-   * Faute de point connu, on écrit à la fin du verso — ou du recto si la carte
-   * n'en a pas encore : mieux vaut une marque visible au mauvais endroit, qu'on
-   * déplace d'un couper-coller, qu'un clic sans effet visible.
-   *
-   * La marque occupe **sa propre ligne**. C'est un bloc, pas un mot dans une
-   * phrase : posée au milieu d'un `$$…$$`, elle couperait la formule en deux
-   * moitiés que KaTeX signalerait toutes les deux en erreur.
-   */
-  function insereMarque(entry) {
-    const cible = point || (verso.input.value.trim()
-      ? { input: verso.input, at: verso.input.value.length }
-      : { input: recto.input, at: recto.input.value.length });
-
-    const zone = cible.input;
-    const at = Math.min(cible.at, zone.value.length);
-    const avant = zone.value.slice(0, at);
-    const apres = zone.value.slice(at);
-
-    // On complète les sauts de ligne manquants, sans en empiler quand ils sont
-    // déjà là : insérer deux fois de suite ne doit pas creuser un trou.
-    const tete = !avant || avant.endsWith('\n\n') ? '' : avant.endsWith('\n') ? '\n' : '\n\n';
-    const queue = !apres || apres.startsWith('\n\n') ? '' : apres.startsWith('\n') ? '\n' : '\n\n';
-    const texte = tete + marqueDe(entry) + queue;
-
-    zone.value = avant + texte + apres;
-    const fin = avant.length + texte.length;
-    zone.setSelectionRange(fin, fin);
-    point = { input: zone, at: fin };
-    zone.focus();
-    // La marque a rallongé le texte sans qu'aucune frappe ne l'annonce : la
-    // hauteur de la zone ne se rattraperait qu'au caractère suivant.
-    ajuste(zone);
-    planifierApercu();
-  }
 
   // Indication et note sont **en extinction** : on n'en écrit plus de nouvelles.
   // Le champ n'apparaît donc que si la carte en porte déjà une — et le vider
@@ -176,12 +125,6 @@ export async function render(ctx) {
     () => planifierApercu(),
   );
 
-  const renvois = champRenvois(
-    Array.isArray(card.entryIds) ? [...card.entryIds] : [],
-    entries,
-    { auChangement: () => planifierApercu(), insere: insereMarque },
-  );
-
   // --- Les deux blocs ---------------------------------------------------------
   const formulaire = el('div', { class: 'editeur-champs' },
     el('label', { class: 'small muted' }, 'Chapitre'),
@@ -191,7 +134,6 @@ export async function render(ctx) {
     indication && indication.bloc,
     verso.bloc,
     images.bloc,
-    renvois.bloc,
     note && note.bloc,
     erreur,
   );
@@ -278,7 +220,7 @@ export async function render(ctx) {
     fill(zoneApercu,
       el('p', { class: 'small muted' },
         'Aperçu — la carte telle qu’elle se lira, toutes faces révélées.'),
-      faceCarte(valeurs(), { hint: true, back: true, entries }),
+      faceCarte(valeurs(), { hint: true, back: true }),
     );
     // La carte vient d'être remontée : les blocs d'avant n'existent plus, et
     // l'aperçu est revenu en haut. On le ramène là où l'on écrit.
@@ -333,8 +275,7 @@ export async function render(ctx) {
    * `data-at`, lui, est exact.
    *
    * Ne réagit **pas** :
-   *   - sur un bouton ou un lien — le dépliage d'un renvoi et « Ouvrir la fiche »
-   *     gardent leur rôle ;
+   *   - sur un bouton ou un lien — ils gardent leur rôle ;
    *   - quand du texte vient d'être sélectionné — on voulait copier, pas écrire ;
    *   - sous 900 px — un seul visage à la fois, on y lit : toucher la carte ferait
    *     sortir le clavier. Le seuil est celui de la feuille de style.
@@ -410,7 +351,6 @@ export async function render(ctx) {
       back: verso.input.value,
       note: note ? note.input.value : '',
       images: images.valeur(),
-      entryIds: renvois.valeur(),
     };
   }
 
@@ -617,158 +557,6 @@ function champImages(images, auChangement = () => {}) {
 
   dessiner();
   return { bloc, valeur: () => [...images], ajouter, resume };
-}
-
-/**
- * Les renvois vers la bibliothèque : chercher une entrée, la créer au besoin,
- * l'attacher, la placer, la retirer.
- *
- * Une **recherche** et non un menu déroulant : la bibliothèque est faite pour
- * grossir, et un `<select>` de cent cinquante entrées est inutilisable sur le
- * téléphone — c'est-à-dire là où l'on révise. Le filtre est celui de la
- * bibliothèque (`recherche.js`), déjà écrit : mêmes règles, aucune surprise.
- *
- * On y **crée** désormais une entrée, ce que ce champ refusait — mais au titre
- * seul, et sans quitter l'écran : le nom se capture au moment où il passe, le
- * corps s'écrit quand on repasse dessus (docs/decisions.md, « Créer une entrée
- * depuis la carte »). L'espèce est demandée à ce moment-là, parce qu'elle est la
- * seule chose qu'un titre ne dit pas.
- *
- * Chaque entrée proposée porte sa **pastille** d'espèce : citer la définition
- * d'un objet ou le théorème qui le concerne n'est pas le même geste, et les deux
- * portent souvent des titres voisins.
- *
- * `entries` est la bibliothèque chargée par la vue, **mutée** ici à la
- * création : c'est le même tableau que celui passé à l'aperçu, donc le renvoi
- * s'y résout aussitôt, sans relire Firestore. `ids` est la liste possédée par la
- * carte, modifiée en place — c'est elle que `valeur()` rend.
- */
-function champRenvois(ids, entries, { auChangement = () => {}, insere = () => {} } = {}) {
-  const attaches = el('div', { class: 'renvois-boutons', style: 'margin-bottom:8px' });
-  const resultats = el('div', { class: 'renvois-resultats' });
-  const etat = el('p', { class: 'small muted', style: 'min-height:1.2em;margin:6px 0 0' });
-
-  const search = el('input', {
-    type: 'search',
-    placeholder: 'Chercher une entrée à citer, ou en créer une…',
-    on: { input: () => dessineResultats() },
-  });
-
-  const bloc = el('div', { class: 'champ' },
-    el('label', { class: 'small muted' },
-      'Renvois — les entrées citées, en bas de la carte ou là où tu les places'),
-    attaches,
-    search,
-    resultats,
-    etat,
-  );
-
-  /** Les entrées attachées, dans l'ordre où on les a posées. */
-  function dessineAttaches() {
-    // Un identifiant inconnu est ignoré plutôt qu'affiché : il ne survivrait pas
-    // à l'enregistrement de toute façon, `valeur()` ne rendant que le résolu.
-    const resolus = ids.map((id) => entries.find((e) => e.id === id)).filter(Boolean);
-
-    fill(attaches, resolus.length === 0
-      ? el('span', { class: 'small muted' }, 'Aucun renvoi.')
-      : resolus.map((e) => el('span', { class: 'renvoi-pastille' },
-          el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
-          el('span', {}, e.title || 'Sans titre'),
-          // Poser la marque est un **second** geste, délibéré : attacher sans
-          // placer reste le cas courant, et le renvoi va alors en bas de carte.
-          el('button', {
-            class: 'btn-sm',
-            title: 'Poser ici la marque de ce renvoi',
-            on: { click: () => insere(e) },
-          }, '↓ ici'),
-          el('button', {
-            class: 'btn-sm',
-            title: 'Retirer ce renvoi',
-            on: { click: () => { ids.splice(ids.indexOf(e.id), 1); redessine(); } },
-          }, '✕'),
-        )));
-  }
-
-  /**
-   * Les candidats : au plus six, et jamais ceux déjà attachés — les reproposer
-   * inviterait à un doublon que rien n'empêcherait ensuite.
-   *
-   * Les deux boutons de création suivent **toujours**, même quand la recherche
-   * trouve : « Baire » peut exister comme théorème alors qu'on veut citer la
-   * définition. C'est le cas normal, pas un rattrapage d'échec.
-   */
-  function dessineResultats() {
-    const q = search.value.trim();
-    if (!q) return fill(resultats);
-
-    const trouves = filtre(entries, q).filter((e) => !ids.includes(e.id)).slice(0, 6);
-
-    fill(resultats,
-      trouves.length === 0
-        ? el('p', { class: 'small muted' }, 'Aucune entrée ne correspond.')
-        : trouves.map((e) => el('button', {
-            class: 'btn-sm resultat-renvoi',
-            on: { click: () => {
-              ids.push(e.id);
-              search.value = '';
-              redessine();
-            } },
-          },
-            el('span', { class: 'pastille-espece' }, ESPECES[kindOf(e)].pastille),
-            e.title || 'Sans titre')),
-      el('div', { class: 'creation-renvoi' },
-        el('span', { class: 'small muted' }, `Créer « ${q} » :`),
-        boutonCreer(THEOREM, q),
-        boutonCreer(DEFINITION, q),
-      ),
-    );
-  }
-
-  function boutonCreer(kind, titre) {
-    return el('button', {
-      class: 'btn-sm',
-      on: { click: (ev) => cree(kind, titre, ev.currentTarget) },
-    }, `+ ${ESPECES[kind].nom}`);
-  }
-
-  /**
-   * Crée l'entrée, l'attache, et rend la main.
-   *
-   * Titre seul : ni énoncé ni appui. C'est un enregistrement complet malgré
-   * tout — l'entrée existe en bibliothèque dès ce clic, indépendamment du sort
-   * de la carte en cours d'écriture. Annuler la carte ne la retire donc pas, et
-   * c'est voulu : deux enregistrements imbriqués, dont l'un annulerait l'autre,
-   * serait bien plus surprenant.
-   */
-  async function cree(kind, titre, bouton) {
-    bouton.disabled = true;
-    etat.style.color = '';
-    etat.textContent = 'Création…';
-    try {
-      const entree = await saveEntry({ kind, title: titre, statement: '', support: '' });
-      // `entries` est le tableau de la vue : le pousser ici suffit à ce que
-      // l'aperçu résolve aussitôt le renvoi, sans relire la bibliothèque.
-      entries.push(entree);
-      ids.push(entree.id);
-      search.value = '';
-      etat.textContent = `${ESPECES[kind].nom} « ${titre} » créée — son corps reste à écrire.`;
-      redessine();
-    } catch (err) {
-      bouton.disabled = false;
-      etat.style.color = '#e8695f';
-      etat.textContent = 'Création impossible : ' + err.message;
-    }
-  }
-
-  function redessine() {
-    dessineAttaches();
-    dessineResultats();
-    auChangement();
-  }
-
-  dessineAttaches();
-
-  return { bloc, valeur: () => ids.filter((id) => entries.some((e) => e.id === id)) };
 }
 
 /**

@@ -1299,3 +1299,22 @@ catégorie fait perdre la place » ne s'applique donc pas.
 Prix assumé : promouvoir n'est pas un bouton visible, c'est l'option « aucun
 parent » d'un sélecteur ; dissoudre un chapitre découpé coûte un geste par
 sous-chapitre.
+
+## Retrait des renvois
+
+**Choix** — Les renvois carte → bibliothèque disparaissent : champ « Renvois »
+de l'éditeur, marque `{{renvoi: …}}` (`marques.js` supprimé), bloc « Voir
+aussi » sur la carte, « Cité par » sur l'entrée. La bibliothèque reste, autonome.
+Aucune migration : `entryIds` n'est plus lu ni écrit, et disparaît d'une carte à
+son premier réenregistrement (`saveCard` remplace le document) ; les marques
+déjà écrites s'affichent en texte brut et se nettoient à la main.
+
+**Alternative écartée** — Une migration unique réécrivant chaque marque en
+texte simple et effaçant `entryIds`.
+
+**Raison** — Retour d'usage : la fonctionnalité ne servait pas. Elle coûtait un
+module, un champ d'éditeur, une requête et un état de dépliage, pour un gain
+nul — la règle « si une fonctionnalité coûte plus qu'elle ne fait gagner, on la
+coupe » s'applique. Pas de migration parce que les marques posées sont rares :
+écrire du code qui touche toutes les cartes, sans export pour rattraper une
+erreur, aurait coûté plus que le nettoyage manuel.

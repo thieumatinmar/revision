@@ -1,11 +1,10 @@
 // entree.js — le montage d'une entrée de bibliothèque, et les mots de chaque
 // espèce.
 //
-// Même rôle que `carte.js`, et pour la même raison : trois écrans montrent la
-// même entrée — le détail, l'aperçu de l'éditeur, et le dépliage d'un renvoi
-// sous une carte. Écrire le montage trois fois le ferait diverger au premier
-// champ ajouté, et diverger en silence : l'aperçu montrerait alors autre chose
-// que ce qu'on lira.
+// Même rôle que `carte.js`, et pour la même raison : deux écrans montrent la
+// même entrée — le détail et l'aperçu de l'éditeur. Écrire le montage deux fois
+// le ferait diverger au premier champ ajouté, et diverger en silence : l'aperçu
+// montrerait alors autre chose que ce qu'on lira.
 //
 // Ce n'est ni une vue (aucune route, aucun accès aux données) ni un helper
 // DOM : c'est un composant. On lui donne une entrée, il rend un élément.
@@ -100,8 +99,8 @@ export function faceEntree(entry) {
     // C'est ce libellé qui dit l'espèce — « Énoncé » ou « Définition ». Une
     // pastille de plus au-dessus du titre ferait redite.
     //
-    // Le corps est **facultatif** : une entrée peut naître d'un renvoi posé
-    // depuis une carte, avec son seul titre, et se remplir plus tard. Le libellé
+    // Le corps est **facultatif** : une entrée peut n'être qu'un titre, et se
+    // remplir plus tard. Le libellé
     // du champ disparaît alors — il annoncerait du vide — mais l'espèce doit
     // rester lisible, sans quoi on ne saurait plus si l'on regarde un théorème
     // ou une définition. D'où le repli sur son nom.

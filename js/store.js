@@ -8,7 +8,7 @@
 //
 //   users/{uid}/categories/{id}   { name, order, parentId? }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
-//                                   images: string[], entryIds: string[], order? }
+//                                   images: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
@@ -29,7 +29,7 @@ import { db } from './firebase.js';
 import { currentUid } from './auth.js';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, deleteField,
-  writeBatch, query, where, orderBy, arrayRemove,
+  writeBatch, query, where, orderBy,
 } from '../vendor/firebase/firebase-firestore.js';
 
 /** Les 12 titres du programme officiel 2027 (../ressources/programme_officiel_2027.md). */
@@ -436,9 +436,9 @@ export async function saveCard(card) {
     back: champs.back || '',
     note: champs.note || '',
     images: Array.isArray(champs.images) ? champs.images : [],
-    // Les renvois vers la bibliothèque : des identifiants, jamais des titres —
-    // renommer un théorème ne doit pas casser ce qui pointe vers lui.
-    entryIds: Array.isArray(champs.entryIds) ? champs.entryIds : [],
+    // Plus d'`entryIds` : les renvois ont été retirés (docs/decisions.md,
+    // « Retrait des renvois »). L'écriture remplaçant le document entier, une
+    // ancienne carte perd le champ au premier réenregistrement.
   };
   if (id) {
     // L'écriture remplace le document entier : sans ce report, `order`
@@ -517,9 +517,6 @@ export async function duplicateCard(id) {
     back: original.back || '',
     note: original.note || '',
     images: Array.isArray(original.images) ? [...original.images] : [],
-    // Mêmes renvois : la copie cite ce que l'original cite, et apparaîtra donc
-    // aussi dans le « Cité par » de ces entrées.
-    entryIds: Array.isArray(original.entryIds) ? [...original.entryIds] : [],
   };
 
   const nouvelle = doc(col('cards'));
@@ -655,50 +652,12 @@ export async function saveEntry(entry) {
   return { id: d.id, ...donnees };
 }
 
-/**
- * Les cartes qui **citent** cette entrée.
- *
- * `array-contains` est une requête native : Firestore indexe les tableaux tout
- * seul, il n'y a donc pas d'index composite à déclarer, et la réponse vient de
- * son cache local quand on est hors ligne. On ne charge pas toutes les cartes
- * pour en filtrer trois.
- *
- * Le tri se fait ici, faute d'ordre commun : ces cartes viennent de chapitres
- * différents, où leurs positions ne se comparent pas.
- */
-export async function cardsCiting(entryId) {
-  const snap = await getDocs(query(col('cards'), where('entryIds', 'array-contains', entryId)));
-  return snap.docs.map(toObj)
-    .sort((a, b) => (a.title || a.front || '').localeCompare(b.title || b.front || '', 'fr'));
-}
-
-/**
- * Supprime une entrée **et les renvois qui pointent vers elle**.
- *
- * Les deux dans le même `writeBatch`, donc de façon atomique : sans ça, un
- * échec entre les deux laisserait l'état bâtard « entrée partie, renvois
- * restés », c'est-à-dire des pointeurs vers rien.
- *
- * On nettoie plutôt que de laisser mourir les identifiants sur place : la donnée
- * reste vraie, et rien n'a besoin d'un écran de maintenance plus tard. Les vues
- * restent malgré tout tolérantes à un identifiant inconnu — un appareil hors
- * ligne peut réécrire une carte avec un renvoi périmé — mais c'est un filet, pas
- * le mécanisme.
- *
- * Plafond assumé : un `writeBatch` fait 500 écritures. Il faudrait qu'une entrée
- * soit citée par 499 cartes pour le toucher.
- */
 export async function deleteEntry(id) {
-  const citantes = await cardsCiting(id);
-  const batch = writeBatch(db);
-  citantes.forEach((c) => batch.set(ref('cards', c.id), { entryIds: arrayRemove(id) }, { merge: true }));
-  batch.delete(ref('library', id));
-  await batch.commit();
-  return citantes.length;
+  await deleteDoc(ref('library', id));
 }
 
 /**
- * Migration unique : `theorems` → `library`, et `theoremIds` → `entryIds`.
+ * Migration unique : `theorems` → `library`.
  *
  * Appelée à chaque connexion, sur le modèle de `seedIfEmpty()`. Il n'y a pas
  * d'autre endroit possible : la machine n'a pas Node, et les règles Firestore
@@ -712,18 +671,14 @@ export async function deleteEntry(id) {
  *    vide signifie soit que la migration est passée, soit qu'on a écrit depuis :
  *    dans les deux cas, réécrire par-dessus serait pire que ne rien faire.
  * 2. **Identifiants conservés** (`setDoc` sur l'id existant, jamais `addDoc`) —
- *    les renvois des cartes pointent dessus, et une URL déjà ouverte tombe juste.
+ *    une URL déjà ouverte tombe juste.
  * 3. **Rien n'est supprimé** — `theorems` reste en place, intacte et invisible :
  *    c'est la sauvegarde. À supprimer à la main dans la console Firebase une
- *    fois la migration constatée. Idem pour `theoremIds` sur les cartes : on
- *    écrit `entryIds` à côté sans retirer l'ancien champ, qui disparaîtra tout
- *    seul au premier réenregistrement de la carte — `saveCard` remplaçant le
- *    document entier.
+ *    fois la migration constatée.
  *
  * Renvoie le nombre d'entrées migrées — 0 quand il n'y avait rien à faire.
  *
- * Plafond assumé, ici encore : 500 écritures par `writeBatch`, soit les
- * théorèmes plus les cartes citantes. À l'échelle d'une préparation personnelle,
+ * Plafond assumé : 500 écritures par `writeBatch`, une par théorème. À l'échelle d'une préparation personnelle,
  * on n'en approche pas.
  */
 export async function migrateLibrary() {
@@ -745,14 +700,6 @@ export async function migrateLibrary() {
       // définition, et c'était le moment de le corriger — on réécrivait déjà.
       support: t.sketch || '',
     });
-  });
-
-  const cartes = await getDocs(col('cards'));
-  cartes.forEach((d) => {
-    const ids = d.data().theoremIds;
-    if (Array.isArray(ids) && ids.length > 0) {
-      batch.set(ref('cards', d.id), { entryIds: ids }, { merge: true });
-    }
   });
 
   await batch.commit();

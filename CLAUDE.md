@@ -18,7 +18,7 @@ L'app est ce quelque part — le **fonds** de la préparation :
 1. **Saisir** ce qu'on ne veut pas oublier — une formule, un théorème, une
    définition, une idée — avec du LaTeX rendu proprement.
 2. **Classer** : les cartes par catégorie (les titres du programme officiel), les
-   théorèmes à plat dans la bibliothèque, reliés par des renvois.
+   théorèmes à plat dans la bibliothèque.
 3. **Retrouver** : chercher, relire, sur le PC comme sur le téléphone.
 
 Et rien d'autre. En particulier, **l'app n'interroge plus** : le tirage a été
@@ -50,7 +50,7 @@ on l'inscrit ici avec sa frontière.
 
 - `CLAUDE.md` — ce fichier : contexte et règles du jeu.
 - `CONTEXT.md` — glossaire du domaine (Carte, Recto, Verso, Catégorie,
-  Bibliothèque, Entrée, Espèce, Renvoi), avec la traduction de chaque terme en
+  Bibliothèque, Entrée, Espèce), avec la traduction de chaque terme en
   code.
 - `docs/decisions.md` — journal des décisions d'architecture (fichier **unique**).
 - `.claude/skills/` — `grill-with-docs` et `caveman` (voir plus bas).
@@ -79,15 +79,10 @@ on l'inscrit ici avec sa frontière.
   l'ancienne collection `theorems` — à retirer une fois celle-ci effacée.
 - `js/entree.js` — **composant** : monte une entrée (`faceEntree(entry)`), et
   porte `ESPECES`, la table des mots de chaque espèce (théorème / définition).
-  Même rôle que `carte.js`, partagé par le détail, l'aperçu de l'éditeur et le
-  dépliage d'un renvoi. Rien n'y est caché : une entrée se consulte, elle
+  Même rôle que `carte.js`, partagé par le détail et l'aperçu de l'éditeur. Rien n'y est caché : une entrée se consulte, elle
   n'interroge pas. **Seul endroit** où vivent les libellés d'espèce.
 - `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
   ni stockage.
-- `js/marques.js` — la marque d'un renvoi dans le texte d'une carte
-  (`{{renvoi: …}}`) : la fabriquer, la lire, découper un texte autour d'elle.
-  **Pur** lui aussi ; n'importe que `normalise` de `recherche.js`. Il dit le
-  **placement**, jamais le renvoi lui-même — qui reste dans `entryIds`.
 - `js/raccourcis.js` — les raccourcis clavier d'un écran : **Ctrl+S enregistre
   sans quitter** (`surEnregistrement`), **Ctrl+V colle une image**
   (`surCollageImages`, le texte gagne dans une zone de saisie). Il ne sait pas ce
@@ -180,9 +175,7 @@ vocabulaire dans `CONTEXT.md`.
 - **Règle** : aucun accès aux données ni calcul écrit *directement* dans une
   vue. Une vue orchestre, elle ne calcule pas.
 - **`mathtext.js` ne reçoit que du texte pur.** C'est son invariant, et la seule
-  chose qui empêche une carte de casser la page. Une marque de renvoi n'y déroge
-  pas : `carte.js` découpe le texte *autour* d'elle et compose chaque segment
-  séparément — il n'a jamais à produire de HTML actif.
+  chose qui empêche une carte de casser la page.
 - **Toujours `fill(ctx.root, …)`, jamais `ctx.root.append(…)`** : `append` est
   la méthode native, qui transforme un enfant `false` ou `null` en nœud de
   texte — on a eu « falsefalse » affiché sur une bibliothèque vide et « null »
@@ -214,8 +207,7 @@ vocabulaire dans `CONTEXT.md`.
   laisserait croire que la logique est vérifiée alors que rien ne l'exécute.
   Voir `docs/decisions.md`, « Gardes du dépôt ».
 - Le **cap** pour quand les vrais tests viendront : `js/recherche.js` (`filtre`,
-  `normalise`) et `js/marques.js` (`decoupe`, `marqueDe`) — purs, sans I/O ni
-  DOM —, puis `js/mathtext.js`, qui demandera un DOM et KaTeX et n'est donc pas
+  `normalise`) — pur, sans I/O ni DOM —, puis `js/mathtext.js`, qui demandera un DOM et KaTeX et n'est donc pas
   la première marche.
 
 ### Décisions d'architecture
