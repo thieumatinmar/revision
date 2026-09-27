@@ -136,6 +136,18 @@ button:active, .btn:active { transform: translateY(1px); }
   border-left: 3px solid var(--line);
 }
 
+/* « Livres », en tête de l'écran d'une catégorie : replié, une ligne ; le
+   résumé (début du texte) se coupe plutôt que de passer à la ligne. */
+.livres { margin-bottom: 18px; }
+.livres summary {
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.livres summary .face-label { display: inline; }
+.livres textarea { margin: 8px 0 4px; min-height: 3.2em; }
+
 /* La pastille d'espece (Th. / Def.) devant un titre d'entree. Grise et de largeur
    fixe : elle doit se voir sans passer devant le titre, et ne pas decaler les
    titres les uns par rapport aux autres d'une ligne a l'autre. L'ecart est tenu

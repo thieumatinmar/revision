@@ -1318,3 +1318,22 @@ nul — la règle « si une fonctionnalité coûte plus qu'elle ne fait gagner, 
 coupe » s'applique. Pas de migration parce que les marques posées sont rares :
 écrire du code qui touche toutes les cartes, sans export pour rattraper une
 erreur, aurait coûté plus que le nettoyage manuel.
+
+## Livres d'une catégorie
+
+**Choix** — Chaque catégorie (chapitre ou sous-chapitre) porte un champ texte
+libre `books` : les commentaires sur les livres qui traitent ce chapitre. Il
+s'écrit en tête de l'écran de la catégorie (`#/cartes/{id}`), dans un bloc
+« Livres » repliable — ouvert d'office quand il est vide —, en texte brut,
+enregistré à la perte de focus (`setCategoryBooks`, écriture `merge`). Le bloc
+d'un chapitre ne cumule pas ceux de ses sous-chapitres.
+
+**Alternative écartée** — Le ranger dans l'écran « Gérer » (un bouton par
+ligne) ; composer le texte en LaTeX.
+
+**Raison** — On lit les livres pour travailler un chapitre : la note doit être
+là où l'on travaille, pas dans l'écran de structure. Texte brut parce qu'on y
+écrit des titres, des pages et des avis, pas des formules — et que la
+composition aurait imposé deux états, lecture et édition. Un champ sur le
+document de catégorie plutôt qu'une collection : rien à requêter à part, et la
+règle de sécurité ne bouge pas.

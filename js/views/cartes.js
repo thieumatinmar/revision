@@ -26,13 +26,82 @@
 // Une carte venue d'un sous-chapitre s'ouvre, se duplique et se déplace, mais ne
 // s'ordonne pas d'ici : sa place se compte dans son sous-chapitre, pas dans cette
 // liste.
+//
+// En tête d'écran, le bloc **Livres** : un texte libre propre à la catégorie
+// (docs/decisions.md, « Livres d'une catégorie »). Chaque sous-chapitre a le
+// sien, sur son propre écran — celui du chapitre ne les cumule pas.
 
 import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listChapters, flattenChapters, listCards, listCardsUnder, moveCard, setCardsOrder,
-  isPlaced, duplicateCard,
+  isPlaced, duplicateCard, setCategoryBooks,
 } from '../store.js';
+
+/**
+ * Le bloc « Livres » d'une catégorie : ce que disent les livres sur ce
+ * chapitre, en texte libre.
+ *
+ * Un `<details>` natif : replié, il ne coûte qu'une ligne au-dessus des cartes,
+ * qu'on vient lire. Il s'ouvre d'office quand il est vide — replié et vide, on
+ * ne saurait jamais qu'il attend quelque chose. Le résumé montre le début du
+ * texte : on voit ce qu'on a noté sans déplier.
+ *
+ * Texte brut, sans LaTeX : des titres, des pages, un avis. Pas de mode lecture
+ * contre mode édition, donc — la zone de saisie **est** l'affichage.
+ *
+ * Enregistrement à la perte de focus (`change`), comme le renommage d'une
+ * catégorie : écrire trois lignes ne mérite pas un bouton. Le témoin dit que
+ * c'est parti, sinon le geste reste sans réponse.
+ */
+function blocLivres(category) {
+  let enBase = category.books || '';
+
+  const temoin = el('span', { class: 'small muted' });
+  const resume = el('span', { class: 'small muted livres-resume' });
+  const majResume = () => {
+    const premiere = enBase.trim().split('\n')[0];
+    resume.textContent = premiere ? ` — ${premiere}` : '';
+  };
+
+  const zone = el('textarea', {
+    value: enBase,
+    placeholder: 'Ex. : Gourdon, Analyse, ch. 1 — clair sur Baire. Rudin p. 40 pour les exemples.',
+    on: {
+      input: () => { ajuste(zone); temoin.textContent = ''; },
+      change: async () => {
+        const v = zone.value;
+        if (v === enBase) return;
+        temoin.textContent = 'Enregistrement…';
+        try {
+          await setCategoryBooks(category.id, v);
+          enBase = v;
+          majResume();
+          temoin.textContent = 'Enregistré.';
+        } catch (err) {
+          temoin.textContent = 'Enregistrement impossible : ' + err.message;
+        }
+      },
+    },
+  });
+
+  const bloc = el('details', { class: 'livres', open: !enBase.trim() },
+    el('summary', {}, el('span', { class: 'face-label' }, 'Livres'), resume),
+    zone,
+    temoin,
+  );
+  // La zone épouse son contenu ; mesurable seulement une fois montée et dépliée.
+  bloc.addEventListener('toggle', () => ajuste(zone));
+  requestAnimationFrame(() => ajuste(zone));
+  majResume();
+  return bloc;
+}
+
+/** La zone de saisie épouse son contenu — même règle que `editeur.js`. */
+function ajuste(zone) {
+  zone.style.height = 'auto';
+  zone.style.height = `${zone.scrollHeight + 2}px`;
+}
 
 /** Libellé d'une destination dans un `<select>` : les sous-chapitres indentés. */
 const libelle = (cat) => (cat.depth === 1 ? '   └ ' : '') + cat.name;
@@ -90,7 +159,7 @@ export async function render(ctx) {
   const list = el('div');
   // `fill` et non `append` : le `append` natif écrirait « false » à l'écran
   // quand le chapitre est vide (voir dom.js).
-  fill(ctx.root, toutes.length > 0 && search, list);
+  fill(ctx.root, category && blocLivres(category), toutes.length > 0 && search, list);
 
   // On cherche dans les cinq champs : une carte se retrouve aussi bien par sa
   // réponse ou par un mot de la note que par son recto.

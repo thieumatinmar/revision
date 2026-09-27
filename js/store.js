@@ -6,7 +6,7 @@
 //
 // Arborescence dans Firestore :
 //
-//   users/{uid}/categories/{id}   { name, order, parentId? }
+//   users/{uid}/categories/{id}   { name, order, parentId?, books? }
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
 //                                   images: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
@@ -168,6 +168,19 @@ export async function createCategory(name, parentId = null) {
 
 export async function renameCategory(id, name) {
   await setDoc(ref('categories', id), { name }, { merge: true });
+}
+
+/**
+ * Écrit les commentaires sur les livres d'une catégorie : texte libre, un seul
+ * champ par chapitre ou sous-chapitre (docs/decisions.md, « Livres d'une
+ * catégorie »).
+ *
+ * Écriture ciblée (`merge`), comme le renommage : le nom et l'ordre ne passent
+ * pas par ici, et un écran ouvert depuis longtemps ne doit pas les écraser.
+ * Facultatif : l'absence du champ vaut « rien d'écrit », sans rien migrer.
+ */
+export async function setCategoryBooks(id, books) {
+  await setDoc(ref('categories', id), { books }, { merge: true });
 }
 
 /**

@@ -75,6 +75,7 @@ on l'inscrit ici avec sa frontière.
   `listCardsUnder()` lit un chapitre et ses sous-chapitres. Un `parentId` ne
   s'écrit qu'à deux endroits, `createCategory` et `attachCategory` (rattacher
   une catégorie existante) : ce sont eux qui tiennent le niveau unique.
+  `setCategoryBooks()` écrit le texte « Livres » d'une catégorie (`books`).
   Porte aussi `migrateLibrary()`, migration unique et non destructive de
   l'ancienne collection `theorems` — à retirer une fois celle-ci effacée.
 - `js/entree.js` — **composant** : monte une entrée (`faceEntree(entry)`), et

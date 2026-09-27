@@ -87,6 +87,14 @@ lui-même.
 _Code_: catégorie portant un `parentId`
 _Éviter_: sous-catégorie, section, rubrique, partie, dossier
 
+**Livres** :
+Ce qu'on note sur les livres qui traitent une catégorie — lesquels, quelles
+pages, ce qu'ils valent. Texte libre, facultatif, propre à chaque chapitre et à
+chaque sous-chapitre : celui d'un chapitre ne reprend pas ceux de ses
+sous-chapitres.
+_Code_: `books`, sur la catégorie
+_Éviter_: bibliographie, références, source (déjà pris, sur un théorème)
+
 **Rattacher** :
 Changer l'étage d'une catégorie : la placer sous un chapitre, ou la ramener au
 premier niveau. Un seul geste couvre les trois cas — un chapitre qui devient
