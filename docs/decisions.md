@@ -1372,3 +1372,53 @@ la main) tombe : on référence par id, et on ne le tape jamais — on le copie.
 (c) écarté au profit du nouvel onglet : aucune saisie ne peut se perdre, sans
 avoir à écrire de garde. Prix assumé : sur téléphone, en PWA installée, le lien
 sort vers le navigateur.
+
+## Passer d'une carte à sa voisine, depuis l'éditeur
+
+**Choix** — L'éditeur, en modification, offre ‹ et › dans la barre du bas, et
+**Alt+↑ / Alt+↓** au clavier, pour passer à la carte précédente ou suivante —
+sa **voisine** (`CONTEXT.md`). Le titre de l'écran devient « Carte 7 / 23 ».
+Concrètement :
+
+- **La liste** — la catégorie de la carte, comme l'écran *Cartes* l'affiche sans
+  recherche : rangées dans l'ordre, puis non rangées. Lue à l'ouverture de
+  l'éditeur — donc à chaque passage, qui rouvre l'éditeur sur la voisine — et
+  **figée** pendant la vie de l'écran. On ne sort pas de la catégorie, on ne boucle pas :
+  au bout, le bouton se grise (il ne disparaît pas — la barre ne change pas de
+  forme d'une carte à l'autre).
+- **Les modifications en attente** — enregistrées avant de partir, s'il y en a.
+  Rien de modifié, rien d'écrit. Un échec (recto vide, erreur réseau) retient sur
+  la carte, message affiché.
+- **L'historique** — le passage **remplace** l'entrée courante
+  (`location.replace`) : le retour du navigateur ramène à la liste, comme
+  *Annuler*.
+- **En création** — pas de navigation, même après un Ctrl+S : la carte neuve
+  n'était pas dans la liste lue à l'ouverture.
+
+**Alternative écartée** — (a) Demander confirmation quand la carte a été
+modifiée ; (b) les boutons dans l'en-tête ; (c) Alt+← / Alt+→ ; (d) suivre la
+recherche de l'écran *Cartes* ; (e) chercher la voisine dans la catégorie où
+la carte vient d'être envoyée.
+
+**Raison** — Le geste réel est « je relis, je corrige une coquille, je passe »,
+répété en série. Une boîte de dialogue à chaque carte corrigée (a) casserait ce
+rythme, et Ctrl+S a déjà fait d'*enregistrer* le réflexe par défaut. Le risque
+d'enregistrer une frappe accidentelle est faible : l'aperçu montre tout.
+
+La barre du bas (b) est là où vit déjà *Enregistrer* — le geste est « enregistrer
+et passer » —, reste sous la main sur PC (l'éditeur tient dans la hauteur), et
+tombe en fin de lecture sur téléphone, en aperçu : on lit, on arrive en bas, on
+tourne la page. L'en-tête, lui, porte déjà *Annuler*, *Lien* et *Aperçu*.
+
+Alt+← / Alt+→ (c) sont le retour et l'avance du navigateur, et Ctrl+PgPréc /
+Ctrl+PgSuiv appartiennent à Chrome, qui ne les cède pas. Alt+↑ / Alt+↓ sont
+libres, ne font rien dans une zone de saisie, et suivent le sens de la liste
+*Cartes*, qui est verticale. Seule exception : sur le sélecteur *Chapitre*,
+Alt+↓ ouvre la liste, et on la laisse faire.
+
+Ignorer la recherche (d) : l'adresse ne la porte pas, et la porter ajouterait un
+état à faire vivre d'écran en écran pour un cas marginal. Figer la liste (e) :
+si l'on change le chapitre d'une carte en cours de parcours, « suivante » mène à
+la voisine **dans la liste d'origine** — on continue le chapitre qu'on relisait,
+au lieu de suivre la carte là où on vient de l'envoyer. L'écran suivant relit sa
+liste, où la carte partie n'est plus : le compte « 7 / 23 » reste juste.

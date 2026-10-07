@@ -249,6 +249,15 @@ button:active, .btn:active { transform: translateY(1px); }
 .actions { display: flex; gap: 8px; margin-top: 16px; }
 .actions > * { flex: 1; }
 
+/* ‹ et › de l'éditeur : étroits, à la taille de leur signe. Étirés comme les
+   autres, ils prendraient la moitié de la barre à *Enregistrer*. Grisés au bout
+   de la liste plutôt que retirés — la barre garde sa forme d'une carte à
+   l'autre ; sans ce style, un bouton désactivé ne se distingue de l'autre que
+   par l'absence de réaction. */
+.actions > .nav-voisine { flex: 0 0 auto; min-width: 44px; font-size: 1.15rem; }
+.nav-voisine:disabled { opacity: .35; cursor: default; }
+.nav-voisine:disabled:active { transform: none; }
+
 /* Le témoin de l'enregistrement sans quitter (Ctrl+S). Sous la barre et non
    dedans : `.actions > *` étire chaque enfant à parts égales, un texte y volerait
    un tiers de la largeur aux deux boutons. La hauteur est réservée d'avance,

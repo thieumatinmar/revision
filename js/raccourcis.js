@@ -1,11 +1,13 @@
 // raccourcis.js — les raccourcis clavier d'un écran.
 //
-// Deux aujourd'hui :
+// Trois aujourd'hui :
 //   - **Ctrl+S enregistre sans quitter l'écran**. Le bouton *Enregistrer*
 //     enregistre **et** part ; les deux gestes coexistent, et c'est voulu
 //     (docs/decisions.md, « Enregistrer sans quitter »).
 //   - **Ctrl+V colle une image**, où que soit le focus (docs/decisions.md,
 //     « Coller une image dans une carte »).
+//   - **Alt+↑ / Alt+↓ passent à la carte voisine** (docs/decisions.md,
+//     « Passer d'une carte à sa voisine »).
 //
 // Frontière : ce fichier touche au clavier et au presse-papiers, rien d'autre.
 // Ni store, ni DOM construit, ni vue. Il ne sait pas ce qu'il enregistre ni où
@@ -65,6 +67,39 @@ export function surEnregistrement(root, action) {
 
     ev.preventDefault();
     action();
+  });
+}
+
+/**
+ * Pose Alt+↑ (précédente) et Alt+↓ (suivante) sur l'écran dont `root` est la
+ * racine.
+ *
+ * Pourquoi ces touches : les flèches seules déplacent le curseur dans les zones
+ * de saisie, où l'on est presque toujours ; Alt+← / Alt+→ sont le retour et
+ * l'avance du navigateur ; Ctrl+PgPréc / Ctrl+PgSuiv changent d'onglet, et
+ * Chrome ne les cède pas. Alt+↑ / Alt+↓ sont libres, et le haut et le bas
+ * suivent le sens de la liste des cartes, qui est verticale.
+ *
+ * Exclusions :
+ *   - Ctrl, Maj ou Méta enfoncé avec Alt : un autre geste. Ctrl+Alt, en
+ *     particulier, est AltGr sur un clavier français.
+ *   - la touche maintenue (`repeat`) : une pression, une carte. Sinon le
+ *     maintien enchaînerait les lectures Firestore plus vite qu'on ne lit.
+ *   - un `<select>` qui a le focus : Alt+↓ y ouvre la liste, et c'est ce qu'on
+ *     attend d'un sélecteur.
+ *
+ * @param {HTMLElement} root  la racine de l'écran
+ * @param {{ precedente: () => void, suivante: () => void }} actions
+ */
+export function surNavigation(root, { precedente, suivante }) {
+  ecouteEcran(root, 'keydown', (ev) => {
+    if (!ev.altKey || ev.ctrlKey || ev.shiftKey || ev.metaKey) return;
+    if (ev.key !== 'ArrowUp' && ev.key !== 'ArrowDown') return;
+    if (ev.repeat) return;
+    if (document.activeElement && document.activeElement.tagName === 'SELECT') return;
+
+    ev.preventDefault();
+    (ev.key === 'ArrowUp' ? precedente : suivante)();
   });
 }
 

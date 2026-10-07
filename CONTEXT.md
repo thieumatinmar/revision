@@ -130,6 +130,13 @@ dire. Elle passe après les cartes rangées, et le reste jusqu'à ce qu'on la ra
 _Code_: carte sans `order` — `isPlaced(card)` est faux
 _Éviter_: non classée, non triée, orpheline, en attente
 
+**Voisine** :
+La carte qui précède ou qui suit, dans sa catégorie : les cartes rangées dans
+leur ordre, puis les non rangées. Une carte n'a pas de voisine hors de sa
+catégorie — ni dans un sous-chapitre, ni dans le chapitre d'à côté.
+_Code_: `voisines`, gestes « carte précédente » / « carte suivante »
+_Éviter_: fiche suivante, adjacente, prochaine
+
 ## La bibliothèque
 
 **Bibliothèque** :

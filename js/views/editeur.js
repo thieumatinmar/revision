@@ -17,12 +17,16 @@
 // Deux points d'entrée, d'où deux retours possibles :
 //   #/carte/nouvelle/<categoryId>   création  → retour à la liste du chapitre
 //   #/carte/<cardId>                          → retour à la liste du chapitre
+//
+// En modification, ‹ et › (ou Alt+↑ / Alt+↓) passent à la **voisine** — la
+// carte d'avant ou d'après dans sa catégorie — en enregistrant d'abord ce qui a
+// été modifié (docs/decisions.md, « Passer d'une carte à sa voisine »).
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
 import { excerpt, stripMath } from '../mathtext.js';
-import { getCard, saveCard, deleteCard, listChapters, flattenChapters } from '../store.js';
-import { surEnregistrement, surCollageImages } from '../raccourcis.js';
+import { getCard, saveCard, deleteCard, listChapters, flattenChapters, listCards } from '../store.js';
+import { surEnregistrement, surCollageImages, surNavigation } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
 /**
@@ -68,7 +72,21 @@ export async function render(ctx) {
     retourBas.href = retour;
   }
 
-  ctx.setTitle(creation ? 'Nouvelle carte' : 'Modifier');
+  // Les voisines : la catégorie de la carte, dans l'ordre de l'écran *Cartes*
+  // (rangées, puis non rangées — c'est l'ordre que rend `listCards`). Lue ici,
+  // une fois, puis figée : si l'on change le chapitre de la carte avant de
+  // passer, on continue la liste qu'on relisait, pas celle où la carte arrive.
+  // Pas de voisines en création — la carte neuve n'est pas dans la liste.
+  const liste = creation ? [] : await listCards(card.categoryId);
+  const rang = liste.findIndex((c) => c.id === card.id);
+  const precedente = rang > 0 ? liste[rang - 1] : null;
+  const suivante = rang >= 0 && rang < liste.length - 1 ? liste[rang + 1] : null;
+
+  // La position dit où l'on en est du parcours, et qu'on approche de la fin.
+  // « Modifier » ne reste que pour une carte absente de sa propre liste — qui ne
+  // devrait pas exister, mais un titre faux serait pire qu'un titre vague.
+  ctx.setTitle(creation ? 'Nouvelle carte'
+    : rang >= 0 ? `Carte ${rang + 1} / ${liste.length}` : 'Modifier');
 
   // La bascule ne sert que sous 900 px : au-delà, les deux colonnes sont là et
   // le bouton ne veut plus rien dire — le CSS le masque.
@@ -207,11 +225,25 @@ export async function render(ctx) {
   // La barre d'actions vit **hors** de la grille : sur écran étroit en aperçu, le
   // formulaire est masqué, et une barre posée dedans emporterait *Enregistrer*
   // avec lui — or le geste réel finit là : je tape, je vérifie, j'enregistre.
+  //
+  // ‹ et › y sont à côté d'*Enregistrer* parce que le geste est le même —
+  // enregistrer, puis partir. Au bout de la liste, le bouton est grisé et non
+  // retiré : la barre garde sa forme d'une carte à l'autre, et le pouce ne
+  // tombe pas sur autre chose.
+  const boutonVoisine = (voisine, signe, libelle) => el('button', {
+    class: 'nav-voisine',
+    title: voisine ? libelle : 'Pas d’autre carte dans cette catégorie',
+    disabled: !voisine,
+    on: { click: () => passer(voisine) },
+  }, signe);
+
   fill(ctx.root,
     grille,
     el('div', { class: 'actions' },
       el('button', { class: 'btn-primary', on: { click: () => enregistrer() } }, 'Enregistrer'),
       retourBas,
+      !creation && boutonVoisine(precedente, '‹', 'Carte précédente — Alt+↑'),
+      !creation && boutonVoisine(suivante, '›', 'Carte suivante — Alt+↓'),
     ),
     temoin,
     zoneSuppression,
@@ -221,6 +253,13 @@ export async function render(ctx) {
   // gestes ne sont pas le même, et le raccourci sert précisément à ne pas devoir
   // choisir entre « je sécurise ce que j'ai tapé » et « j'ai fini ».
   surEnregistrement(ctx.root, () => enregistrer({ rester: true }));
+
+  if (!creation) {
+    surNavigation(ctx.root, {
+      precedente: () => passer(precedente),
+      suivante: () => passer(suivante),
+    });
+  }
 
   // Ctrl+V d'une image (capture d'écran…) l'ajoute aux images, où que soit le
   // focus. La réponse passe par le **témoin** et non par le seul champ Images :
@@ -392,6 +431,17 @@ export async function render(ctx) {
   }
 
   /**
+   * La carte du formulaire, sous une forme comparable. Deux signatures égales,
+   * c'est rien à enregistrer. On compare des `valeurs()` à des `valeurs()` — et
+   * non à la carte lue en base — pour que les normalisations (titre rogné,
+   * encart éteint écrit vide) soient les mêmes des deux côtés.
+   */
+  const signature = () => JSON.stringify(valeurs());
+
+  /** Ce qui est en base, vu par le formulaire : au montage, puis à chaque écriture. */
+  let enBase = signature();
+
+  /**
    * Vrai pendant une écriture. Un Ctrl+S maintenu, ou un clic pendant que la
    * précédente écriture court, lancerait deux créations concurrentes — c'est-à-
    * dire deux cartes, aucune des deux ne portant l'identifiant que l'autre vient
@@ -402,9 +452,11 @@ export async function render(ctx) {
   /**
    * @param {{ rester?: boolean }} options `rester` vient du raccourci : on
    *   enregistre et l'écran ne bouge pas. Le bouton, lui, part vers la liste.
+   * @returns {Promise<boolean>} vrai si la carte est en base — c'est ce que
+   *   `passer` attend avant de quitter l'écran.
    */
   async function enregistrer({ rester = false } = {}) {
-    if (enCours) return;
+    if (enCours) return false;
 
     // Seul le recto est exigé. Une carte sans verso est une forme légitime — une
     // note qui se suffit — autant qu'une question dont la réponse s'écrira plus
@@ -416,7 +468,7 @@ export async function render(ctx) {
       basculer('edition');
       erreur.textContent = 'Le recto est obligatoire.';
       temoin.textContent = '';
-      return;
+      return false;
     }
 
     enCours = true;
@@ -433,10 +485,11 @@ export async function render(ctx) {
       card.id = enregistree.id;
       card.categoryId = enregistree.categoryId;
       majRetour();
+      enBase = signature();
 
       if (!rester) {
         location.hash = retour;
-        return;
+        return true;
       }
 
       // L'adresse cessait de dire la vérité : elle annonçait une création alors
@@ -449,13 +502,32 @@ export async function render(ctx) {
       visibiliteSuppression();
       visibiliteLien();
       temoin.textContent = 'Enregistré à ' + new Date().toLocaleTimeString('fr-FR');
+      return true;
     } catch (err) {
       basculer('edition');
       erreur.textContent = 'Enregistrement impossible : ' + err.message;
       temoin.textContent = '';
+      return false;
     } finally {
       enCours = false;
     }
+  }
+
+  /**
+   * Passe à une voisine. Ce qui a été modifié est enregistré d'abord — le geste
+   * réel est « je relis, je corrige, je passe », et une confirmation à chaque
+   * carte corrigée casserait ce rythme. Rien de modifié, rien d'écrit : un
+   * parcours en simple lecture ne touche pas la base. Si l'écriture échoue
+   * (recto vide, réseau), on reste : `enregistrer` a déjà affiché pourquoi.
+   *
+   * `location.replace` et non `location.hash = …` : le passage **remplace**
+   * l'entrée d'historique. Le retour du navigateur ramène donc à la liste, comme
+   * *Annuler*, au lieu de remonter une à une les vingt cartes parcourues.
+   */
+  async function passer(voisine) {
+    if (!voisine || enCours) return;
+    if (signature() !== enBase && !(await enregistrer({ rester: true }))) return;
+    location.replace(`#/carte/${voisine.id}`);
   }
 
   async function supprimer() {
