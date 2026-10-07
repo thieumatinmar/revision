@@ -61,7 +61,9 @@ on l'inscrit ici avec sa frontière.
   modules ES sont chargés tels quels, il n'y a rien à compiler.
 - `css/style.css` — feuille **unique**, mobile-first. Pas de CSS par composant.
 - `js/mathtext.js` — texte + LaTeX → HTML via KaTeX. Échappe tout ce qui n'est
-  pas une formule ; porte les macros maison (`\P`, `\E`, `\V`, `\R`…).
+  pas une formule ou un **lien de carte** (`[libellé](#/carte/ID)`, seul HTML
+  actif produit, `href` reconstruit d'un id validé) ; porte les macros maison
+  (`\P`, `\E`, `\V`, `\R`…).
 - `js/firebase.js` — configuration et instanciation des services Firebase. Seul
   fichier à connaître la config ; personne d'autre ne parle au SDK directement.
 - `js/auth.js` — connexion Google (popup), état de session.

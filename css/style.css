@@ -428,3 +428,6 @@ input[type="search"] { margin-bottom: 14px; }
 @media (min-width: 760px) {
   main { padding: 24px 0 48px; }
 }
+
+/* En-tête de l'éditeur : deux boutons à droite (Lien, Aperçu), côte à côte. */
+.entete-actions { display: inline-flex; gap: 6px; justify-content: flex-end; }

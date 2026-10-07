@@ -20,6 +20,7 @@
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
+import { excerpt, stripMath } from '../mathtext.js';
 import { getCard, saveCard, deleteCard, listChapters, flattenChapters } from '../store.js';
 import { surEnregistrement, surCollageImages } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
@@ -77,7 +78,16 @@ export async function render(ctx) {
     on: { click: () => basculer(mode === 'edition' ? 'apercu' : 'edition') },
   }, 'Aperçu');
 
-  ctx.setHeader(retourHaut, bascule);
+  // Copier le lien : la syntaxe prête à coller dans une autre carte
+  // (docs/decisions.md, « Liens d'une carte à une autre »). Sans id, il n'y a
+  // rien à désigner : le bouton attend le premier enregistrement.
+  const copier = el('button', {
+    class: 'btn btn-sm',
+    title: 'Copier un lien vers cette carte, à coller dans une autre',
+    on: { click: () => copierLien() },
+  }, '🔗 Lien');
+
+  ctx.setHeader(retourHaut, el('span', { class: 'entete-actions' }, copier, bascule));
 
   // --- Champs -----------------------------------------------------------------
   // Une seule liste : le chapitre reste choisissable, ses sous-chapitres sont
@@ -161,6 +171,32 @@ export async function render(ctx) {
 
   function visibiliteSuppression() {
     zoneSuppression.style.display = (mode === 'apercu' || !card.id) ? 'none' : '';
+  }
+
+  function visibiliteLien() {
+    copier.style.display = card.id ? '' : 'none';
+  }
+
+  /**
+   * Met `[libellé](#/carte/ID)` dans le presse-papiers. Le libellé est le titre
+   * saisi, à défaut le début du recto **sans ses `$`** — une formule coupée au
+   * milieu ne se rendrait pas. Les crochets en sont retirés : ils fermeraient le
+   * libellé avant l'heure, et le lien ne serait plus reconnu.
+   */
+  async function copierLien() {
+    const brut = titre.input.value.trim() || excerpt(stripMath(recto.input.value), 60);
+    const libelle = brut.replace(/[[\]]/g, '').trim() || 'cette carte';
+    const lien = `[${libelle}](#/carte/${card.id})`;
+    try {
+      await navigator.clipboard.writeText(lien);
+      temoin.style.color = '';
+      temoin.textContent = 'Lien copié : ' + lien;
+    } catch (err) {
+      // Presse-papiers refusé (contexte non sécurisé, permission) : on montre le
+      // lien pour qu'il reste copiable à la main.
+      temoin.style.color = '#e8695f';
+      temoin.textContent = 'Copie impossible — à copier à la main : ' + lien;
+    }
   }
 
   // Le témoin de l'enregistrement sans quitter. Il vit hors de la barre — dont le
@@ -323,6 +359,7 @@ export async function render(ctx) {
   let mode = 'edition';
 
   visibiliteSuppression();
+  visibiliteLien();
 
   /**
    * Passe d'un visage à l'autre, sur écran étroit uniquement. Le formulaire
@@ -384,6 +421,7 @@ export async function render(ctx) {
 
     enCours = true;
     erreur.textContent = '';
+    temoin.style.color = '';
     temoin.textContent = 'Enregistrement…';
     try {
       const enregistree = await saveCard(valeurs());
@@ -409,6 +447,7 @@ export async function render(ctx) {
         history.replaceState(null, '', `#/carte/${card.id}`);
       }
       visibiliteSuppression();
+      visibiliteLien();
       temoin.textContent = 'Enregistré à ' + new Date().toLocaleTimeString('fr-FR');
     } catch (err) {
       basculer('edition');
