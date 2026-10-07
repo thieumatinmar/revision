@@ -4,6 +4,7 @@
 //   $ ... $    formule dans le fil du texte
 //   $$ ... $$  formule centrée sur sa propre ligne
 //   \$         dollar littéral
+//   [libellé](#/carte/ID)   lien vers une carte, ouvert dans un nouvel onglet
 //
 // Tout ce qui n'est pas une formule est du texte : il est **échappé**, jamais
 // interprété comme du HTML. C'est la seule garantie qu'une carte ne puisse pas
@@ -56,7 +57,36 @@ function renderTex(tex, displayMode) {
 }
 
 /**
- * Découpe la chaîne en alternant texte et formules, puis assemble le HTML.
+ * Un lien vers une carte : `[libellé](#/carte/ID)`, ou la même chose avec l'URL
+ * complète copiée de la barre d'adresse (`https://…/#/carte/ID`).
+ *
+ * Motif volontairement étroit — c'est lui qui garde l'invariant du fichier :
+ *   — le libellé ne contient ni crochet ni saut de ligne, donc un `[` isolé ne
+ *     peut pas avaler la suite du texte ;
+ *   — seul l'**id** est retenu de la cible, et il n'a droit qu'à des lettres et
+ *     des chiffres. Le `href` est reconstruit à partir de lui : rien de ce qui
+ *     est écrit entre les parenthèses n'arrive tel quel dans la page.
+ * Ancré en tête (`^`) : on l'essaie à la position d'un `[`, pas partout.
+ */
+const LIEN = /^\[([^\[\]\n]+)\]\((?:https?:\/\/[^\s()#]*)?#\/carte\/([A-Za-z0-9]+)\)/;
+
+/**
+ * Le HTML d'un lien de carte. Le libellé est composé comme du texte ordinaire —
+ * il peut porter une formule —, et le lien s'ouvre dans un nouvel onglet : la
+ * carte qu'on lit est peut-être en cours d'écriture (docs/decisions.md, « Liens
+ * d'une carte à une autre »).
+ */
+function renderLien(libelle, id) {
+  return `<a class="lien-carte" href="#/carte/${id}" target="_blank" rel="noopener">${toHtml(libelle)}</a>`;
+}
+
+/** Remplace chaque lien de carte par son seul libellé. */
+function libellesSeuls(source) {
+  return String(source ?? '').replace(new RegExp(LIEN.source.slice(1), 'g'), '$1');
+}
+
+/**
+ * Découpe la chaîne en alternant texte, formules et liens, puis assemble le HTML.
  *
  * On balaie caractère par caractère plutôt qu'avec une expression régulière
  * globale : c'est le seul moyen simple de gérer à la fois `\$`, `$$` et `$`
@@ -75,6 +105,18 @@ export function toHtml(source) {
       text += '$';
       i += 2;
       continue;
+    }
+
+    if (ch === '[') {                          // [libellé](#/carte/ID) → lien
+      const lien = LIEN.exec(src.slice(i));
+      if (lien) {
+        out += escapeHtml(text);
+        text = '';
+        out += renderLien(lien[1], lien[2]);
+        i += lien[0].length;
+        continue;
+      }
+      // Pas un lien de carte : un crochet ordinaire, donc du texte.
     }
 
     if (ch === '$') {
@@ -172,9 +214,13 @@ function ouvert(texte) {
  * `$\frac{1}` ne se rend pas, et afficherait du rouge dans la liste. D'où la
  * règle : si la coupe laisse un nombre impair de `$`, on recule jusqu'au
  * dernier `$` ouvrant.
+ *
+ * Les liens sont réduits à leur libellé **avant** la coupe : une ligne de liste
+ * est déjà un lien, on n'en imbrique pas un second, et couper au milieu de
+ * `[…](#/carte/…)` laisserait la syntaxe brute à l'écran.
  */
 export function excerpt(source, max = 110) {
-  const s = String(source ?? '').replace(/\s+/g, ' ').trim();
+  const s = libellesSeuls(source).replace(/\s+/g, ' ').trim();
   if (s.length <= max) return s;
   let cut = s.slice(0, max);
   const nbDollars = (cut.match(/\$/g) || []).length;

@@ -1337,3 +1337,38 @@ là où l'on travaille, pas dans l'écran de structure. Texte brut parce qu'on y
 composition aurait imposé deux états, lecture et édition. Un champ sur le
 document de catégorie plutôt qu'une collection : rien à requêter à part, et la
 règle de sécurité ne bouge pas.
+
+## Liens d'une carte à une autre : une syntaxe dans le texte
+
+**Choix** — Un lien s'écrit dans le texte, `[libellé](#/carte/{id})` ; la forme
+URL complète (`https://…/#/carte/{id}`) est acceptée et ramenée à la forme
+courte. `mathtext.js` reconnaît **ce seul motif**, valide l'id
+(`[A-Za-z0-9]+`), reconstruit lui-même le `href`, et compose le libellé comme
+n'importe quel texte (échappé, formules comprises). Le lien s'ouvre dans un
+**nouvel onglet**. Dans les extraits de liste, il se réduit à son libellé. Le
+bouton « Copier le lien » de l'éditeur fournit la syntaxe prête à coller. Rien
+ne suit les cartes supprimées : le lien mort mène à « Carte introuvable ».
+
+**Alternative écartée** — (a) une URL nue affichée sous le titre de la carte
+citée ; (b) un champ de renvois par identifiant, comme les renvois retirés ;
+(c) ouvrir le lien dans le même onglet, avec une garde sur les modifications non
+enregistrées.
+
+**Raison** — Le besoin est la **navigation** (« la démo est là »), pas
+l'affichage de la cible dans la carte. C'est le dépliage, la requête et l'état
+qui coûtaient cher aux renvois retirés ; un lien dans le texte ne coûte ni
+champ, ni requête, ni écriture.
+
+(a) obligeait `mathtext.js` ou `carte.js`, tous deux purs, à lire le titre de
+la cible dans le store. Le libellé écrit à la main n'a besoin de rien, et
+désigne la carte par son id : renommer la cible ne casse rien.
+
+L'invariant de `mathtext.js` (« tout ce qui n'est pas une formule est échappé »)
+est **assoupli, pas rompu** : aucun HTML ni URL n'est recopié du texte, le seul
+attribut produit est un `href` reconstruit à partir d'un id validé. L'objection
+des renvois contre la syntaxe inline (renommer casse le renvoi, ou l'on tape l'id à
+la main) tombe : on référence par id, et on ne le tape jamais — on le copie.
+
+(c) écarté au profit du nouvel onglet : aucune saisie ne peut se perdre, sans
+avoir à écrire de garde. Prix assumé : sur téléphone, en PWA installée, le lien
+sort vers le navigateur.

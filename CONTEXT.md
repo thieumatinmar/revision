@@ -65,6 +65,16 @@ l'éditeur où le LaTeX est composé.
 _Code_: `faceCarte()`
 _Éviter_: prévisualisation, simulation, mode lecture, rendu
 
+**Lien** :
+Dans le texte, un passage cliquable qui mène à une autre carte — « cf. la démo
+qui est là ». On choisit les mots qui le portent ; la carte citée s'ouvre à part,
+sans quitter celle qu'on lit. Il désigne la carte elle-même, pas son titre :
+renommer la cible ne le casse pas. Rien ne le tient à jour : si la carte citée
+disparaît, le lien reste et ne mène plus nulle part. Il ne vise qu'une carte,
+jamais une entrée.
+_Code_: `[libellé](#/carte/{id})`
+_Éviter_: renvoi (le mot de la fonctionnalité retirée), référence, citation
+
 ## L'organisation
 
 **Catégorie** :

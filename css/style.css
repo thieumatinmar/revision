@@ -414,6 +414,13 @@ input[type="search"] { margin-bottom: 14px; }
 .mathtext { white-space: pre-wrap; overflow-wrap: anywhere; }
 .mathtext .katex-display { margin: .6em 0; overflow-x: auto; overflow-y: hidden; }
 .mathtext .katex { font-size: 1.05em; }
+/* Lien vers une autre carte : souligné pointillé, pour se distinguer du texte
+   sans crier — il s'ouvre dans un nouvel onglet. */
+.mathtext .lien-carte {
+  color: var(--accent);
+  text-decoration: underline dotted;
+  text-underline-offset: 3px;
+}
 .math-error { color: #e8695f; font-family: ui-monospace, monospace; font-size: .85em; }
 
 /* ---------------------------------------------------------------- Grand Ã©cran */
