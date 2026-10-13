@@ -306,9 +306,11 @@ input[type="search"] { margin-bottom: 14px; }
 .editeur.en-apercu .editeur-apercu { display: block; }
 
 @media (min-width: 900px) {
-  /* L'éditeur est le seul écran à deux colonnes : lui seul s'élargit. Étaler
-     les listes de chapitres sur 1180 px les rendrait illisibles. `:has` cible
-     la vue depuis la feuille, sans faire connaître les écrans à app.js.
+  /* L'éditeur est le seul écran à deux colonnes : lui seul s'élargit, et
+     jusqu'au bord de la fenêtre — une formule longue de l'aperçu y gagne la
+     place qui lui évite l'ascenseur. Étaler les listes de chapitres ainsi les
+     rendrait illisibles : elles gardent leurs 720 px. `:has` cible la vue
+     depuis la feuille, sans faire connaître les écrans à app.js.
 
      Il est aussi le seul écran qui ne se **lit** pas : c'est un plan de travail.
      D'où la hauteur bornée et le défilement rendu à chaque volet — la page, elle,
@@ -321,9 +323,10 @@ input[type="search"] { margin-bottom: 14px; }
      enfant de grille refuse de rétrécir sous son contenu, et `overflow` n'a
      jamais l'occasion de s'appliquer. */
   main:has(.editeur) {
-    max-width: 1180px;
+    max-width: none;
     height: calc(100vh - 76px);
     padding-bottom: 16px;
+    padding-inline: 24px;            /* le « Grand écran » met 0 : ici, on toucherait le bord */
     display: flex;
     flex-direction: column;
   }
