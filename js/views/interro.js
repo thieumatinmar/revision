@@ -18,6 +18,7 @@ import { el, fill } from '../dom.js';
 import { render as renderMath } from '../mathtext.js';
 import { getDaily } from '../store.js';
 import { dayKey, isDayKey, shiftDay, formatDay } from '../jours.js';
+import { pushState, subscribe } from '../push.js';
 
 export async function render(ctx) {
   const today = dayKey();
@@ -26,7 +27,7 @@ export async function render(ctx) {
   // `AAAA-MM-JJ` est l'ordre des jours (voir jours.js).
   const day = demande && isDayKey(demande) && demande <= today ? demande : today;
 
-  const daily = await getDaily(day);
+  const [daily, etatPush] = await Promise.all([getDaily(day), pushState()]);
 
   ctx.setTitle(day === today ? 'Interro du jour' : 'Interro');
   ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Accueil'), null);
@@ -41,6 +42,40 @@ export async function render(ctx) {
           + 'Elle se remplit quand le PC est ouvert.'
         : 'Pas d’interro ce jour-là.')
       : el('ol', { class: 'interro' }, questions.map(question)),
+    notification(ctx, etatPush),
+  );
+}
+
+/**
+ * En bas de l'écran : où va la notification du matin, et le bouton pour la
+ * recevoir ici. C'est l'endroit où l'on arrive par la notification — donc
+ * celui où l'on pense à la régler.
+ */
+function notification(ctx, etat) {
+  if (etat === 'indisponible') return null;
+  if (etat === 'active') {
+    return el('p', { class: 'small muted note-push' }, 'Notification chaque matin sur cet appareil.');
+  }
+  if (etat === 'bloquee') {
+    return el('p', { class: 'small muted note-push' },
+      'Notifications bloquées pour ce site : à réautoriser dans les réglages du navigateur.');
+  }
+  const bouton = el('button', {
+    class: 'btn btn-sm',
+    on: { click: async () => {
+      bouton.disabled = true;
+      try {
+        await subscribe();
+      } catch (err) {
+        console.error(err);
+        alert('Abonnement impossible : ' + err.message);
+      }
+      ctx.refresh();
+    } },
+  }, etat === 'ailleurs' ? 'Recevoir ici à la place' : 'Recevoir la notification chaque matin');
+  return el('div', { class: 'note-push' },
+    etat === 'ailleurs' && el('p', { class: 'small muted' }, 'La notification du matin va sur un autre appareil.'),
+    bouton,
   );
 }
 

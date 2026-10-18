@@ -271,6 +271,7 @@ button:active, .btn:active { transform: translateY(1px); }
    cinq blocs de 160 px centrés verticalement feraient défiler pour rien. */
 .interro .card-face { min-height: 0; justify-content: flex-start; padding: 16px; }
 .actions-question { margin-top: 14px; }
+.note-push { margin-top: 22px; text-align: center; }
 
 .actions > .nav-voisine { flex: 0 0 auto; min-width: 44px; font-size: 1.15rem; }
 .nav-voisine:disabled { opacity: .35; cursor: default; }

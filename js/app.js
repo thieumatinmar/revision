@@ -8,6 +8,7 @@ import { el, fill } from './dom.js';
 import { VERSION } from './version.js';
 import { onUserChange, currentUser, signOut } from './auth.js';
 import { seedIfEmpty, migrateLibrary } from './store.js';
+import { refreshSubscription } from './push.js';
 import { ecranConnexion } from './views/connexion.js';
 
 import * as accueil from './views/accueil.js';
@@ -131,6 +132,9 @@ onUserChange(async (user) => {
     } catch (err) {
       console.error('Préparation des données :', err);
     }
+    // Suivre un abonnement push que le navigateur aurait renouvelé. Pas
+    // attendu : l'écran n'en dépend pas, et ça ne doit pas retarder le rendu.
+    refreshSubscription().catch((err) => console.warn('Notification :', err));
   }
   renderRoute();
 });

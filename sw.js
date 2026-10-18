@@ -43,6 +43,7 @@ const COQUE = [
   'js/images.js',
   'js/version.js',
   'js/jours.js',
+  'js/push.js',
   'js/views/accueil.js',
   'js/views/cartes.js',
   'js/views/editeur.js',
@@ -84,6 +85,45 @@ self.addEventListener('fetch', (event) => {
   event.respondWith(
     url.pathname.includes('/vendor/') ? cacheDAbord(req) : reseauDAbord(req)
   );
+});
+
+// ------------------------------------------------- Notification de l'interro
+//
+// Chaque matin, GitHub Actions envoie un Web Push (voir js/push.js pour le
+// chemin complet). Il arrive ici, même app fermée : le service worker est
+// réveillé pour l'occasion. Le message est un petit JSON `{ title, body, url }`,
+// tout facultatif — sans lui, on dit l'essentiel quand même.
+//
+// `tag` : une notification non lue de la veille est **remplacée**, pas empilée.
+
+self.addEventListener('push', (event) => {
+  let msg = {};
+  try { msg = event.data ? event.data.json() : {}; } catch { /* texte brut : on l'ignore */ }
+  event.waitUntil(self.registration.showNotification(msg.title || 'Interro du jour', {
+    body: msg.body || 'Cinq questions t’attendent.',
+    icon: 'icons/icon-192.png',
+    tag: 'interro-du-jour',
+    data: { url: msg.url || '#/interro' },
+  }));
+});
+
+// Un tap sur la notification : on ramène l'app au premier plan, sur l'interro.
+// Si une fenêtre de l'app est déjà ouverte, on la réutilise plutôt que d'en
+// ouvrir une seconde.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const url = new URL(event.notification.data?.url || '#/interro', self.registration.scope).href;
+  event.waitUntil((async () => {
+    const fenetres = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
+    const ouverte = fenetres.find((f) => f.url.startsWith(self.registration.scope));
+    if (ouverte) {
+      await ouverte.focus();
+      // `navigate` n'est permis que sur une fenêtre que ce service worker
+      // contrôle ; à défaut, on en ouvre une neuve.
+      try { return await ouverte.navigate(url); } catch { /* repli ci-dessous */ }
+    }
+    return self.clients.openWindow(url);
+  })());
 });
 
 async function cacheDAbord(req) {

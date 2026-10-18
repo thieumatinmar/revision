@@ -90,6 +90,10 @@ on l'inscrit ici avec sa frontière.
   voisin, libellé français). **Pur**, comme `recherche.js`. La clé est aussi
   l'identifiant Firestore d'une interro : la tâche du PC et l'app doivent
   tomber sur la même chaîne.
+- `js/push.js` — l'abonnement de cet appareil à la notification du matin
+  (Web Push standard, clé publique VAPID en dur). Un seul appareil abonné, le
+  dernier : `localStorage` retient l'endpoint que celui-ci a rangé. Ni DOM ni
+  vue. La réception est dans `sw.js` (`push`, `notificationclick`).
 - `js/raccourcis.js` — les raccourcis clavier d'un écran : **Ctrl+S enregistre
   sans quitter** (`surEnregistrement`), **Ctrl+V colle une image**
   (`surCollageImages`, le texte gagne dans une zone de saisie), **Alt+↑ / Alt+↓

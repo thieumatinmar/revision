@@ -11,6 +11,7 @@
 //                                   images: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
 //   users/{uid}/daily/{AAAA-MM-JJ} { date, questions: [{ theme, question, answer }] }
+//   users/{uid}/push/phone        { subscription, updatedAt }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
 // c'est-à-dire pas encore placée dans son chapitre. Un seul état, une seule
@@ -684,6 +685,26 @@ export async function deleteEntry(id) {
 export async function getDaily(day) {
   const d = await getDoc(ref('daily', day));
   return d.exists() ? toObj(d) : null;
+}
+
+// ------------------------------------------------------------- Notification
+//
+// L'abonnement push de l'appareil qui reçoit la notification du matin, sous un
+// identifiant fixe : **un seul** appareil la reçoit, le dernier abonné. L'app
+// l'écrit (`js/push.js`), la tâche du PC le lit pour le recopier dans les
+// secrets GitHub, d'où part l'envoi.
+//
+//   users/{uid}/push/phone   { subscription: { endpoint, keys }, updatedAt }
+
+/** L'abonnement rangé (`{ endpoint, keys }`), ou `null`. */
+export async function getPushSubscription() {
+  const d = await getDoc(ref('push', 'phone'));
+  return d.exists() ? d.data().subscription || null : null;
+}
+
+/** Range l'abonnement de cet appareil, à la place de celui d'avant. */
+export async function savePushSubscription(subscription) {
+  await setDoc(ref('push', 'phone'), { subscription, updatedAt: new Date().toISOString() });
 }
 
 /**
