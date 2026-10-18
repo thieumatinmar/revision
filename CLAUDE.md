@@ -118,11 +118,12 @@ on l'inscrit ici avec sa frontière.
   `.woff`/`.ttf` ont été retirées (elles n'étaient pas téléchargées → 404).
 - `tools/check.py` — les **gardes** du dépôt (voir *Gardes* plus bas). Aucune
   dépendance, ne lance aucun JavaScript.
-- `tools/interro.py` — la réserve d'interros, côté PC : `status` (jours
-  manquants + historique), `write` (crée, ne remplace jamais), `sync-subscription`
-  (abonnement push → secret GitHub). Outil de la tâche planifiée de l'appli
-  Claude ; parle à Firestore avec le compte de service rangé dans
-  `~/.config/agreg-revision/`, **jamais** dans le dépôt.
+- `tools/interro.py` — distribue la **banque** de questions
+  (`../perso/interro/banque/*.txt`, un fichier par thème, texte délimité) sur le
+  calendrier et écrit toutes les interros d'un coup : `demand` (combien de
+  questions par thème), `plan` (`--dry-run`, `--replace`), `sync-subscription`
+  (abonnement push → secret GitHub). Parle à Firestore avec le compte de
+  service rangé dans `~/.config/agreg-revision/`, **jamais** dans le dépôt.
 - `tools/send_push.py` + `.github/workflows/interro.yml` — la notification du
   matin, envoyée par GitHub Actions (secrets `PUSH_SUBSCRIPTION`,
   `VAPID_PRIVATE_KEY`).

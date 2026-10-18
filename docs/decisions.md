@@ -1423,47 +1423,68 @@ la voisine **dans la liste d'origine** — on continue le chapitre qu'on relisai
 au lieu de suivre la carte là où on vient de l'envoyer. L'écran suivant relit sa
 liste, où la carte partie n'est plus : le compte « 7 / 23 » reste juste.
 
-## Interro du jour : générée sur le PC, annoncée par GitHub Actions
+## Interro du jour : une banque générée d'avance, distribuée sur le calendrier
 
-**Choix** — Chaque jour, une **interro** de cinq questions de cours, avec leur
-réponse. Elles portent sur les thèmes déjà entamés selon le planning de la prépa
-(`../perso/planning-themes-agreg-math-26-27.pdf`), thème en cours compris, avec
-au moins une question d'analyse et une d'algèbre. Trois pièces, découplées :
+**Choix** — Chaque jour, une **interro** de cinq questions avec leur réponse,
+dans un ordre fixe : deux **énoncés piégeux** (un théorème dont tout tient aux
+hypothèses, de préférence en analyse), deux **questions de base** (définition,
+résultat simple mais central, exemple ou contre-exemple), une **démonstration**
+(niveau début d'écrit ou question d'oral). Trois pièces :
 
-- **Génération** — une tâche planifiée de l'appli Claude, sur le PC, tous les
-  jours. Elle tient une **réserve** : une interro pour aujourd'hui et pour chacun
-  des sept jours suivants, et ne crée que les jours manquants. Le périmètre est
-  calculé **pour la date cible**, pas pour le jour où elle tourne. PC fermé →
-  la tâche part à la prochaine ouverture et rattrape. Elle écrit par
-  `tools/interro.py`, avec un compte de service Firebase.
-- **Stockage** — `users/{uid}/daily/{AAAA-MM-JJ}`, que l'app ne fait que lire.
-  La règle publiée le couvre déjà : rien à republier.
-- **Annonce** — un cron GitHub Actions (`.github/workflows/interro.yml`) envoie
-  chaque matin un **Web Push standard** (VAPID) au téléphone, PC allumé ou non.
-  Il ignore si l'interro existe : réserve vide, l'écran le dit.
+- **La banque** — toutes les questions jusqu'à la fin des écrits (05/03/2027),
+  environ 700, générées **une fois** par Claude, en texte délimité, un fichier
+  par thème : `../perso/interro/banque/*.txt`. Chaque question y porte son
+  thème et sa nature. C'est la source : on la relit, on la corrige, on en
+  repart.
+- **La distribution** — `tools/interro.py plan` répartit la banque sur les
+  jours et **écrit d'un coup** toutes les interros, dans
+  `users/{uid}/daily/{AAAA-MM-JJ}`. Un thème ne sort qu'une fois entamé selon
+  le planning de la prépa (`../perso/planning-themes-agreg-math-26-27.pdf`),
+  thème en cours compris ; les thèmes tournent, le moins récemment interrogé
+  d'abord ; chaque jour, au moins une question d'analyse et une d'algèbre. Le
+  PC ne sert qu'à ce moment-là, avec un compte de service Firebase. L'app ne
+  fait que lire.
+- **L'annonce** — un cron GitHub Actions (`.github/workflows/interro.yml`)
+  envoie chaque matin un **Web Push standard** (VAPID) au téléphone, PC allumé
+  ou non. Il ignore si l'interro existe : l'écran le dit.
 
-L'écran est minimal : les cinq questions, le thème de chacune, la réponse cachée
-jusqu'au tap, et les jours passés au bout de flèches. Pas de jour futur (ce
-serait lire la réserve), pas d'auto-évaluation — elle pourra venir sans
-migration, par un champ en plus.
+Les thèmes numérotés du planning (Groupes 1 et 2, Anneaux-corps 1 et 2…) sont
+**fusionnés**, datés de leur première séance : on ne devine pas comment la prépa
+les découpe. La nature d'une question n'est **pas stockée** dans l'interro : sa
+place la dit, et le libellé l'annonce (« Démontrer que… »). L'écran est
+minimal : les cinq questions, le thème de chacune, la réponse cachée jusqu'au
+tap, les jours passés au bout de flèches — jamais un jour futur, qui est
+pourtant déjà écrit. Pas d'auto-évaluation : elle pourra venir sans migration,
+par un champ en plus.
 
-**Alternative écartée** — (a) les questions en JSON dans le dépôt ; (b) une
-seule tâche locale qui génère puis notifie ; (c) une routine cloud ; (d) ntfy, ou
-la notification de Claude ; (e) Firebase Cloud Messaging et son SDK.
+**Alternative écartée** — (a) générer au jour le jour, par une tâche planifiée
+du PC tenant une réserve de sept jours ; (b) faire tirer l'interro par l'app,
+dans une banque rangée dans Firestore ; (c) la banque en JSON ; (d) les
+interros en JSON dans le dépôt ; (e) une routine cloud ; (f) ntfy, ou la
+notification de Claude ; (g) Firebase Cloud Messaging et son SDK.
 
 **Raison** — C'est un retour partiel sur « Retrait du test », qui l'avait
 prévu : la demande est revenue (16/10/2026), sous une autre forme. Ce n'est pas
 un tirage dans le fonds mais une interro courte et générée, qui ne touche à
 aucune carte — la carte reste ce qu'on écrit soi-même.
 
-(a) serait public, ferait un commit par jour, et G3 refuse tout push qui
-n'incrémente pas `VERSION`. (b) supposait le PC ouvert chaque matin, ce qui n'est
-pas le cas — et l'heure exacte de la notif importe peu. La génération exige
-Claude, donc le PC ; l'envoi, non : on sépare ce qui peut tourner ailleurs.
-(c) obligerait à déposer la clé admin Firebase dans le cloud. (d) ajoute une
-appli au téléphone, ou mène à Claude plutôt qu'à l'app. (e) demanderait de
-vendoriser un SDK de plus, alors qu'un Web Push standard se reçoit dans `sw.js`
-sans rien d'autre.
+(a) a d'abord été retenue, puis abandonnée avant d'avoir tourné (18/10/2026).
+Elle supposait le PC ouvert assez souvent, et générait à l'aveugle, un jour
+après l'autre, sans vue d'ensemble — d'où un historique à relire à chaque fois
+pour éviter les doublons. Une banque générée d'un coup se relit, se corrige, se
+répartit équitablement, et ne dépend plus du PC. Le planning de la prépa étant
+connu d'avance, rien n'oblige à tirer au jour le jour : (b) ajoutait du code à
+l'app, et un tirage à rendre sûr quand deux appareils l'ouvrent le même jour,
+pour une souplesse dont on n'a pas besoin. Si le planning bouge, on redistribue
+les jours futurs depuis la banque.
+
+(c) : même raison que « Saisie en lot : jamais JSON » — des centaines de
+réponses pleines de LaTeX traverseraient `json.loads` silencieusement
+corrompues. (d) serait public, et G3 refuse tout push qui n'incrémente pas
+`VERSION`. (e) obligerait à déposer la clé admin Firebase dans le cloud. (f)
+ajoute une appli au téléphone, ou mène à Claude plutôt qu'à l'app. (g)
+demanderait de vendoriser un SDK de plus, alors qu'un Web Push standard se
+reçoit dans `sw.js` sans rien d'autre.
 
 Deux secrets, de deux poids :
 
@@ -1471,9 +1492,11 @@ Deux secrets, de deux poids :
   dans `C:\Users\mathi\.config\agreg-revision\`, **jamais** dans le dossier du
   projet, qui est synchronisé sur Google Drive ;
 - la **clé VAPID privée** et l'**abonnement** du téléphone ne permettent que de
-  notifier ce téléphone : ils peuvent vivre dans les secrets GitHub. L'app range
-  l'abonnement dans `users/{uid}/push/phone`, et la tâche du PC le recopie dans
-  GitHub quand il a changé — ce qui suit aussi un renouvellement par Chrome.
+  notifier ce téléphone : ils vivent dans les secrets GitHub. L'app range
+  l'abonnement dans `users/{uid}/push/phone`, et `interro.py
+  sync-subscription` le recopie dans GitHub. Sans tâche quotidienne, ce n'est
+  plus automatique : si Chrome renouvelle l'abonnement, l'envoi échoue, GitHub
+  prévient par mail, et on relance la commande.
 
 Piège connu : sur un dépôt public, GitHub désactive un cron après 60 jours sans
 commit (en prévenant par mail).

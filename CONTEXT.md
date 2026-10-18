@@ -206,10 +206,12 @@ _Éviter_: référence, bibliographie, livre (une source n'est pas toujours un l
 ## L'interro du jour
 
 **Interro du jour** :
-Cinq questions de cours posées chaque jour, sur les thèmes déjà entamés. Elle
-n'est écrite ni par l'utilisateur ni à partir de ses cartes : elle est
-**générée**, et ne fait pas partie du fonds. On lit une question, on cherche, puis
-on dévoile la réponse ; rien n'est noté. Une interro par jour, ni plus ni moins.
+Cinq questions posées chaque jour, sur les thèmes déjà entamés, toujours dans le
+même ordre : deux **énoncés piégeux**, deux **questions de base**, une
+**démonstration**. Elle n'est écrite ni par l'utilisateur ni à partir de ses
+cartes : elle est **générée**, et ne fait pas partie du fonds. On lit une
+question, on cherche, puis on dévoile la réponse ; rien n'est noté. Une interro
+par jour, ni plus ni moins.
 _Code_: `daily`, route `#/interro`
 _Éviter_: quiz, test, tirage (le mot de la fonctionnalité retirée), série
 
@@ -220,17 +222,47 @@ elle ne se modifie pas, ne se range pas, ne se déplace pas.
 _Code_: `question` — `{ theme, question, answer }`
 _Éviter_: carte, recto, verso (ce sont les mots de la carte)
 
+**Énoncé piégeux** :
+Une question sur un théorème dont tout le poids est dans les hypothèses — on
+le cite de travers dès qu'on en oublie une. La réponse donne l'énoncé exact, et
+ce qui casse quand une hypothèse saute. Questions 1 et 2 d'une interro.
+_Code_: nature `piege` dans la banque ; dans l'interro, sa place (1 et 2)
+_Éviter_: question piège (rien n'y est caché), théorème difficile
+
+**Question de base** :
+Une définition, ou un résultat simple mais central, ou un exemple ou un
+contre-exemple à produire. Questions 3 et 4 d'une interro.
+_Code_: nature `base` dans la banque ; dans l'interro, sa place (3 et 4)
+_Éviter_: question facile, question de cours (toutes le sont)
+
+**Démonstration** *(dans une interro)* :
+Une preuve à refaire, du niveau d'une première question d'écrit ou d'une
+question d'oral : ni triviale ni longue. La réponse en donne l'idée, le plan et
+les étapes justifiées. Question 5 d'une interro.
+_Code_: nature `demonstration` dans la banque ; dans l'interro, sa place (5)
+_Éviter_: développement (c'est un mot de l'oral, et plus long), exercice
+
 **Thème** :
-Un bloc du planning de la prépa : deux semaines sur un sujet, côté analyse ou
-côté algèbre — « Calcul différentiel », « Groupes 1 ». Un thème est **entamé**
-dès sa date de début, et le reste. Ce n'est pas une catégorie : les catégories
-suivent les titres du programme, les thèmes suivent le calendrier de la prépa.
+Un sujet du planning de la prépa, côté analyse ou côté algèbre — « Calcul
+différentiel », « Groupes ». Les séances numérotées du planning (Groupes 1 et 2)
+forment **un seul** thème, daté de la première. Un thème est **entamé** dès sa
+date de début, et le reste. Ce n'est pas une catégorie : les catégories suivent
+les titres du programme, les thèmes suivent le calendrier de la prépa.
 _Code_: `theme`
 _Éviter_: chapitre, catégorie, titre (trois mots déjà pris), bloc, séquence
 
-**Réserve** :
-Les interros déjà générées pour les jours à venir — aujourd'hui et les sept
-suivants. Elle se remplit quand le PC est ouvert, et se vide d'un jour chaque
-jour. Vide, il n'y a pas d'interro : rien ne la remplace.
-_Code_: les documents `daily` datés d'aujourd'hui ou après
-_Éviter_: stock, file, tampon, cache
+**Banque** :
+Toutes les questions des interros à venir, générées d'un coup jusqu'à la fin des
+écrits et rangées par thème. Chaque question y porte son thème et sa nature. La
+banque est **distribuée** sur le calendrier une fois pour toutes : chaque jour
+reçoit son interro d'avance. Si le planning de la prépa bouge, on redistribue
+les jours à venir.
+_Code_: un fichier par thème, distribué par `interro.py plan`
+_Éviter_: réserve (l'idée abandonnée d'un stock de sept jours), stock, base
+(c'est la question de base), pool
+
+**Nature** :
+Ce qu'une question demande : un énoncé piégeux, une question de base, ou une
+démonstration. Elle décide de la place de la question dans l'interro.
+_Code_: `nature` — `piege`, `base`, `demonstration` (dans la banque seulement)
+_Éviter_: type, espèce (c'est le mot des entrées), catégorie, genre
