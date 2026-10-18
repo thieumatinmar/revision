@@ -118,6 +118,14 @@ on l'inscrit ici avec sa frontière.
   `.woff`/`.ttf` ont été retirées (elles n'étaient pas téléchargées → 404).
 - `tools/check.py` — les **gardes** du dépôt (voir *Gardes* plus bas). Aucune
   dépendance, ne lance aucun JavaScript.
+- `tools/interro.py` — la réserve d'interros, côté PC : `status` (jours
+  manquants + historique), `write` (crée, ne remplace jamais), `sync-subscription`
+  (abonnement push → secret GitHub). Outil de la tâche planifiée de l'appli
+  Claude ; parle à Firestore avec le compte de service rangé dans
+  `~/.config/agreg-revision/`, **jamais** dans le dépôt.
+- `tools/send_push.py` + `.github/workflows/interro.yml` — la notification du
+  matin, envoyée par GitHub Actions (secrets `PUSH_SUBSCRIPTION`,
+  `VAPID_PRIVATE_KEY`).
 - `.githooks/pre-push` — déclenche les gardes avant chaque `git push`. Seul point
   de contrôle capable d'arrêter un déploiement, Pages publiant depuis `main`.
 - `.github/workflows/gardes.yml` — les mêmes gardes en rattrapage côté GitHub.

@@ -1,0 +1,40 @@
+# Interro du jour — la notification du matin.
+#
+# La génération des questions tourne sur le PC (tâche planifiée de l'appli
+# Claude, `tools/interro.py`) ; l'annonce, elle, part d'ici, pour arriver même
+# les jours où le PC reste fermé. Voir docs/decisions.md, « Interro du jour ».
+#
+# Deux secrets (Settings → Secrets and variables → Actions) :
+#   PUSH_SUBSCRIPTION   recopié depuis Firestore par `interro.py sync-subscription`
+#   VAPID_PRIVATE_KEY   la clé privée VAPID, en PEM (posée une fois, à la main)
+#
+# Piège : sur un dépôt public, GitHub désactive un cron après 60 jours sans
+# commit — il prévient par mail ; le bouton « Enable workflow » le relance.
+
+name: Interro du jour
+
+on:
+  schedule:
+    # Heure UTC : 6 h 17 = 7 h 17 l'hiver, 8 h 17 l'été à Paris. Une minute
+    # « bizarre » plutôt que l'heure pile, où GitHub engorge et retarde le plus.
+    - cron: '17 6 * * *'
+  workflow_dispatch:        # pour tester à la main depuis l'onglet Actions
+
+jobs:
+  notifier:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Installer pywebpush
+        run: pip install pywebpush==2.5.0
+
+      - name: Envoyer la notification
+        run: python tools/send_push.py
+        env:
+          PUSH_SUBSCRIPTION: ${{ secrets.PUSH_SUBSCRIPTION }}
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
