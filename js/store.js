@@ -10,6 +10,7 @@
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
 //                                   images: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
+//   users/{uid}/daily/{AAAA-MM-JJ} { date, questions: [{ theme, question, answer }] }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
 // c'est-à-dire pas encore placée dans son chapitre. Un seul état, une seule
@@ -667,6 +668,22 @@ export async function saveEntry(entry) {
 
 export async function deleteEntry(id) {
   await deleteDoc(ref('library', id));
+}
+
+// ---------------------------------------------------------- Interro du jour
+//
+// Une interro par jour, rangée sous sa date : `daily/2026-10-16`. La date est
+// l'identifiant, donc lire un jour est un `getDoc` — ni requête, ni index.
+//
+// L'app **ne fait que lire**. C'est la tâche planifiée du PC qui écrit
+// (`tools/interro.py`, avec un compte de service, qui passe outre les règles) :
+// une interro est générée, on ne la modifie pas. Voir docs/decisions.md,
+// « Interro du jour ».
+
+/** L'interro du jour `day` (clé `AAAA-MM-JJ`), ou `null` s'il n'y en a pas. */
+export async function getDaily(day) {
+  const d = await getDoc(ref('daily', day));
+  return d.exists() ? toObj(d) : null;
 }
 
 /**

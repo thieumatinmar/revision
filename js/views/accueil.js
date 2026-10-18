@@ -57,4 +57,14 @@ export async function render(ctx) {
             + `${entrees[DEFINITION]} définition${entrees[DEFINITION] > 1 ? 's' : ''}`),
     ),
   );
+
+  // L'interro du jour : un troisième rayon, qui n'est pas du fonds — elle est
+  // générée, pas écrite. On n'y lit rien d'ici (pas même s'il y en a une) :
+  // l'accueil reste à quelques requêtes, et l'écran de l'interro le dit lui-même.
+  ctx.root.append(
+    el('a', { class: 'bloc-bibliotheque bloc-interro', href: '#/interro' },
+      el('div', { class: 'name' }, 'Interro du jour'),
+      el('div', { class: 'small muted' }, 'cinq questions sur les thèmes déjà vus'),
+    ),
+  );
 }

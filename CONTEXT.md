@@ -202,3 +202,35 @@ et **propre au théorème** : une définition n'en porte pas, parce qu'on ne
 démontre pas une définition.
 _Code_: `source`
 _Éviter_: référence, bibliographie, livre (une source n'est pas toujours un livre), preuve
+
+## L'interro du jour
+
+**Interro du jour** :
+Cinq questions de cours posées chaque jour, sur les thèmes déjà entamés. Elle
+n'est écrite ni par l'utilisateur ni à partir de ses cartes : elle est
+**générée**, et ne fait pas partie du fonds. On lit une question, on cherche, puis
+on dévoile la réponse ; rien n'est noté. Une interro par jour, ni plus ni moins.
+_Code_: `daily`, route `#/interro`
+_Éviter_: quiz, test, tirage (le mot de la fonctionnalité retirée), série
+
+**Question** :
+Un des cinq éléments d'une interro : ce qui est demandé, son thème, et la
+réponse, cachée tant qu'on ne la demande pas. Une question n'est pas une carte :
+elle ne se modifie pas, ne se range pas, ne se déplace pas.
+_Code_: `question` — `{ theme, question, answer }`
+_Éviter_: carte, recto, verso (ce sont les mots de la carte)
+
+**Thème** :
+Un bloc du planning de la prépa : deux semaines sur un sujet, côté analyse ou
+côté algèbre — « Calcul différentiel », « Groupes 1 ». Un thème est **entamé**
+dès sa date de début, et le reste. Ce n'est pas une catégorie : les catégories
+suivent les titres du programme, les thèmes suivent le calendrier de la prépa.
+_Code_: `theme`
+_Éviter_: chapitre, catégorie, titre (trois mots déjà pris), bloc, séquence
+
+**Réserve** :
+Les interros déjà générées pour les jours à venir — aujourd'hui et les sept
+suivants. Elle se remplit quand le PC est ouvert, et se vide d'un jour chaque
+jour. Vide, il n'y a pas d'interro : rien ne la remplace.
+_Code_: les documents `daily` datés d'aujourd'hui ou après
+_Éviter_: stock, file, tampon, cache

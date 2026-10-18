@@ -86,6 +86,10 @@ on l'inscrit ici avec sa frontière.
   n'interroge pas. **Seul endroit** où vivent les libellés d'espèce.
 - `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
   ni stockage.
+- `js/jours.js` — les jours de l'interro, en clé `AAAA-MM-JJ` (jour local,
+  voisin, libellé français). **Pur**, comme `recherche.js`. La clé est aussi
+  l'identifiant Firestore d'une interro : la tâche du PC et l'app doivent
+  tomber sur la même chaîne.
 - `js/raccourcis.js` — les raccourcis clavier d'un écran : **Ctrl+S enregistre
   sans quitter** (`surEnregistrement`), **Ctrl+V colle une image**
   (`surCollageImages`, le texte gagne dans une zone de saisie), **Alt+↑ / Alt+↓
@@ -101,7 +105,8 @@ on l'inscrit ici avec sa frontière.
   Oriente, ne calcule pas.
 - `js/views/` — un fichier par écran (`accueil`, `cartes`, `editeur`),
   plus `bibliotheque`, `entree_detail` et `editeur_entree` (le rayon des
-  théorèmes et des définitions), et `connexion.js` qui n'est pas une route : la
+  théorèmes et des définitions), `interro` (l'interro du jour, en lecture
+  seule), et `connexion.js` qui n'est pas une route : la
   coque l'affiche à la place de tout le reste tant que personne n'est connecté.
 - `vendor/katex/` — KaTeX vendorisé (script, CSS, 20 polices woff2). Jamais de
   CDN : une PWA hors ligne ne peut pas aller chercher son moteur de rendu

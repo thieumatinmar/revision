@@ -17,6 +17,7 @@ import * as chapitres from './views/chapitres.js';
 import * as bibliotheque from './views/bibliotheque.js';
 import * as entree from './views/entree_detail.js';
 import * as editeurEntree from './views/editeur_entree.js';
+import * as interro from './views/interro.js';
 
 // L'ordre compte : la première expression qui correspond gagne. « nouvelle » est
 // placée avant la route générique d'édition pour que l'intention soit lisible
@@ -36,6 +37,9 @@ const ROUTES = [
   { path: /^\/entree\/nouveau\/(theoreme|definition)$/, view: editeurEntree, title: 'Nouvelle entrée', mode: 'creation' },
   { path: /^\/entree\/([^/]+)\/editer$/,     view: editeurEntree, title: 'Modifier',       mode: 'edition' },
   { path: /^\/entree\/([^/]+)$/,             view: entree,        title: 'Entrée' },
+  // La date est facultative : sans elle, c'est aujourd'hui — l'adresse de la
+  // notification. La vue vérifie que la date existe et n'est pas future.
+  { path: /^\/interro(?:\/(\d{4}-\d{2}-\d{2}))?$/, view: interro, title: 'Interro du jour' },
 ];
 
 const mount = document.getElementById('view');

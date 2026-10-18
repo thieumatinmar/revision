@@ -1422,3 +1422,58 @@ si l'on change le chapitre d'une carte en cours de parcours, « suivante » mèn
 la voisine **dans la liste d'origine** — on continue le chapitre qu'on relisait,
 au lieu de suivre la carte là où on vient de l'envoyer. L'écran suivant relit sa
 liste, où la carte partie n'est plus : le compte « 7 / 23 » reste juste.
+
+## Interro du jour : générée sur le PC, annoncée par GitHub Actions
+
+**Choix** — Chaque jour, une **interro** de cinq questions de cours, avec leur
+réponse. Elles portent sur les thèmes déjà entamés selon le planning de la prépa
+(`../perso/planning-themes-agreg-math-26-27.pdf`), thème en cours compris, avec
+au moins une question d'analyse et une d'algèbre. Trois pièces, découplées :
+
+- **Génération** — une tâche planifiée de l'appli Claude, sur le PC, tous les
+  jours. Elle tient une **réserve** : une interro pour aujourd'hui et pour chacun
+  des sept jours suivants, et ne crée que les jours manquants. Le périmètre est
+  calculé **pour la date cible**, pas pour le jour où elle tourne. PC fermé →
+  la tâche part à la prochaine ouverture et rattrape. Elle écrit par
+  `tools/interro.py`, avec un compte de service Firebase.
+- **Stockage** — `users/{uid}/daily/{AAAA-MM-JJ}`, que l'app ne fait que lire.
+  La règle publiée le couvre déjà : rien à republier.
+- **Annonce** — un cron GitHub Actions (`.github/workflows/interro.yml`) envoie
+  chaque matin un **Web Push standard** (VAPID) au téléphone, PC allumé ou non.
+  Il ignore si l'interro existe : réserve vide, l'écran le dit.
+
+L'écran est minimal : les cinq questions, le thème de chacune, la réponse cachée
+jusqu'au tap, et les jours passés au bout de flèches. Pas de jour futur (ce
+serait lire la réserve), pas d'auto-évaluation — elle pourra venir sans
+migration, par un champ en plus.
+
+**Alternative écartée** — (a) les questions en JSON dans le dépôt ; (b) une
+seule tâche locale qui génère puis notifie ; (c) une routine cloud ; (d) ntfy, ou
+la notification de Claude ; (e) Firebase Cloud Messaging et son SDK.
+
+**Raison** — C'est un retour partiel sur « Retrait du test », qui l'avait
+prévu : la demande est revenue (16/10/2026), sous une autre forme. Ce n'est pas
+un tirage dans le fonds mais une interro courte et générée, qui ne touche à
+aucune carte — la carte reste ce qu'on écrit soi-même.
+
+(a) serait public, ferait un commit par jour, et G3 refuse tout push qui
+n'incrémente pas `VERSION`. (b) supposait le PC ouvert chaque matin, ce qui n'est
+pas le cas — et l'heure exacte de la notif importe peu. La génération exige
+Claude, donc le PC ; l'envoi, non : on sépare ce qui peut tourner ailleurs.
+(c) obligerait à déposer la clé admin Firebase dans le cloud. (d) ajoute une
+appli au téléphone, ou mène à Claude plutôt qu'à l'app. (e) demanderait de
+vendoriser un SDK de plus, alors qu'un Web Push standard se reçoit dans `sw.js`
+sans rien d'autre.
+
+Deux secrets, de deux poids :
+
+- le **compte de service** est une clé admin de tout le projet Firebase. Il vit
+  dans `C:\Users\mathi\.config\agreg-revision\`, **jamais** dans le dossier du
+  projet, qui est synchronisé sur Google Drive ;
+- la **clé VAPID privée** et l'**abonnement** du téléphone ne permettent que de
+  notifier ce téléphone : ils peuvent vivre dans les secrets GitHub. L'app range
+  l'abonnement dans `users/{uid}/push/phone`, et la tâche du PC le recopie dans
+  GitHub quand il a changé — ce qui suit aussi un renouvellement par Chrome.
+
+Piège connu : sur un dépôt public, GitHub désactive un cron après 60 jours sans
+commit (en prévenant par mail).

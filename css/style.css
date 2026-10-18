@@ -181,6 +181,9 @@ button:active, .btn:active { transform: translateY(1px); }
   color: inherit;
 }
 .bloc-bibliotheque .name { font-weight: 550; }
+/* L'interro suit la bibliothèque : même habillage, mais collée à elle — deux
+   rayons « à côté des chapitres », pas deux blocs isolés. */
+.bloc-bibliotheque + .bloc-interro { margin-top: 10px; }
 
 .count {
   min-width: 26px;
@@ -254,6 +257,21 @@ button:active, .btn:active { transform: translateY(1px); }
    de la liste plutôt que retirés — la barre garde sa forme d'une carte à
    l'autre ; sans ce style, un bouton désactivé ne se distingue de l'autre que
    par l'absence de réaction. */
+/* ------------------------------------------------------- L'interro du jour */
+
+/* ‹ jour › : les flèches à leur taille, le jour au milieu. Grisée sur
+   aujourd'hui, la flèche « suivant » reste en place. */
+.nav-jours { margin-bottom: 14px; }
+.nav-jours .btn { min-width: 44px; font-size: 1.15rem; }
+.nav-jours .btn:disabled { opacity: .35; cursor: default; }
+.nav-jours .jour { flex: 1; text-align: center; font-weight: 550; }
+
+.interro { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 14px; }
+/* Une question n'a pas la hauteur d'une carte : elle se lit en enfilade, et
+   cinq blocs de 160 px centrés verticalement feraient défiler pour rien. */
+.interro .card-face { min-height: 0; justify-content: flex-start; padding: 16px; }
+.actions-question { margin-top: 14px; }
+
 .actions > .nav-voisine { flex: 0 0 auto; min-width: 44px; font-size: 1.15rem; }
 .nav-voisine:disabled { opacity: .35; cursor: default; }
 .nav-voisine:disabled:active { transform: none; }
