@@ -105,12 +105,31 @@ function navigation(ctx, day, today) {
 }
 
 /**
+ * Ce que « Copier » met dans le presse-papiers : le thème, l'énoncé et la
+ * réponse en **source brute** (texte + LaTeX `$…$`), pas le rendu.
+ *
+ * Pourquoi la source : c'est elle qui se colle sans perte, dans Claude (qui lit
+ * le LaTeX) comme dans l'éditeur de carte (qui le rend). Le texte rendu par
+ * KaTeX, lui, aplatit fractions et indices en une suite de caractères illisible.
+ */
+function texteACopier(q) {
+  return [
+    q.theme && `Thème : ${q.theme}`,
+    `Énoncé :\n${q.question || ''}`,
+    `Réponse :\n${q.answer || ''}`,
+  ].filter(Boolean).join('\n\n');
+}
+
+/**
  * Une question : son numéro et son thème, l'énoncé, puis la réponse derrière
- * un bouton.
+ * un bouton, et un bouton pour copier le tout.
  *
  * La réponse est montée d'emblée et seulement **cachée** (`hidden`) : la
  * révéler ne relit rien et ne recompose pas le LaTeX. Le bouton bascule — on
  * peut la recacher pour se reposer la question.
+ *
+ * « Copier » emporte la réponse même cachée : copier n'affiche rien, l'écran
+ * ne la dévoile pas pour autant.
  */
 function question(q, i) {
   const reponse = el('div', { class: 'reponse', hidden: true },
@@ -126,10 +145,26 @@ function question(q, i) {
     } },
   }, 'Voir la réponse');
 
+  // `navigator.clipboard` n'existe qu'en contexte sûr (https, localhost) — c'est
+  // le cas en ligne comme en local. Ailleurs, l'appel lève : on le dit.
+  const copier = el('button', {
+    class: 'btn btn-sm btn-ghost',
+    on: { click: async () => {
+      try {
+        await navigator.clipboard.writeText(texteACopier(q));
+        copier.textContent = 'Copié ✓';
+        setTimeout(() => { copier.textContent = 'Copier'; }, 2000);
+      } catch (err) {
+        console.error(err);
+        alert('Copie impossible : ' + err.message);
+      }
+    } },
+  }, 'Copier');
+
   return el('li', { class: 'card-face' },
     el('div', { class: 'face-label' }, q.theme ? `${i + 1} · ${q.theme}` : `${i + 1}`),
     renderMath(el('div'), q.question || ''),
-    el('div', { class: 'actions-question' }, bouton),
+    el('div', { class: 'row actions-question' }, bouton, copier),
     reponse,
   );
 }
