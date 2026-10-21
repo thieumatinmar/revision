@@ -1,5 +1,5 @@
 // views/cartes.js — les cartes d'une catégorie (chapitre ou sous-chapitre) :
-// relire, chercher, ouvrir, créer, dupliquer, ordonner, déplacer.
+// relire, chercher, ouvrir, créer, dupliquer, ordonner, déplacer, supprimer.
 //
 // La recherche filtre sans repasser par le routeur : elle doit répondre à chaque
 // frappe, et rien n'a changé en base entre deux caractères tapés.
@@ -35,7 +35,7 @@ import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listChapters, flattenChapters, listCards, listCardsUnder, moveCard, setCardsOrder,
-  isPlaced, duplicateCard, setCategoryBooks,
+  isPlaced, duplicateCard, deleteCard, setCategoryBooks,
 } from '../store.js';
 
 /**
@@ -302,6 +302,15 @@ export async function render(ctx) {
         disabled: destinationsDe(card).length === 0,
         on: { click: () => { deplacementDe = deplacementDe === card.id ? null : card.id; annonce = null; paint(); } },
       }, '⇄'),
+
+      // En dernier, loin des flèches qu'on presse en rafale. Même signe et même
+      // couleur que sur l'écran Chapitres.
+      el('button', {
+        class: 'btn-sm',
+        style: 'color:#e8695f',
+        title: 'Supprimer cette carte',
+        on: { click: (ev) => supprimer(card, ev.currentTarget) },
+      }, '×'),
     );
 
     if (deplacementDe !== card.id) return [item];
@@ -368,6 +377,41 @@ export async function render(ctx) {
       annonce = 'Duplication impossible : ' + err.message;
     }
     deplacementDe = null;
+    paint();
+  }
+
+  /**
+   * Supprime une carte, après confirmation. Il n'y a pas de corbeille : une
+   * carte effacée est perdue.
+   *
+   * La question **nomme** la carte (titre, à défaut début du recto) : depuis une
+   * liste, l'erreur à rattraper est la mauvaise ligne, et le nom la fait voir.
+   * `confirm` n'affiche que du texte, d'où `stripMath`.
+   *
+   * Pas de réponse optimiste, comme pour `dupliquer` : si l'écriture échoue, la
+   * carte doit rester à l'écran. Le bouton est désactivé pendant l'appel.
+   *
+   * La suppression laisse un trou dans les positions en base, comme depuis
+   * l'éditeur. Il est sans effet (le tri compare des valeurs) et disparaît au
+   * prochain `setCardsOrder`. En mémoire, on renumérote, comme `replacer`.
+   */
+  async function supprimer(card, bouton) {
+    const nom = excerpt(stripMath(card.title || card.front), 80);
+    if (!confirm(`Supprimer définitivement « ${nom} » ?`)) return;
+    bouton.disabled = true;
+    try {
+      await deleteCard(card.id);
+      for (const zone of [rangees, nonRangees, autres]) {
+        const i = zone.indexOf(card);
+        if (i >= 0) zone.splice(i, 1);
+      }
+      renumeroter();
+      annonce = 'Carte supprimée.';
+    } catch (err) {
+      bouton.disabled = false;
+      annonce = 'Suppression impossible : ' + err.message;
+    }
+    if (deplacementDe === card.id) deplacementDe = null;
     paint();
   }
 
