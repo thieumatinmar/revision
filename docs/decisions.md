@@ -1500,3 +1500,23 @@ Deux secrets, de deux poids :
 
 Piège connu : sur un dépôt public, GitHub désactive un cron après 60 jours sans
 commit (en prévenant par mail).
+
+## Quitter l'éditeur sans perdre la saisie
+
+**Choix** — Dans l'éditeur de cartes, **Échap** ramène à la liste du chapitre,
+en création comme en modification. Même règle que ‹ et › : ce qui a été modifié
+est enregistré d'abord — rien de modifié, rien d'écrit — et un échec (recto
+vide, réseau) retient sur l'écran, message affiché. Échap marche partout, zone
+de saisie comprise. *Annuler* reste le seul geste qui jette.
+
+**Alternative écartée** — (a) Échap qui jette, comme *Annuler* ; (b) une
+confirmation ; (c) Retour arrière hors zone de saisie, en second raccourci ;
+(d) Ctrl+Entrée.
+
+**Raison** — Un raccourci se frappe par réflexe : s'il jetait (a), une touche
+effacerait dix minutes de saisie. Avec cette règle, les gestes clavier de
+l'éditeur — Ctrl+S, Alt+↑ / Alt+↓, Échap — tiennent tous la même promesse : rien
+ne se perd. (b) casserait le rythme, pour la raison déjà donnée pour les
+voisines. (c) ne marcherait que hors champ, où l'on n'est presque jamais, et
+doublerait un geste qui marche partout. (d) évoque « valider », ce que fait déjà
+*Enregistrer*.

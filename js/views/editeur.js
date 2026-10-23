@@ -21,12 +21,16 @@
 // En modification, ‹ et › (ou Alt+↑ / Alt+↓) passent à la **voisine** — la
 // carte d'avant ou d'après dans sa catégorie — en enregistrant d'abord ce qui a
 // été modifié (docs/decisions.md, « Passer d'une carte à sa voisine »).
+//
+// Échap ramène à la liste, selon la même règle : ce qui a été modifié est
+// enregistré d'abord. Seul *Annuler* jette (docs/decisions.md, « Quitter
+// l'éditeur sans perdre la saisie »).
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
 import { excerpt, stripMath } from '../mathtext.js';
 import { getCard, saveCard, deleteCard, listChapters, flattenChapters, listCards } from '../store.js';
-import { surEnregistrement, surCollageImages, surNavigation } from '../raccourcis.js';
+import { surEnregistrement, surCollageImages, surNavigation, surSortie } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
 /**
@@ -260,6 +264,11 @@ export async function render(ctx) {
       suivante: () => passer(suivante),
     });
   }
+
+  // Échap ramène à la liste, création comprise. Il enregistre d'abord, comme ‹
+  // et › — jamais il ne jette comme *Annuler* : une touche frappée par réflexe
+  // ne doit pas pouvoir effacer dix minutes de saisie.
+  surSortie(ctx.root, () => sortir());
 
   // Ctrl+V d'une image (capture d'écran…) l'ajoute aux images, où que soit le
   // focus. La réponse passe par le **témoin** et non par le seul champ Images :
@@ -514,11 +523,22 @@ export async function render(ctx) {
   }
 
   /**
-   * Passe à une voisine. Ce qui a été modifié est enregistré d'abord — le geste
-   * réel est « je relis, je corrige, je passe », et une confirmation à chaque
-   * carte corrigée casserait ce rythme. Rien de modifié, rien d'écrit : un
-   * parcours en simple lecture ne touche pas la base. Si l'écriture échoue
-   * (recto vide, réseau), on reste : `enregistrer` a déjà affiché pourquoi.
+   * La règle commune aux sorties qui ne jettent rien (‹, ›, Échap) : ce qui a
+   * été modifié est enregistré d'abord. Rien de modifié, rien d'écrit — un
+   * parcours en simple lecture ne touche pas la base.
+   *
+   * @returns {Promise<boolean>} vrai si l'on peut partir. Faux si l'écriture a
+   *   échoué (recto vide, réseau) : on reste, `enregistrer` a déjà dit pourquoi.
+   */
+  async function aJour() {
+    if (signature() === enBase) return true;
+    return enregistrer({ rester: true });
+  }
+
+  /**
+   * Passe à une voisine, après `aJour` — le geste réel est « je relis, je
+   * corrige, je passe », et une confirmation à chaque carte corrigée casserait
+   * ce rythme.
    *
    * `location.replace` et non `location.hash = …` : le passage **remplace**
    * l'entrée d'historique. Le retour du navigateur ramène donc à la liste, comme
@@ -526,8 +546,22 @@ export async function render(ctx) {
    */
   async function passer(voisine) {
     if (!voisine || enCours) return;
-    if (signature() !== enBase && !(await enregistrer({ rester: true }))) return;
+    if (!(await aJour())) return;
     location.replace(`#/carte/${voisine.id}`);
+  }
+
+  /**
+   * Revient à la liste du chapitre (Échap), après `aJour`. C'est *Enregistrer*
+   * sans l'écriture inutile, pas *Annuler*.
+   *
+   * `retour` est lu **après** l'écriture : elle a pu changer le chapitre de la
+   * carte, et c'est dans le nouveau qu'on veut la retrouver. `location.hash`,
+   * comme les deux boutons du bas qui mènent au même endroit.
+   */
+  async function sortir() {
+    if (enCours) return;
+    if (!(await aJour())) return;
+    location.hash = retour;
   }
 
   async function supprimer() {

@@ -97,8 +97,9 @@ on l'inscrit ici avec sa frontière.
 - `js/raccourcis.js` — les raccourcis clavier d'un écran : **Ctrl+S enregistre
   sans quitter** (`surEnregistrement`), **Ctrl+V colle une image**
   (`surCollageImages`, le texte gagne dans une zone de saisie), **Alt+↑ / Alt+↓
-  passent à la carte voisine** (`surNavigation`). Il ne sait pas ce qu'il
-  enregistre, où vont les images ni où mène la voisine — on lui passe l'action.
+  passent à la carte voisine** (`surNavigation`), **Échap quitte l'écran**
+  (`surSortie`). Il ne sait pas ce qu'il enregistre, où vont les images ni où
+  mène la voisine ou la sortie — on lui passe l'action.
   Ni store, ni DOM construit, ni vue.
 - `js/carte.js` — **composant** : monte une carte (`faceCarte(card, { hint, back })`)
   et rien d'autre. Ni une vue (aucune route, aucun accès au store), ni un helper

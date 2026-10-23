@@ -1,6 +1,6 @@
 // raccourcis.js — les raccourcis clavier d'un écran.
 //
-// Trois aujourd'hui :
+// Quatre aujourd'hui :
 //   - **Ctrl+S enregistre sans quitter l'écran**. Le bouton *Enregistrer*
 //     enregistre **et** part ; les deux gestes coexistent, et c'est voulu
 //     (docs/decisions.md, « Enregistrer sans quitter »).
@@ -8,6 +8,8 @@
 //     « Coller une image dans une carte »).
 //   - **Alt+↑ / Alt+↓ passent à la carte voisine** (docs/decisions.md,
 //     « Passer d'une carte à sa voisine »).
+//   - **Échap quitte l'écran** (docs/decisions.md, « Quitter l'éditeur sans
+//     perdre la saisie »).
 //
 // Frontière : ce fichier touche au clavier et au presse-papiers, rien d'autre.
 // Ni store, ni DOM construit, ni vue. Il ne sait pas ce qu'il enregistre ni où
@@ -100,6 +102,33 @@ export function surNavigation(root, { precedente, suivante }) {
 
     ev.preventDefault();
     (ev.key === 'ArrowUp' ? precedente : suivante)();
+  });
+}
+
+/**
+ * Pose Échap sur l'écran dont `root` est la racine : quitter l'écran.
+ *
+ * Échap marche **partout**, zone de saisie comprise : dans un champ de texte,
+ * elle n'a aucun rôle natif qu'on lui volerait. Ce que « quitter » veut dire —
+ * enregistrer d'abord ou non, aller où — c'est à l'appelant de le dire.
+ *
+ * Exclusions :
+ *   - un modificateur enfoncé : Ctrl+Échap, Maj+Échap… sont d'autres gestes.
+ *   - la touche maintenue (`repeat`) : une pression, une sortie.
+ *   - une composition en cours (`isComposing`) : Échap y abandonne l'accent
+ *     mort ou la saisie IME. C'est une correction de frappe, pas une sortie.
+ *
+ * @param {HTMLElement} root  la racine de l'écran
+ * @param {() => void} action ce que sortir veut dire pour cet écran
+ */
+export function surSortie(root, action) {
+  ecouteEcran(root, 'keydown', (ev) => {
+    if (ev.key !== 'Escape') return;
+    if (ev.ctrlKey || ev.altKey || ev.shiftKey || ev.metaKey) return;
+    if (ev.repeat || ev.isComposing) return;
+
+    ev.preventDefault();
+    action();
   });
 }
 
