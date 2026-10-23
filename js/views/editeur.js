@@ -25,11 +25,16 @@
 // Échap ramène à la liste, selon la même règle : ce qui a été modifié est
 // enregistré d'abord. Seul *Annuler* jette (docs/decisions.md, « Quitter
 // l'éditeur sans perdre la saisie »).
+//
+// ⧉ duplique la carte et ouvre la copie, toujours après avoir enregistré ce qui
+// a été modifié (docs/decisions.md, « Dupliquer une carte »).
 
 import { el, fill } from '../dom.js';
 import { faceCarte } from '../carte.js';
 import { excerpt, stripMath } from '../mathtext.js';
-import { getCard, saveCard, deleteCard, listChapters, flattenChapters, listCards } from '../store.js';
+import {
+  getCard, saveCard, duplicateCard, deleteCard, listChapters, flattenChapters, listCards,
+} from '../store.js';
 import { surEnregistrement, surCollageImages, surNavigation, surSortie } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
 
@@ -109,7 +114,16 @@ export async function render(ctx) {
     on: { click: () => copierLien() },
   }, '🔗 Lien');
 
-  ctx.setHeader(retourHaut, el('span', { class: 'entete-actions' }, copier, bascule));
+  // Dupliquer : même signe que sur la ligne de la liste, puisque c'est le même
+  // geste. Même attente que le lien — on ne copie pas une carte qui n'existe pas.
+  const dupliquerBouton = el('button', {
+    class: 'btn btn-sm',
+    title: 'Dupliquer cette carte et ouvrir la copie',
+    on: { click: () => dupliquer() },
+  }, '⧉');
+
+  ctx.setHeader(retourHaut,
+    el('span', { class: 'entete-actions' }, dupliquerBouton, copier, bascule));
 
   // --- Champs -----------------------------------------------------------------
   // Une seule liste : le chapitre reste choisissable, ses sous-chapitres sont
@@ -195,8 +209,10 @@ export async function render(ctx) {
     zoneSuppression.style.display = (mode === 'apercu' || !card.id) ? 'none' : '';
   }
 
+  /** 🔗 et ⧉ désignent la carte en base : sans `id`, ils attendent. */
   function visibiliteLien() {
     copier.style.display = card.id ? '' : 'none';
+    dupliquerBouton.style.display = card.id ? '' : 'none';
   }
 
   /**
@@ -523,7 +539,7 @@ export async function render(ctx) {
   }
 
   /**
-   * La règle commune aux sorties qui ne jettent rien (‹, ›, Échap) : ce qui a
+   * La règle commune aux sorties qui ne jettent rien (‹, ›, Échap, ⧉) : ce qui a
    * été modifié est enregistré d'abord. Rien de modifié, rien d'écrit — un
    * parcours en simple lecture ne touche pas la base.
    *
@@ -562,6 +578,44 @@ export async function render(ctx) {
     if (enCours) return;
     if (!(await aJour())) return;
     location.hash = retour;
+  }
+
+  /**
+   * Duplique la carte, puis ouvre la copie. La place et la marque du titre sont
+   * décidées par le store (`duplicateCard`), comme depuis la liste.
+   *
+   * `aJour` d'abord : `duplicateCard` relit l'original **en base**, et sans cela
+   * la copie porterait l'ancienne version pendant que l'écran montre la
+   * nouvelle. Si l'écriture échoue, pas de copie.
+   *
+   * `enCours` couvre aussi la copie : un Alt+↓ pendant l'écriture partirait vers
+   * la voisine, puis la copie arrivée ramènerait ailleurs.
+   *
+   * `location.replace`, comme pour les voisines : le retour du navigateur ramène
+   * à la liste. L'original reste à portée de ‹ — la copie est rangée juste après
+   * lui.
+   */
+  async function dupliquer() {
+    if (!card.id || enCours) return;
+    dupliquerBouton.disabled = true;
+    if (!(await aJour())) {
+      dupliquerBouton.disabled = false;
+      return;
+    }
+
+    enCours = true;
+    temoin.style.color = '';
+    temoin.textContent = 'Duplication…';
+    try {
+      const copie = await duplicateCard(card.id);
+      location.replace(`#/carte/${copie.id}`);
+    } catch (err) {
+      temoin.style.color = '#e8695f';
+      temoin.textContent = 'Duplication impossible : ' + err.message;
+      dupliquerBouton.disabled = false;
+    } finally {
+      enCours = false;
+    }
   }
 
   async function supprimer() {

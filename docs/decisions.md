@@ -1194,6 +1194,15 @@ reste non rangé parce que cette zone est triée par identifiant aléatoire :
 « juste après » n'y existe pas. Prix assumé de (a) écarté : un clic de trop
 laisse un doublon en base, qu'on supprime à la main.
 
+**Depuis l'éditeur** *(ajout du 23/10/2026)* — Le même ⧉, dans l'en-tête à côté
+de 🔗 Lien, appelle le même `duplicateCard`, puis **ouvre la copie**
+(`location.replace`, comme ‹ et ›). Ce qui a été modifié est **enregistré
+d'abord**, selon la règle des voisines et d'Échap ; un échec (recto vide, réseau)
+empêche la copie. Écartés : dupliquer la version en base en gardant les modifs à
+l'écran — la copie différerait de ce qu'on voit, sans le dire ; rester sur
+l'original — on duplique pour écrire la variante, et l'original reste à un ‹ de
+distance, puisque la copie est rangée juste après lui.
+
 ---
 
 ## Sous-chapitres : un niveau, dans la même collection
