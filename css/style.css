@@ -271,6 +271,11 @@ button:active, .btn:active { transform: translateY(1px); }
    cinq blocs de 160 px centrés verticalement feraient défiler pour rien. */
 .interro .card-face { min-height: 0; justify-content: flex-start; padding: 16px; }
 .actions-question { margin-top: 14px; }
+/* Les marques d'une question : trois boutons de même largeur, l'allumé aux
+   couleurs du bouton principal. L'état vient d'`aria-pressed`, posé par la vue. */
+.marques { margin-top: 14px; }
+.marques .btn { flex: 1; }
+.marques .btn[aria-pressed="true"] { background: var(--accent); border-color: var(--accent); color: #fff; font-weight: 600; }
 .note-push { margin-top: 22px; text-align: center; }
 
 .actions > .nav-voisine { flex: 0 0 auto; min-width: 44px; font-size: 1.15rem; }

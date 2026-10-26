@@ -1510,6 +1510,10 @@ Deux secrets, de deux poids :
 Piège connu : sur un dépôt public, GitHub désactive un cron après 60 jours sans
 commit (en prévenant par mail).
 
+> **Rouverte en partie** par « Marquer une question de l'interro » :
+> l'auto-évaluation est venue, mais rangée à côté de l'interro, pas dans un
+> champ en plus — un champ aurait sauté au premier `plan --replace`.
+
 ## Quitter l'éditeur sans perdre la saisie
 
 **Choix** — Dans l'éditeur de cartes, **Échap** ramène à la liste du chapitre,
@@ -1529,3 +1533,56 @@ ne se perd. (b) casserait le rythme, pour la raison déjà donnée pour les
 voisines. (c) ne marcherait que hors champ, où l'on n'est presque jamais, et
 doublerait un geste qui marche partout. (d) évoque « valider », ce que fait déjà
 *Enregistrer*.
+
+## Marquer une question de l'interro
+
+**Choix** — Une question de l'interro porte au plus une **marque** : *faite*,
+*à revoir* ou *plus tard*. Sans marque, elle est *à faire*. Trois boutons en bas
+de chaque question, **toujours visibles** — réponse cachée ou non, aujourd'hui
+comme les jours passés. Un tap allume une marque, un tap sur la marque allumée
+l'éteint ; c'est enregistré au tap, sans bouton.
+
+La marque est rangée **à côté** de l'interro, pas dedans :
+`users/{uid}/marks/{idQuestion}` → `{ mark, day }`, où l'identifiant est celui
+de la banque (`al-p01`). Pas de marque, pas de document.
+
+Rien d'autre pour l'instant : ni couleur sur la question, ni compteur. L'étape
+suivante est une **liste** qui rassemble les questions par marque. La
+distribution (`interro.py`) ignore les marques.
+
+**Alternative écartée** — (a) « à faire » en quatrième marque ; (b) la marque
+dans le document de l'interro (`daily/{jour}`, un champ `marks`) ; (c) des
+boutons qui n'apparaissent qu'avec la réponse ; (d) une distribution qui
+repose les questions « à revoir ».
+
+**Raison** — Demande du 25/10/2026 : se resservir des questions passées, pas
+seulement les lire. « Interro du jour » l'avait laissé venir.
+
+(a) aurait donné deux états presque identiques — non marquée, marquée « à
+faire » — sans règle pour choisir entre eux, et un tap de plus par question.
+C'est aussi ce qui garde la fonctionnalité hors de « Pas de to-do dans l'app » :
+« à faire » n'est pas une tâche qu'on inscrit, c'est l'absence de marque.
+
+(b) mettait deux auteurs dans un même document : le PC génère l'interro, l'app
+y aurait écrit. Or `plan --replace` réécrit le document entier, et `--from` vaut
+aujourd'hui par défaut : les marques du jour auraient sauté sans un mot. Rangées
+à part, aucun des deux ne peut écraser l'autre, et `interro.py` ne bouge pas.
+L'identifiant de banque plutôt que le jour, parce que la marque appartient à la
+question : si un `--replace` la déplace, la marque la suit. C'est pour ça que
+l'écran lit les marques **par identifiant** (`documentId() in […]`), pas par
+`day` : un jour stocké peut être périmé. Le `day` n'est là que pour la liste, qui
+devra retrouver l'énoncé. Une requête plutôt que cinq `getDoc` : hors ligne, une
+requête rend ce que le cache connaît, alors qu'un `getDoc` sur une marque jamais
+lue lève une erreur et ferait tomber l'écran.
+
+Coût : une lecture de plus à l'ouverture de l'écran. Piège : renommer l'id d'une
+question dans la banque rend sa marque orpheline — invisible, sans danger, mais
+perdue.
+
+(c) aurait forcé à dévoiler la réponse pour dire « plus tard », c'est-à-dire à
+gâcher la question. En bas, parce qu'on marque après avoir comparé, et qu'une
+démonstration fait un écran à elle seule.
+
+(d) : la banque est distribuée une fois pour toutes et les jours futurs sont
+déjà écrits ; reposer une question demanderait de redistribuer depuis le PC à
+chaque marque.

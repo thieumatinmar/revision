@@ -2,8 +2,10 @@
 // jusqu'à ce qu'on la demande.
 //
 // L'interro est **générée** ailleurs, par la tâche planifiée du PC
-// (`tools/interro.py`) : cet écran ne fait que la lire. Rien n'y est noté, rien
-// n'y est écrit. Voir docs/decisions.md, « Interro du jour ».
+// (`tools/interro.py`) : cet écran ne fait que la lire. La seule chose qu'il
+// écrit, ce sont les **marques** des questions — et pas dans l'interro, à côté.
+// Voir docs/decisions.md, « Interro du jour » et « Marquer une question de
+// l'interro ».
 //
 // Deux routes, une vue :
 //
@@ -16,7 +18,7 @@
 
 import { el, fill } from '../dom.js';
 import { render as renderMath } from '../mathtext.js';
-import { getDaily } from '../store.js';
+import { getDaily, getMarks, setMark, clearMark } from '../store.js';
 import { dayKey, isDayKey, shiftDay, formatDay } from '../jours.js';
 import { pushState, subscribe } from '../push.js';
 
@@ -33,6 +35,10 @@ export async function render(ctx) {
   ctx.setHeader(el('a', { class: 'btn btn-sm btn-ghost', href: '#/' }, '‹ Accueil'), null);
 
   const questions = daily && Array.isArray(daily.questions) ? daily.questions : [];
+  // Les marques se lisent par identifiant de question, donc après l'interro.
+  // Une question sans `id` ne peut pas être marquée : elle n'en demande pas.
+  const ids = questions.map((q) => q.id).filter(Boolean);
+  const marques = ids.length ? await getMarks(ids) : {};
 
   fill(ctx.root,
     navigation(ctx, day, today),
@@ -41,7 +47,7 @@ export async function render(ctx) {
         ? 'Pas d’interro aujourd’hui : la réserve est vide. '
           + 'Elle se remplit quand le PC est ouvert.'
         : 'Pas d’interro ce jour-là.')
-      : el('ol', { class: 'interro' }, questions.map(question)),
+      : el('ol', { class: 'interro' }, questions.map((q, i) => question(q, i, marques[q.id], day))),
     notification(ctx, etatPush),
   );
 }
@@ -121,8 +127,68 @@ function texteACopier(q) {
 }
 
 /**
+ * Les trois marques, dans l'ordre des boutons. `mark` est ce qui est rangé
+ * (store.js), `label` ce qu'on lit. Pas de « à faire » : c'est l'absence de
+ * marque, pas un bouton.
+ */
+const MARQUES = [
+  { mark: 'done', label: 'Faite' },
+  { mark: 'review', label: 'À revoir' },
+  { mark: 'later', label: 'Plus tard' },
+];
+
+/**
+ * Les boutons de marque d'une question : une marque allumée au plus, un tap
+ * sur l'allumée l'éteint.
+ *
+ * L'écran change **avant** l'écriture, sans l'attendre : avec le cache
+ * persistant, la promesse de `setDoc` ne se résout qu'à l'accusé du serveur —
+ * hors ligne, pas avant le retour du réseau. L'attendre ferait croire que le
+ * tap n'a rien fait. Seul un vrai refus (règles, quota) ramène l'écran à la
+ * dernière marque que le serveur a acceptée.
+ */
+function marquage(q, initiale, day) {
+  let actuelle = initiale || null;
+  // Ce que le serveur a accepté en dernier : c'est là qu'on revient sur un refus,
+  // et non à la marque d'avant le tap, qui a pu être refusée elle aussi.
+  let enregistree = actuelle;
+
+  const boutons = MARQUES.map(({ mark, label }) => el('button', {
+    class: 'btn btn-sm',
+    on: { click: () => basculer(mark) },
+  }, label));
+
+  // `aria-pressed` dit l'état au lecteur d'écran, et c'est aussi lui que le
+  // CSS allume : un seul endroit porte l'état affiché.
+  const afficher = () => boutons.forEach((b, k) =>
+    b.setAttribute('aria-pressed', String(MARQUES[k].mark === actuelle)));
+
+  function basculer(mark) {
+    actuelle = actuelle === mark ? null : mark;
+    const voulue = actuelle;
+    afficher();
+    // Firestore applique les écritures d'un même client dans l'ordre : les
+    // réponses arrivent donc dans l'ordre des taps.
+    (voulue ? setMark(q.id, voulue, day) : clearMark(q.id)).then(
+      () => { enregistree = voulue; },
+      (err) => {
+        console.error(err);
+        // Retapé depuis : c'est l'écriture suivante qui fait foi, et qui dira
+        // elle-même si elle échoue.
+        if (actuelle !== voulue) return;
+        actuelle = enregistree;
+        afficher();
+        alert('Marque non enregistrée : ' + err.message);
+      });
+  }
+
+  afficher();
+  return el('div', { class: 'row marques', role: 'group', 'aria-label': 'Marque' }, boutons);
+}
+
+/**
  * Une question : son numéro et son thème, l'énoncé, puis la réponse derrière
- * un bouton, et un bouton pour copier le tout.
+ * un bouton, un bouton pour copier le tout, et tout en bas les marques.
  *
  * La réponse est montée d'emblée et seulement **cachée** (`hidden`) : la
  * révéler ne relit rien et ne recompose pas le LaTeX. Le bouton bascule — on
@@ -130,8 +196,13 @@ function texteACopier(q) {
  *
  * « Copier » emporte la réponse même cachée : copier n'affiche rien, l'écran
  * ne la dévoile pas pour autant.
+ *
+ * Les marques sont **sous** la réponse, et visibles qu'elle soit cachée ou
+ * non : on marque après avoir comparé — une démonstration fait un écran, des
+ * boutons au-dessus obligeraient à remonter —, mais « plus tard » se décide
+ * souvent sans la lire.
  */
-function question(q, i) {
+function question(q, i, marque, day) {
   const reponse = el('div', { class: 'reponse', hidden: true },
     el('hr'),
     el('div', { class: 'face-label' }, 'Réponse'),
@@ -166,5 +237,6 @@ function question(q, i) {
     renderMath(el('div'), q.question || ''),
     el('div', { class: 'row actions-question' }, bouton, copier),
     reponse,
+    q.id && marquage(q, marque, day),
   );
 }

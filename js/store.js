@@ -10,7 +10,8 @@
 //   users/{uid}/cards/{id}        { categoryId, title, front, hint, back, note,
 //                                   images: string[], order? }
 //   users/{uid}/library/{id}      { kind, title, statement, support, source }
-//   users/{uid}/daily/{AAAA-MM-JJ} { date, questions: [{ theme, question, answer }] }
+//   users/{uid}/daily/{AAAA-MM-JJ} { date, questions: [{ id, theme, question, answer }] }
+//   users/{uid}/marks/{idQuestion} { mark, day, updatedAt }
 //   users/{uid}/push/phone        { subscription, updatedAt }
 //
 // Sur une carte, `order` est **facultatif** : son absence signifie « non rangée »,
@@ -31,7 +32,7 @@ import { db } from './firebase.js';
 import { currentUid } from './auth.js';
 import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, deleteField,
-  writeBatch, query, where, orderBy,
+  writeBatch, query, where, orderBy, documentId,
 } from '../vendor/firebase/firebase-firestore.js';
 
 /** Les 12 titres du programme officiel 2027 (../ressources/programme_officiel_2027.md). */
@@ -685,6 +686,49 @@ export async function deleteEntry(id) {
 export async function getDaily(day) {
   const d = await getDoc(ref('daily', day));
   return d.exists() ? toObj(d) : null;
+}
+
+// ------------------------------------------------------------------ Marques
+//
+// La marque d'une question de l'interro (faite, à revoir, plus tard), rangée
+// **à côté** de l'interro et non dedans : `interro.py plan --replace` réécrit
+// les documents `daily` en entier, et emporterait tout ce que l'app y aurait
+// écrit. Voir docs/decisions.md, « Marquer une question de l'interro ».
+//
+//   users/{uid}/marks/{idQuestion}   { mark, day, updatedAt }
+//
+// L'identifiant est celui de la banque (`al-p01`) : la marque appartient à la
+// question, pas au jour. Pas de marque, pas de document — une question sans
+// document est « à faire ». `day` ne sert qu'à retrouver l'énoncé depuis une
+// liste ; on ne s'en sert pas pour lire, il peut être périmé.
+
+/**
+ * Les marques des questions `ids`, en `{ id: mark }` — une question sans
+ * marque n'y figure pas.
+ *
+ * Une requête sur les identifiants plutôt qu'un `getDoc` par question : hors
+ * ligne, une requête rend ce que le cache connaît, alors qu'un `getDoc` sur un
+ * document jamais lu lève une erreur — et l'écran de l'interro tomberait.
+ */
+export async function getMarks(ids) {
+  const tranches = [];
+  for (let i = 0; i < ids.length; i += IN_MAX) tranches.push(ids.slice(i, i + IN_MAX));
+  const snaps = await Promise.all(
+    tranches.map((t) => getDocs(query(col('marks'), where(documentId(), 'in', t)))));
+
+  const marques = {};
+  for (const s of snaps) s.forEach((d) => { marques[d.id] = d.data().mark; });
+  return marques;
+}
+
+/** Pose la marque `mark` sur la question `id`, vue le jour `day`. */
+export async function setMark(id, mark, day) {
+  await setDoc(ref('marks', id), { mark, day, updatedAt: new Date().toISOString() });
+}
+
+/** Retire la marque de la question `id` : elle redevient « à faire ». */
+export async function clearMark(id) {
+  await deleteDoc(ref('marks', id));
 }
 
 // ------------------------------------------------------------- Notification

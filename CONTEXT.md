@@ -210,8 +210,8 @@ Cinq questions posées chaque jour, sur les thèmes déjà entamés, toujours da
 même ordre : deux **énoncés piégeux**, deux **questions de base**, une
 **démonstration**. Elle n'est écrite ni par l'utilisateur ni à partir de ses
 cartes : elle est **générée**, et ne fait pas partie du fonds. On lit une
-question, on cherche, puis on dévoile la réponse ; rien n'est noté. Une interro
-par jour, ni plus ni moins.
+question, on cherche, puis on dévoile la réponse ; on peut ensuite la marquer.
+Une interro par jour, ni plus ni moins.
 _Code_: `daily`, route `#/interro`
 _Éviter_: quiz, test, tirage (le mot de la fonctionnalité retirée), série
 
@@ -221,6 +221,15 @@ réponse, cachée tant qu'on ne la demande pas. Une question n'est pas une carte
 elle ne se modifie pas, ne se range pas, ne se déplace pas.
 _Code_: `question` — `{ theme, question, answer }`
 _Éviter_: carte, recto, verso (ce sont les mots de la carte)
+
+**Marque** :
+Ce qu'on dit d'une question après l'avoir travaillée : **faite** (retrouvée
+seul), **à revoir** (tentée, mais ratée ou bancale), **plus tard** (hors de
+portée pour l'instant, la notion n'est pas encore vue). Une seule à la fois, et
+facultative : une question sans marque est **à faire**. On la retire du même
+geste qu'on la pose.
+_Code_: `mark` — `'done'`, `'review'`, `'later'` ; absente = à faire
+_Éviter_: statut, état, note (déjà pris, sur la carte), score, évaluation
 
 **Énoncé piégeux** :
 Une question sur un théorème dont tout le poids est dans les hypothèses — on
