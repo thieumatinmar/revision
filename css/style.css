@@ -148,6 +148,17 @@ button:active, .btn:active { transform: translateY(1px); }
 .livres summary .face-label { display: inline; }
 .livres textarea { margin: 8px 0 4px; min-height: 3.2em; }
 
+/* Le titre de l'écran d'une catégorie se touche pour la renommer : il garde
+   l'allure d'un titre, seul le ✎ dit qu'il est actif. Le champ s'ouvre en page. */
+.titre-editable {
+  border: 0;
+  background: none;
+  padding: 0;
+  text-align: center;
+}
+.renommage { margin: 0 0 14px; }
+.renommage.erreur { color: #e8695f; }
+
 /* La pastille d'espece (Th. / Def.) devant un titre d'entree. Grise et de largeur
    fixe : elle doit se voir sans passer devant le titre, et ne pas decaler les
    titres les uns par rapport aux autres d'une ligne a l'autre. L'ecart est tenu

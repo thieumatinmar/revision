@@ -4,6 +4,9 @@
 // **Seul écran où la structure change** (docs/decisions.md, « Sous-chapitres ») :
 // l'écran d'un chapitre sert à lire et répartir des cartes, celui-ci à modifier
 // le rangement. Un même geste à deux endroits finirait par n'exister que d'un côté.
+// Exception : le **renommage**, qui existe aussi dans l'écran de la catégorie
+// (docs/decisions.md, « Renommer depuis l'écran de la catégorie ») — un nom
+// n'est pas du rangement. Sa règle vit dans `renameCategory`, pas ici.
 //
 // Les sous-chapitres s'affichent indentés sous leur chapitre, avec les mêmes
 // gestes. Les flèches n'échangent qu'**entre frères** : un chapitre avec un
@@ -90,12 +93,16 @@ export async function render(ctx) {
       on: {
         focus: taire,
         change: async (e) => {
-          const v = e.target.value.trim();
-          if (!v) { e.target.value = cat.name; return; }   // un titre vide n'a pas de sens
-          if (v === cat.name) return;
-          await renameCategory(cat.id, v);
-          cat.name = v;
-          dire(cat.id, 'Renommé.', 'info');
+          if (e.target.value.trim() === cat.name) return;
+          // Le refus d'un titre vide est celui du store : la vue remet l'ancien
+          // nom et dit pourquoi.
+          try {
+            cat.name = await renameCategory(cat.id, e.target.value);
+            dire(cat.id, 'Renommé.', 'info');
+          } catch (err) {
+            e.target.value = cat.name;
+            dire(cat.id, err.message, 'erreur');
+          }
         },
       },
     });

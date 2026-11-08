@@ -1586,3 +1586,35 @@ démonstration fait un écran à elle seule.
 (d) : la banque est distribuée une fois pour toutes et les jours futurs sont
 déjà écrits ; reposer une question demanderait de redistribuer depuis le PC à
 chaque marque.
+
+## Renommer depuis l'écran de la catégorie
+
+**Choix** — Le titre de l'écran d'une catégorie (`#/cartes/{id}`, chapitre
+comme sous-chapitre) se touche : il porte un ✎, et un champ pleine largeur
+s'ouvre en tête de page, prérempli et sélectionné. Entrée ou perte de focus
+enregistrent, Échap annule. « Gérer » garde ses champs de renommage. La règle
+— nom débarrassé de ses espaces de bord, titre vide refusé — passe de la vue
+« Gérer » à `renameCategory` (store.js), que les deux écrans appellent. Pour
+ça, la coque accepte un élément comme titre (`ctx.setTitle`), plus seulement
+un texte.
+
+**Alternative écartée** — (a) un ✎ par ligne sur l'accueil ; (b) le champ à la
+place du titre, dans l'en-tête ; (c) un champ « Nom » permanent en tête de
+page ; (d) retirer le renommage de « Gérer ».
+
+**Raison** — Rouvre « Sous-chapitres », qui mettait tout le rangement dans
+« Gérer », renommage compris. Un nom n'est pas du rangement : comme les livres
+(« Livres d'une catégorie »), on le corrige là où l'on travaille le chapitre,
+et ouvrir l'écran de structure pour une coquille était un détour. L'accueil (a)
+oriente : un troisième bouton par ligne y ferait trois cibles collées sur
+téléphone, et les sous-chapitres n'y figurent pas. Le champ s'ouvre en page (b)
+parce que la colonne du titre fait ~160 px sur téléphone, trop peu pour un
+titre du programme ; à la demande (c), parce qu'un champ permanent afficherait
+le nom deux fois, pour un geste rare.
+
+Le doublon avec « Gérer » est assumé (d) : y renommer plusieurs chapitres
+d'affilée reste utile. La crainte écrite dans `chapitres.js` — « un même geste
+à deux endroits finirait par n'exister que d'un côté » — est tenue en mettant
+la règle dans le store : les deux écrans ne font que présenter son refus. Effet
+de bord : dans « Gérer », un titre vide n'est plus remis en silence, le refus
+s'affiche sous la ligne.

@@ -169,8 +169,19 @@ export async function createCategory(name, parentId = null) {
   return { id: d.id, ...donnees };
 }
 
+/**
+ * Renomme une catégorie et rend le nom tel qu'il a été écrit.
+ *
+ * La règle vit ici, pas dans les vues : deux écrans renomment (« Gérer » et
+ * celui de la catégorie), et une règle recopiée finit par diverger
+ * (docs/decisions.md, « Renommer depuis l'écran de la catégorie »).
+ * Un titre vide n'a pas de sens : refusé, rien n'est écrit.
+ */
 export async function renameCategory(id, name) {
-  await setDoc(ref('categories', id), { name }, { merge: true });
+  const nom = name.trim();
+  if (!nom) throw new Error('Un titre vide n’a pas de sens : nom inchangé.');
+  await setDoc(ref('categories', id), { name: nom }, { merge: true });
+  return nom;
 }
 
 /**

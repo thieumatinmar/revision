@@ -30,13 +30,72 @@
 // En tête d'écran, le bloc **Livres** : un texte libre propre à la catégorie
 // (docs/decisions.md, « Livres d'une catégorie »). Chaque sous-chapitre a le
 // sien, sur son propre écran — celui du chapitre ne les cumule pas.
+//
+// Le **titre** de l'en-tête se touche pour renommer la catégorie, sans passer
+// par « Gérer » (docs/decisions.md, « Renommer depuis l'écran de la catégorie »).
 
 import { el, fill } from '../dom.js';
 import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listChapters, flattenChapters, listCards, listCardsUnder, moveCard, setCardsOrder,
-  isPlaced, duplicateCard, deleteCard, setCategoryBooks,
+  isPlaced, duplicateCard, deleteCard, setCategoryBooks, renameCategory,
 } from '../store.js';
+
+/**
+ * Renommer la catégorie depuis son propre écran. Rend deux morceaux : le
+ * `titre`, à donner à la coque, et la `zone` où s'ouvre le champ, en tête de
+ * page.
+ *
+ * Le titre porte un ✎ : sans lui, rien ne dit qu'un titre se touche. Le champ
+ * s'ouvre **en page**, pleine largeur, et pas à la place du titre : sur un
+ * téléphone, la colonne du titre fait ~160 px, trop peu pour corriger un titre
+ * du programme.
+ *
+ * Entrée ou perte de focus enregistrent, comme dans « Gérer » ; Échap remet
+ * l'ancien nom avant de quitter le champ, et la perte de focus n'a alors plus
+ * rien à écrire. La règle (titre vide refusé) est celle de `renameCategory`.
+ */
+function renommage(category) {
+  const nom = el('span', {}, category.name);
+  const zone = el('div');
+
+  function ouvrir() {
+    if (zone.querySelector('input')) return;     // déjà ouvert
+    const saisie = el('input', {
+      value: category.name,
+      'aria-label': 'Nom de la catégorie',
+      on: {
+        keydown: (e) => {
+          if (e.key === 'Enter') saisie.blur();
+          if (e.key === 'Escape') { saisie.value = category.name; saisie.blur(); }
+        },
+        blur: () => enregistrer(saisie.value),
+      },
+    });
+    fill(zone, el('div', { class: 'renommage' }, saisie));
+    // La zone est déjà dans la page : le champ prend le focus tout de suite,
+    // son texte sélectionné — on le remplace souvent en entier.
+    saisie.focus();
+    saisie.select();
+  }
+
+  async function enregistrer(v) {
+    if (v.trim() === category.name) { fill(zone); return; }
+    try {
+      category.name = await renameCategory(category.id, v);
+      nom.textContent = category.name;
+      fill(zone);
+    } catch (err) {
+      // Refus du store ou échec d'écriture : le champ se ferme, le nom reste
+      // l'ancien, et la raison s'affiche là où était le champ.
+      fill(zone, el('p', { class: 'renommage erreur small' }, err.message));
+    }
+  }
+
+  const titre = el('button', { class: 'titre-editable', title: 'Renommer', on: { click: ouvrir } },
+    nom, el('span', { class: 'muted' }, '✎'));
+  return { titre, zone };
+}
 
 /**
  * Le bloc « Livres » d'une catégorie : ce que disent les livres sur ce
@@ -128,7 +187,8 @@ export async function render(ctx) {
   const autres = toutes.filter((c) => c.categoryId !== categoryId);
   const nomSous = new Map(sousChapitres.map((s) => [s.id, s.name]));
 
-  ctx.setTitle(category ? category.name : 'Cartes');
+  const renommer = category && renommage(category);
+  ctx.setTitle(renommer ? renommer.titre : 'Cartes');
   ctx.setHeader(
     // Depuis un sous-chapitre, on remonte à son chapitre, pas à l'accueil :
     // c'est de là qu'on vient, et c'est là qu'on choisit le sous-chapitre voisin.
@@ -159,7 +219,8 @@ export async function render(ctx) {
   const list = el('div');
   // `fill` et non `append` : le `append` natif écrirait « false » à l'écran
   // quand le chapitre est vide (voir dom.js).
-  fill(ctx.root, category && blocLivres(category), toutes.length > 0 && search, list);
+  fill(ctx.root, renommer && renommer.zone, category && blocLivres(category),
+    toutes.length > 0 && search, list);
 
   // On cherche dans les cinq champs : une carte se retrouve aussi bien par sa
   // réponse ou par un mot de la note que par son recto.

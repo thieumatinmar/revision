@@ -83,6 +83,7 @@ async function renderRoute() {
     // Certaines vues servent plusieurs routes (l'éditeur : création ou
     // modification). La route le dit explicitement, la vue n'a rien à deviner.
     mode: r.mode,
+    // Un texte, ou un élément quand le titre se touche (renommer une catégorie).
     setTitle(t) { header.title = t; },
     setHeader(left, right) { header.left = left; header.right = right; },
     go(to) { location.hash = '#' + to; },
@@ -97,7 +98,7 @@ async function renderRoute() {
   }
   if (isStale()) return;
 
-  titleEl.textContent = header.title;
+  fill(titleEl, header.title);
   // Sur l'accueil, la place à gauche est libre (rien d'où revenir) : on y met
   // l'accès au compte. Ailleurs elle sert au retour, posé par la vue.
   fill(leftEl, header.left || (path === '/' ? boutonCompte() : null));
