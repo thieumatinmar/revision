@@ -18,7 +18,11 @@
 // **Sur un chapitre découpé** (docs/decisions.md, « Sous-chapitres ») :
 //
 //   - sans recherche, ses sous-chapitres s'affichent en tête, comme des liens,
-//     puis ses cartes propres ;
+//     puis ses cartes propres. Ils s'y créent, s'ordonnent et se suppriment
+//     aussi, comme dans « Gérer » (docs/decisions.md, « Gérer les
+//     sous-chapitres depuis l'écran du chapitre ») : on découpe un chapitre en
+//     le travaillant. Les règles sont celles du store, la vue ne fait que
+//     présenter ses refus. Le rattachement, lui, reste dans « Gérer » ;
 //   - en recherche, les cartes des sous-chapitres qui correspondent s'ajoutent
 //     aux siennes, chacune avec le nom de son sous-chapitre. Sans ça, découper un
 //     chapitre ferait mentir « Aucune carte ne correspond ».
@@ -39,6 +43,7 @@ import { render as renderMath, excerpt, stripMath } from '../mathtext.js';
 import {
   listChapters, flattenChapters, listCards, listCardsUnder, moveCard, setCardsOrder,
   isPlaced, duplicateCard, deleteCard, setCategoryBooks, renameCategory,
+  createCategory, deleteCategory, setCategoriesOrder,
 } from '../store.js';
 
 /**
@@ -169,7 +174,9 @@ export async function render(ctx) {
   const categoryId = ctx.params[0];
 
   const arbre = await listChapters();
-  const categories = flattenChapters(arbre);
+  // `let` : créer, ordonner ou supprimer un sous-chapitre d'ici change les
+  // destinations d'une carte, qu'on recalcule alors (`majDestinations`).
+  let categories = flattenChapters(arbre);
   const category = categories.find((c) => c.id === categoryId) || null;
   // Le nœud de l'arbre, s'il s'agit d'un chapitre : c'est lui qui porte ses
   // sous-chapitres. Sur un sous-chapitre, `chapitre` est null.
@@ -209,6 +216,22 @@ export async function render(ctx) {
   // Carte dont le sélecteur de déplacement est ouvert (une seule à la fois).
   let deplacementDe = null;
   let annonce = null;
+  // Le champ « nouveau sous-chapitre » est-il ouvert ?
+  let creationSous = false;
+
+  // Le champ est créé **une fois**, hors de `paint` : redessiner la liste (une
+  // flèche de carte pressée pendant qu'on tape) ne doit pas effacer la saisie.
+  const saisieSous = el('input', {
+    // Court : à 375 px, le champ ne fait que ~210 px à côté de ses deux boutons.
+    placeholder: 'Sous-chapitre…',
+    'aria-label': 'Nom du nouveau sous-chapitre',
+    on: {
+      keydown: (e) => {
+        if (e.key === 'Enter') ajouterSous();
+        if (e.key === 'Escape') fermerCreation();
+      },
+    },
+  });
 
   const search = el('input', {
     type: 'search',
@@ -231,8 +254,13 @@ export async function render(ctx) {
     const rangeesVues = rangees.filter(correspond);
     const nonRangeesVues = nonRangees.filter(correspond);
     // Les cartes des sous-chapitres ne s'affichent qu'en recherche : sans elle,
-    // on y accède par leur sous-chapitre.
-    const autresVues = query ? autres.filter(correspond) : [];
+    // on y accède par leur sous-chapitre. Groupées dans l'ordre **actuel** des
+    // sous-chapitres, qui a pu changer depuis la lecture ; le tri est stable,
+    // chaque groupe garde donc l'ordre de ses cartes.
+    const rangSous = new Map(sousChapitres.map((s, i) => [s.id, i]));
+    const autresVues = query
+      ? autres.filter(correspond).sort((a, b) => rangSous.get(a.categoryId) - rangSous.get(b.categoryId))
+      : [];
     const total = rangeesVues.length + nonRangeesVues.length + autresVues.length;
 
     fill(list,
@@ -273,21 +301,154 @@ export async function render(ctx) {
   /**
    * Les sous-chapitres, en tête de l'écran d'un chapitre. Compteur de chacun :
    * ses cartes, lues dans la même requête que celles du chapitre.
+   *
+   * Chaque ligne porte ses gestes de structure, toujours visibles : ↑/↓ entre
+   * frères, puis × en dernier, loin des flèches — comme une ligne de carte.
+   * Sous la liste, « + Sous-chapitre » ; c'est le seul contenu du bloc tant que
+   * le chapitre n'est pas découpé. Rien sur l'écran d'un sous-chapitre : il ne
+   * se découpe pas.
    */
   function blocSousChapitres() {
-    if (sousChapitres.length === 0) return null;
-    return el('ul', { class: 'list', style: 'margin-bottom:18px' },
-      sousChapitres.map((s) => {
-        const n = autres.filter((c) => c.categoryId === s.id).length;
-        return el('li', {},
-          el('a', { class: 'grow', href: `#/cartes/${s.id}`, style: 'text-decoration:none;color:inherit' },
-            el('div', { class: 'name' }, s.name),
-            el('div', { class: 'small muted' }, n === 0 ? 'aucune carte' : `${n} carte${n > 1 ? 's' : ''}`),
-          ),
-          el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${s.id}`, title: 'Nouvelle carte dans ce sous-chapitre' }, '+'),
-        );
-      }),
+    if (!chapitre) return null;
+    return el('div', { style: 'margin-bottom:18px' },
+      sousChapitres.length > 0 && el('ul', { class: 'list' },
+        sousChapitres.map((s, i) => {
+          const n = cartesDe(s).length;
+          return el('li', {},
+            el('a', { class: 'grow', href: `#/cartes/${s.id}`, style: 'text-decoration:none;color:inherit' },
+              el('div', { class: 'name' }, s.name),
+              el('div', { class: 'small muted' }, n === 0 ? 'aucune carte' : `${n} carte${n > 1 ? 's' : ''}`),
+            ),
+            el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${s.id}`, title: 'Nouvelle carte dans ce sous-chapitre' }, '+'),
+            el('button', {
+              class: 'btn-sm', title: 'Monter', disabled: i === 0,
+              on: { click: () => deplacerSous(i, -1) },
+            }, '↑'),
+            el('button', {
+              class: 'btn-sm', title: 'Descendre', disabled: i === sousChapitres.length - 1,
+              on: { click: () => deplacerSous(i, +1) },
+            }, '↓'),
+            // Actif même sur un sous-chapitre non vide : sans survol sur
+            // téléphone, un bouton grisé ne dirait pas pourquoi il ne répond pas.
+            el('button', {
+              class: 'btn-sm',
+              style: 'color:#e8695f',
+              title: n > 0 ? `Contient ${n} carte(s) — suppression impossible` : 'Supprimer ce sous-chapitre',
+              on: { click: (ev) => supprimerSous(s, ev.currentTarget) },
+            }, '×'),
+          );
+        }),
+      ),
+      creationSous
+        ? el('div', { class: 'row' },
+          saisieSous,
+          el('button', { class: 'btn-primary', on: { click: ajouterSous } }, 'Ajouter'),
+          el('button', { class: 'btn-sm', on: { click: fermerCreation } }, 'Annuler'),
+        )
+        : el('button', { class: 'btn-sm btn-ghost', on: { click: ouvrirCreation } }, '+ Sous-chapitre'),
     );
+  }
+
+  /** Les cartes d'un sous-chapitre, d'après la lecture tenue en mémoire. */
+  const cartesDe = (s) => autres.filter((c) => c.categoryId === s.id);
+
+  /**
+   * Après un changement de structure, les destinations du ⇄ suivent : sans
+   * ça, un sous-chapitre qu'on vient de créer ne recevrait pas de carte avant
+   * un rechargement — alors que découper, c'est justement répartir ensuite.
+   *
+   * L'arbre est relu en mémoire, pas en base : `sousChapitres` **est** le
+   * tableau `children` de son nœud, déjà à jour. Seul le nom du chapitre peut
+   * y être périmé : le renommage tient `category`, pas le nœud.
+   */
+  function majDestinations() {
+    chapitre.name = category.name;
+    categories = flattenChapters(arbre);
+  }
+
+  function ouvrirCreation() {
+    creationSous = true;
+    paint();
+    saisieSous.focus();
+  }
+
+  function fermerCreation() {
+    creationSous = false;
+    saisieSous.value = '';
+    paint();
+  }
+
+  /**
+   * Crée un sous-chapitre à la fin des autres — c'est `createCategory` qui
+   * décide de la place et refuse un second niveau.
+   *
+   * Le champ **reste ouvert**, vidé, focus rendu : découper un chapitre, c'est
+   * créer plusieurs sous-chapitres d'affilée. Il est désactivé pendant l'appel,
+   * sans quoi deux Entrée rapides créeraient deux fois le même.
+   */
+  async function ajouterSous() {
+    const v = saisieSous.value.trim();
+    if (!v) return;
+    saisieSous.disabled = true;
+    try {
+      const sous = await createCategory(v, categoryId);
+      sousChapitres.push(sous);
+      nomSous.set(sous.id, sous.name);
+      majDestinations();
+      saisieSous.value = '';
+      annonce = `Sous-chapitre « ${sous.name} » ajouté.`;
+    } catch (err) {
+      annonce = 'Ajout impossible : ' + err.message;
+    }
+    saisieSous.disabled = false;
+    paint();
+    // `paint` vient de remettre le champ dans la page : il a perdu le focus.
+    saisieSous.focus();
+  }
+
+  /**
+   * Échange deux sous-chapitres. L'écran répond tout de suite, l'écriture suit,
+   * comme les flèches des cartes. `setCategoriesOrder` renumérote de 0 les
+   * seuls identifiants qu'on lui passe : les frères, donc.
+   */
+  async function deplacerSous(i, delta) {
+    const j = i + delta;
+    [sousChapitres[i], sousChapitres[j]] = [sousChapitres[j], sousChapitres[i]];
+    majDestinations();
+    paint();
+    await setCategoriesOrder(sousChapitres.map((s) => s.id));
+  }
+
+  /**
+   * Supprime un sous-chapitre vide, après confirmation.
+   *
+   * Le refus d'un sous-chapitre qui a des cartes s'annonce tout de suite,
+   * d'après le compteur affiché ; `deleteCategory` refait le contrôle et a le
+   * dernier mot — une carte a pu y arriver depuis un autre appareil.
+   */
+  async function supprimerSous(s, bouton) {
+    const n = cartesDe(s).length;
+    if (n > 0) {
+      annonce = `Impossible : « ${s.name} » contient ${n} carte${n > 1 ? 's' : ''}. `
+        + 'Supprime-les ou déplace-les dans une autre catégorie d’abord.';
+      paint();
+      return;
+    }
+    if (!confirm(`Supprimer le sous-chapitre « ${s.name} » ?`)) return;
+    bouton.disabled = true;
+    try {
+      await deleteCategory(s.id);
+    } catch (err) {
+      bouton.disabled = false;
+      annonce = err.message;
+      paint();
+      return;
+    }
+    sousChapitres.splice(sousChapitres.indexOf(s), 1);
+    nomSous.delete(s.id);
+    majDestinations();
+    annonce = `Sous-chapitre « ${s.name} » supprimé.`;
+    paint();
   }
 
   /** Ce qu'on affiche quand aucune carte n'est visible. */

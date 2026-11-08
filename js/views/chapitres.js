@@ -1,12 +1,19 @@
 // views/chapitres.js — gérer les catégories : renommer, réordonner, créer,
 // supprimer, sur les deux niveaux (chapitres et sous-chapitres).
 //
-// **Seul écran où la structure change** (docs/decisions.md, « Sous-chapitres ») :
-// l'écran d'un chapitre sert à lire et répartir des cartes, celui-ci à modifier
-// le rangement. Un même geste à deux endroits finirait par n'exister que d'un côté.
-// Exception : le **renommage**, qui existe aussi dans l'écran de la catégorie
-// (docs/decisions.md, « Renommer depuis l'écran de la catégorie ») — un nom
-// n'est pas du rangement. Sa règle vit dans `renameCategory`, pas ici.
+// **Seul écran où l'arbre entier se voit et se modifie** (docs/decisions.md,
+// « Sous-chapitres ») : chapitres de premier niveau et rattachement ne vivent
+// qu'ici. Deux gestes existent aussi dans l'écran de la catégorie, en doublon
+// assumé :
+//   - le **renommage** (« Renommer depuis l'écran de la catégorie ») — un nom
+//     n'est pas du rangement ;
+//   - **créer, ordonner, supprimer les sous-chapitres** d'un chapitre (« Gérer
+//     les sous-chapitres depuis l'écran du chapitre ») — on découpe un chapitre
+//     en le travaillant.
+// La crainte d'un geste qui finirait par n'exister que d'un côté est tenue en
+// mettant les règles dans le store (`renameCategory`, `createCategory`,
+// `deleteCategory`, `setCategoriesOrder`) : les deux écrans ne font que
+// présenter leurs refus.
 //
 // Les sous-chapitres s'affichent indentés sous leur chapitre, avec les mêmes
 // gestes. Les flèches n'échangent qu'**entre frères** : un chapitre avec un

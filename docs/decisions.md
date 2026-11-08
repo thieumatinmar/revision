@@ -223,7 +223,7 @@ mémoire : brasser 400 cartes au hasard ne couvrirait rien d'utile.
 ## Les 12 titres du programme sont créés au premier lancement
 
 **Choix** — À la toute première ouverture, l'app crée les 12 catégories des
-titres du programme officiel 2027 (`../ressources/programme_officiel_2027.md`),
+titres du programme officiel 2027 (`../ressources officielles/programme_officiel_2027.md`),
 renommables et supprimables. Aucune carte d'exemple.
 
 **Alternative écartée** — (a) une base entièrement vide ; (b) les 12 titres plus
@@ -1618,3 +1618,42 @@ d'affilée reste utile. La crainte écrite dans `chapitres.js` — « un même g
 la règle dans le store : les deux écrans ne font que présenter son refus. Effet
 de bord : dans « Gérer », un titre vide n'est plus remis en silence, le refus
 s'affiche sous la ligne.
+
+## Gérer les sous-chapitres depuis l'écran du chapitre
+
+**Choix** — Sur l'écran d'un chapitre (`#/cartes/{id}`), le bloc des
+sous-chapitres porte les gestes de structure : sur chaque ligne, ↑/↓ entre
+frères et ×, **toujours visibles**, après le `+` qui crée une carte ; sous la
+liste, un bouton « + Sous-chapitre » qui ouvre un champ à la demande — seul
+contenu du bloc quand le chapitre n'est pas encore découpé. Le champ **reste
+ouvert** après chaque ajout, vidé, pour enchaîner ; Échap ou « Annuler » le
+referme. Le × reste **actif** sur un sous-chapitre non vide : le refus
+s'annonce sous le bloc, avec le nombre de cartes. « Gérer » garde tous ses
+gestes ; le rattachement (⤴) et les chapitres de premier niveau ne vivent que
+là.
+
+**Alternative écartée** — (a) retirer la gestion des sous-chapitres de
+« Gérer » ; (b) les gestes derrière un mode « Organiser » ; (c) « + Sous-chapitre »
+dans l'en-tête ; (d) un × désactivé sur un sous-chapitre non vide.
+
+**Raison** — Rouvre « Sous-chapitres » (« tout dans Gérer ») et le principe
+écrit dans `chapitres.js`, « seul écran où la structure change ». Le renommage
+en était sorti parce qu'un nom n'est pas du rangement ; ici c'en est, et
+l'argument est autre : **on découpe un chapitre en le travaillant**, ses cartes
+sous les yeux, pas depuis l'écran de structure. La crainte de divergence est
+tenue comme pour le renommage : les règles sont dans le store —
+`createCategory` (fin des frères, niveau unique), `deleteCategory` (refus si
+non vide), `setCategoriesOrder` (renumérotation de 0) — et les deux écrans ne
+font que présenter leurs refus.
+
+« Gérer » reste (a) pour la vue d'ensemble de l'arbre et le rattachement. Les
+boutons sont visibles (b) parce qu'une ligne de carte en porte déjà cinq sur le
+même écran ; un mode coûterait un état et un tap pour trois boutons. Pas
+d'en-tête (c) : la colonne du titre y fait ~160 px sur téléphone, et « + Carte »
+collé à « + Sous-chapitre » est une erreur de doigt. Le champ reste ouvert parce
+que découper, c'est créer plusieurs sous-chapitres d'affilée ; dans « Gérer »,
+geste ponctuel, il se referme toujours — l'écart est de présentation, pas de
+règle. Le refus est expliqué plutôt que le bouton grisé (d) : sans survol sur
+téléphone, un bouton gris ne dit pas pourquoi il ne répond pas.
+
+Prix assumé : trois gestes existent à deux endroits.
