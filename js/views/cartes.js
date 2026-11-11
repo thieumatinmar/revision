@@ -170,6 +170,9 @@ function ajuste(zone) {
 /** Libellé d'une destination dans un `<select>` : les sous-chapitres indentés. */
 const libelle = (cat) => (cat.depth === 1 ? '   └ ' : '') + cat.name;
 
+/** Le chapitre d'une catégorie de la liste plate : elle-même, ou son parent. */
+const chapitreDe = (cat) => (cat.depth === 1 ? cat.parentId : cat.id);
+
 export async function render(ctx) {
   const categoryId = ctx.params[0];
 
@@ -205,8 +208,36 @@ export async function render(ctx) {
     el('a', { class: 'btn btn-sm btn-primary', href: `#/carte/nouvelle/${categoryId}` }, '+ Carte'),
   );
 
-  // Les catégories où l'on peut ranger une carte : toutes sauf la sienne.
-  const destinationsDe = (card) => categories.filter((c) => c.id !== card.categoryId);
+  /**
+   * Les catégories où l'on peut ranger une carte — toutes sauf la sienne —, en
+   * deux groupes :
+   *
+   *   - `proches` : sa **famille**, c'est-à-dire son chapitre et les
+   *     sous-chapitres de celui-ci. En tête du sélecteur : découper un chapitre,
+   *     c'est répartir ses cartes entre ses sous-chapitres, et ce geste ne doit
+   *     pas obliger à chercher sa destination au milieu de tout le programme ;
+   *   - `loin` : le reste de l'arbre, dans son ordre.
+   *
+   * Retirer la famille **entière** du second groupe, et pas seulement la
+   * catégorie de la carte, est ce qui garde l'arbre juste : retirée seule, la
+   * catégorie laissait ses sous-chapitres sous le chapitre précédent, dont ils
+   * avaient l'air d'être les enfants (bug du 11/11/2026).
+   *
+   * `nomFamille` titre le premier groupe. Pour le chapitre affiché, il vient de
+   * `category`, que le renommage tient à jour ; l'entrée de `categories` peut
+   * être une copie antérieure (`majDestinations`).
+   */
+  function destinationsDe(card) {
+    const sienne = categories.find((c) => c.id === card.categoryId);
+    const famille = sienne ? chapitreDe(sienne) : null;
+    const autresQueSienne = categories.filter((c) => c.id !== card.categoryId);
+    const tete = famille === categoryId ? category : categories.find((c) => c.id === famille);
+    return {
+      proches: autresQueSienne.filter((c) => chapitreDe(c) === famille),
+      loin: autresQueSienne.filter((c) => chapitreDe(c) !== famille),
+      nomFamille: tete ? tete.name : '',
+    };
+  }
 
   // Les deux zones. `listCards` livre déjà les rangées en tête, dans l'ordre.
   const rangees = cards.filter(isPlaced);
@@ -521,7 +552,7 @@ export async function render(ctx) {
       el('button', {
         class: 'btn-sm',
         title: 'Déplacer vers une autre catégorie',
-        disabled: destinationsDe(card).length === 0,
+        disabled: categories.length < 2,
         on: { click: () => { deplacementDe = deplacementDe === card.id ? null : card.id; annonce = null; paint(); } },
       }, '⇄'),
 
@@ -539,14 +570,24 @@ export async function render(ctx) {
 
     // Le sélecteur prend la place d'une ligne de liste, sous la carte concernée :
     // le regard est déjà là, et rien ne se déplace hors de l'écran.
-    const destinations = destinationsDe(card);
+    //
+    // Deux `<optgroup>` quand la carte a une famille où aller : son en-tête,
+    // natif, se lit sur PC comme sur téléphone. Sans famille (chapitre non
+    // découpé), la liste reste simple — un seul groupe n'aurait rien à séparer.
+    const { proches, loin, nomFamille } = destinationsDe(card);
+    const options = (liste) => liste.map((c) => el('option', { value: c.id }, libelle(c)));
     const choix = el('select', {},
       el('option', { value: '' }, 'Déplacer vers…'),
-      destinations.map((c) => el('option', { value: c.id }, libelle(c))),
+      proches.length > 0
+        ? [
+          el('optgroup', { label: nomFamille }, options(proches)),
+          loin.length > 0 && el('optgroup', { label: 'Autres chapitres' }, options(loin)),
+        ]
+        : options(loin),
     );
     choix.addEventListener('change', async () => {
       if (!choix.value) return;
-      const cible = destinations.find((c) => c.id === choix.value);
+      const cible = [...proches, ...loin].find((c) => c.id === choix.value);
       choix.disabled = true;
       await moveCard(card.id, cible.id);
       replacer(card, cible.id);

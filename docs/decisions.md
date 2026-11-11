@@ -1228,7 +1228,8 @@ niveau** : un sous-chapitre ne se découpe pas. Concrètement :
   chapitre qui a des sous-chapitres, même vides, aussi.
 - **Déplacer une carte** — un seul `<select>` listant l'arbre, sous-chapitres
   indentés par préfixe de texte. Changer de catégorie fait perdre la place, entre
-  un chapitre et ses sous-chapitres comme ailleurs.
+  un chapitre et ses sous-chapitres comme ailleurs. *Précisé le 11/11/2026 :
+  voir « Déplacer une carte : la famille en tête ».*
 - **Niveau figé** — une catégorie naît chapitre ou sous-chapitre et le reste :
   ni changement de parent, ni promotion, ni rétrogradation. *Rouvert le
   lendemain : voir « Rattacher une catégorie ».*
@@ -1657,3 +1658,22 @@ règle. Le refus est expliqué plutôt que le bouton grisé (d) : sans survol su
 téléphone, un bouton gris ne dit pas pourquoi il ne répond pas.
 
 Prix assumé : trois gestes existent à deux endroits.
+
+## Déplacer une carte : la famille en tête
+
+**Choix** — Dans l'écran d'une catégorie, le sélecteur du ⇄ s'ouvre sur un
+`<optgroup>` titré du chapitre de la carte : ce chapitre et ses sous-chapitres,
+sauf la catégorie où la carte est déjà. Dessous, « Autres chapitres » : le reste
+de l'arbre, dans son ordre. Un chapitre non découpé garde la liste simple.
+L'éditeur, lui, garde l'arbre entier (la catégorie courante y est l'option
+choisie, l'arbre reste donc juste).
+
+**Alternative écartée** — garder l'ordre de l'arbre en y laissant la catégorie
+de la carte, grisée.
+
+**Raison** — Bug : la catégorie de la carte était retirée de la liste, et ses
+sous-chapitres s'affichaient alors sous le chapitre précédent, dont ils avaient
+l'air d'être les enfants — au milieu de tout le programme. Or le déplacement le
+plus fréquent depuis cet écran est justement celui-là : **répartir les cartes
+d'un chapitre qu'on découpe** entre ses sous-chapitres. Le grisé aurait rétabli
+l'arbre, sans rendre ce geste direct.
