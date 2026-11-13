@@ -92,10 +92,17 @@ _Code_: catégorie sans `parentId`
 _Éviter_: titre (c'est le mot du programme, et déjà celui d'une carte), section
 
 **Sous-chapitre** :
-Une catégorie rattachée à un chapitre, pour le découper. Il ne se découpe pas
-lui-même.
+Une catégorie rattachée à une autre — un chapitre ou un sous-chapitre — pour la
+découper. Le mot est relatif : « les sous-chapitres de X » sont les catégories
+rattachées directement à X. Un sous-chapitre du dernier niveau ne se découpe pas.
 _Code_: catégorie portant un `parentId`
-_Éviter_: sous-catégorie, section, rubrique, partie, dossier
+_Éviter_: sous-catégorie, sous-sous-chapitre, section, rubrique, partie, dossier
+
+**Niveau** :
+La profondeur d'une catégorie : 1 pour un chapitre, 2 pour un sous-chapitre de
+chapitre, 3 pour un sous-chapitre de sous-chapitre. Il n'y en a que trois.
+_Code_: `depth` (0, 1, 2)
+_Éviter_: étage, profondeur, rang
 
 **Livres** :
 Ce qu'on note sur les livres qui traitent une catégorie — lesquels, quelles
@@ -106,11 +113,12 @@ _Code_: `books`, sur la catégorie
 _Éviter_: bibliographie, références, source (déjà pris, sur un théorème)
 
 **Rattacher** :
-Changer l'étage d'une catégorie : la placer sous un chapitre, ou la ramener au
-premier niveau. Un seul geste couvre les trois cas — un chapitre qui devient
+Changer le niveau ou le parent d'une catégorie : la placer sous un chapitre, ou
+la ramener au premier niveau. Un seul geste couvre les trois cas — un chapitre qui devient
 sous-chapitre, un sous-chapitre qui devient chapitre, un sous-chapitre qui
-change de chapitre. Ses cartes ne changent pas de catégorie : elles gardent
-leur place. Un chapitre qui a des sous-chapitres ne se rattache pas.
+change de parent. Ses sous-chapitres la suivent, et ses cartes ne changent pas
+de catégorie : elles gardent leur place. Refusé si la catégorie arriverait sous
+elle-même, ou si l'un de ses sous-chapitres dépasserait le dernier niveau.
 _Code_: `attachCategory()`
 _Éviter_: convertir, promouvoir, rétrograder, déplacer (c'est ce qu'on fait
 d'une carte)

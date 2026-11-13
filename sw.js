@@ -39,6 +39,7 @@ const COQUE = [
   'js/carte.js',
   'js/entree.js',
   'js/recherche.js',
+  'js/arbre.js',
   'js/raccourcis.js',
   'js/images.js',
   'js/version.js',

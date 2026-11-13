@@ -71,12 +71,13 @@ on l'inscrit ici avec sa frontière.
   Arborescence `users/{uid}/categories`, `users/{uid}/cards` et
   `users/{uid}/library` : c'est cette forme qui rend la règle de sécurité
   tenable en une ligne, la changer obligerait à revoir les règles publiées.
-  Les **deux niveaux** de catégorie vivent dans la même collection : un
-  sous-chapitre porte un `parentId`, un chapitre non. `listChapters()` rend
-  l'arbre, `flattenChapters()` le remet à plat pour un `<select>`,
-  `listCardsUnder()` lit un chapitre et ses sous-chapitres. Un `parentId` ne
-  s'écrit qu'à deux endroits, `createCategory` et `attachCategory` (rattacher
-  une catégorie existante) : ce sont eux qui tiennent le niveau unique.
+  Les **trois niveaux** de catégorie vivent dans la même collection : un
+  sous-chapitre porte le `parentId` de son parent direct, un chapitre non.
+  `listChapters()` rend l'arbre, `flattenChapters()` le remet à plat pour un
+  `<select>`, `listCardsUnder()` lit une catégorie et tout ce qui est dessous.
+  Un `parentId` ne s'écrit qu'à deux endroits, `createCategory` et
+  `attachCategory` (rattacher une catégorie existante, son sous-arbre suit) :
+  ce sont eux qui tiennent le plafond, en demandant leur refus à `arbre.js`.
   `setCategoryBooks()` écrit le texte « Livres » d'une catégorie (`books`).
   Porte aussi `migrateLibrary()`, migration unique et non destructive de
   l'ancienne collection `theorems` — à retirer une fois celle-ci effacée.
@@ -86,6 +87,12 @@ on l'inscrit ici avec sa frontière.
   n'interroge pas. **Seul endroit** où vivent les libellés d'espèce.
 - `js/recherche.js` — le filtre de la bibliothèque. **Pur** : ni DOM, ni réseau,
   ni stockage.
+- `js/arbre.js` — l'arbre des catégories, calculé depuis leur liste plate :
+  construction (avec le filet contre parents disparus et cycles), mise à plat
+  avec `depth`, descendants, ancêtres, hauteur, et les **refus** de création et
+  de rattachement (`MAX_DEPTH`, cycles). **Pur**, comme `recherche.js` : le
+  store le consulte avant d'écrire, les vues pour n'offrir que les gestes
+  permis — une seule règle, lue aux deux endroits.
 - `js/jours.js` — les jours de l'interro, en clé `AAAA-MM-JJ` (jour local,
   voisin, libellé français). **Pur**, comme `recherche.js`. La clé est aussi
   l'identifiant Firestore d'une interro : la tâche du PC et l'app doivent

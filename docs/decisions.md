@@ -1267,6 +1267,9 @@ qu'une réécriture de `parentId` — les cartes ne bougent pas. La recherche é
 passe par des requêtes `in`, découpées en tranches de 30 identifiants (le
 plafond Firestore) : le nombre de sous-chapitres n'est donc pas borné.
 
+> **Rouverte** par « Trois niveaux de catégories » : un sous-chapitre de
+> niveau 2 se découpe à son tour.
+
 ---
 
 ## Rattacher une catégorie
@@ -1309,6 +1312,9 @@ catégorie fait perdre la place » ne s'applique donc pas.
 Prix assumé : promouvoir n'est pas un bouton visible, c'est l'option « aucun
 parent » d'un sélecteur ; dissoudre un chapitre découpé coûte un geste par
 sous-chapitre.
+
+> **Rouverte en partie** par « Trois niveaux de catégories » : une catégorie
+> découpée se rattache, et son sous-arbre la suit.
 
 ## Retrait des renvois
 
@@ -1677,3 +1683,67 @@ l'air d'être les enfants — au milieu de tout le programme. Or le déplacement
 plus fréquent depuis cet écran est justement celui-là : **répartir les cartes
 d'un chapitre qu'on découpe** entre ses sous-chapitres. Le grisé aurait rétabli
 l'arbre, sans rendre ce geste direct.
+
+## Trois niveaux de catégories
+
+**Choix** — L'arbre des catégories descend jusqu'à **trois niveaux** : un
+sous-chapitre de niveau 2 se découpe à son tour, un sous-chapitre de niveau 3
+non. Concrètement :
+
+- **Code générique, plafond en constante** — le calcul de l'arbre (niveau,
+  descendants, ancêtres, refus) vit dans un module pur, `arbre.js` ; store et
+  vues s'en servent sans supposer de profondeur. Le plafond est **une**
+  constante (`MAX_DEPTH`), tenue par `createCategory` et `attachCategory`,
+  seuls endroits où un `parentId` s'écrit. La base, elle, ne garantit toujours
+  rien.
+- **Deux mots** — *chapitre* (niveau 1) et *sous-chapitre*, au sens
+  **relatif** : rattaché à une autre catégorie, quelle qu'elle soit.
+- **Données inchangées** — même collection, même `parentId`, qui désigne le
+  **parent direct**. Ni migration ni règle Firestore : l'arbre actuel à deux
+  niveaux est déjà valide.
+- **Extensions par récurrence** — compteur cumulé (accueil, lignes de
+  sous-chapitres) sur tout le sous-arbre ; recherche sur tout le sous-arbre,
+  chaque résultat portant son **chemin depuis l'écran courant** (« Groupes ›
+  Sylow ») ; l'écran d'un niveau 2 se comporte comme celui d'un chapitre (bloc
+  des sous-chapitres et ses gestes), celui d'un niveau 3 n'a pas ce bloc ;
+  retour ‹ au parent direct ; sélecteurs indentés d'un cran par niveau, la
+  « famille » en tête étant le chapitre de niveau 1 et tout son sous-arbre ;
+  « + » de « Gérer » aux niveaux 1 et 2. Suppression et livres inchangés.
+- **Rattacher : le sous-arbre suit** — seule la catégorie rattachée change de
+  `parentId` ; ses descendants la désignent toujours, les cartes ne bougent
+  pas. Deux refus : la cible est la catégorie ou l'un de ses descendants
+  (cycle) ; niveau de la cible + 1 + hauteur du sous-arbre dépasse 3. Le
+  sélecteur de « Gérer » ne propose que les cibles valides.
+- **Filet d'affichage** — une catégorie qu'aucune chaîne de parents ne relie à
+  un chapitre (parent disparu, cycle écrit par deux appareils hors ligne)
+  s'affiche **comme un chapitre** ; une catégorie arrivée au niveau 4 s'affiche
+  telle quelle, sans planter. Le store refuse, l'écran tolère.
+
+**Alternative écartée** — (a) une profondeur libre ; (b) trois niveaux codés en
+dur (`depth === 1`, `children` de `children`) ; (c) un troisième mot
+(« sous-sous-chapitre », « paragraphe ») ; (d) garder le refus de rattacher une
+catégorie découpée.
+
+**Raison** — Rouvre « Sous-chapitres : un niveau », qui écartait l'arbre pour
+son coût. Le besoin est celui qui avait fait naître les sous-chapitres, un
+niveau plus bas : un sous-chapitre de plusieurs dizaines de cartes ne se relit
+plus d'un bloc.
+
+Passer de deux à trois niveaux oblige de toute façon à écrire en récursif —
+compteur cumulé, recherche, contrôle de cycle — : coder trois en dur (b)
+doublerait les branches sans rien économiser. Le plafond (a) garde un sélecteur
+lisible sur téléphone et coupe le rangement sans fin ; le relever, c'est changer
+une constante. Deux mots (c), parce qu'un troisième obligerait chaque écran à
+savoir à quel niveau il est pour choisir son vocabulaire — exactement le cas par
+cas que le code générique supprime.
+
+Le sous-arbre suit (d) parce que, dans ce modèle, ça ne coûte rien : chaque
+enfant désigne son parent direct, une écriture suffit. Le « déplacement d'un
+nœud avec ses enfants », compté comme un coût dans l'entrée d'origine, était en
+fait gratuit ; le seul vrai prix est le contrôle de cycle, une remontée des
+ancêtres de la cible. Le refus aurait obligé à défaire un découpage enfant par
+enfant pour le déplacer, avec un état intermédiaire visible.
+
+Prix assumés : depuis un chapitre, la recherche affiche des chemins à deux
+crans ; le niveau 4 n'est refusé que par le store — deux appareils hors ligne
+peuvent l'écrire, d'où le filet.

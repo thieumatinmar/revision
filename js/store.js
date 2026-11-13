@@ -34,6 +34,9 @@ import {
   collection, doc, getDoc, getDocs, setDoc, addDoc, deleteDoc, deleteField,
   writeBatch, query, where, orderBy, documentId,
 } from '../vendor/firebase/firebase-firestore.js';
+import {
+  buildTree, flattenTree, descendantsOf, ancestorsOf, createRefusal, attachRefusal,
+} from './arbre.js';
 
 /** Les 12 titres du programme officiel 2027 (../ressources/programme_officiel_2027.md). */
 const TITRES = [
@@ -69,26 +72,29 @@ const toObj = (d) => ({ id: d.id, ...d.data() });
 
 // ---------------------------------------------------------------- Catégories
 //
-// Deux niveaux, **une seule collection** (docs/decisions.md, « Sous-chapitres ») :
+// Trois niveaux au plus, **une seule collection** (docs/decisions.md,
+// « Sous-chapitres » puis « Trois niveaux de catégories ») :
 //
 //   - un **chapitre** ne porte pas de `parentId` ;
-//   - un **sous-chapitre** porte le `parentId` de son chapitre.
+//   - un **sous-chapitre** porte le `parentId` de son **parent direct** —
+//     chapitre ou sous-chapitre.
 //
 // Les douze chapitres écrits avant cette fonctionnalité n'ont pas le champ : ils
 // sont donc déjà des chapitres, sans rien migrer. Une carte, elle, ne sait pas à
-// quel niveau elle vit — son `categoryId` pointe vers l'un ou l'autre.
+// quel niveau elle vit — son `categoryId` pointe vers n'importe laquelle.
 //
 // `order` est un ordre **entre frères** : les chapitres entre eux, et les
-// sous-chapitres d'un même chapitre entre eux.
+// sous-chapitres d'un même parent entre eux.
 //
-// Le niveau unique n'est garanti par rien dans la base : ce sont
-// `createCategory` et `attachCategory`, les deux seuls endroits où un `parentId`
-// s'écrit, qui refusent tout ce qui ferait un second niveau.
+// Le calcul de l'arbre (niveaux, descendants, ancêtres, refus) vit dans
+// `arbre.js`, module pur. Le plafond de niveaux n'est garanti par rien dans la
+// base : ce sont `createCategory` et `attachCategory`, les deux seuls endroits
+// où un `parentId` s'écrit, qui demandent son refus à `arbre.js` avant d'écrire.
 
-/** Une catégorie est un **sous-chapitre** quand elle désigne un chapitre parent. */
+/** Une catégorie est un **sous-chapitre** quand elle désigne un parent. */
 export const isSubchapter = (cat) => typeof cat.parentId === 'string' && cat.parentId !== '';
 
-/** Toutes les catégories, les deux niveaux mélangés, triées par `order`. */
+/** Toutes les catégories, tous niveaux mélangés, triées par `order`. */
 export async function listCategories() {
   const snap = await getDocs(query(col('categories'), orderBy('order')));
   return snap.docs.map(toObj);
@@ -96,50 +102,34 @@ export async function listCategories() {
 
 /**
  * L'arbre des catégories : les chapitres dans leur ordre, chacun portant
- * `children`, ses sous-chapitres dans leur ordre.
+ * `children`, ses sous-chapitres dans leur ordre, récursivement.
  *
- * Le regroupement se fait ici, pour qu'aucune vue n'ait à le refaire — et à le
- * refaire différemment d'une autre.
- *
- * Filet : un sous-chapitre dont le parent n'existe plus (suppression faite
- * depuis un autre appareil pendant qu'un premier était hors ligne) est affiché
- * **comme un chapitre**. Le faire disparaître rendrait ses cartes introuvables ;
- * `deleteCategory` empêche ce cas, mais ne peut rien contre deux écritures
- * concurrentes.
- *
- * Les objets renvoyés sont des copies : ajouter `children` ne touche pas la
- * liste plate que l'appelant pourrait tenir à côté.
+ * Le regroupement se fait dans `arbre.js` (`buildTree`), pour qu'aucune vue
+ * n'ait à le refaire — et à le refaire différemment d'une autre. C'est lui qui
+ * porte le filet : une catégorie qu'aucune chaîne de parents ne relie à un
+ * chapitre (parent supprimé depuis un autre appareil hors ligne, cycle écrit
+ * par deux appareils) est affichée **comme un chapitre**, plutôt que de rendre
+ * ses cartes introuvables.
  */
 export async function listChapters() {
-  const toutes = await listCategories();
-  const ids = new Set(toutes.map((c) => c.id));
-  const estChapitre = (c) => !isSubchapter(c) || !ids.has(c.parentId);
-
-  const chapitres = toutes.filter(estChapitre).map((c) => ({ ...c, children: [] }));
-  const parId = new Map(chapitres.map((c) => [c.id, c]));
-  // `toutes` est déjà trié par `order` : pousser dans l'ordre de lecture suffit.
-  toutes.filter((c) => !estChapitre(c)).forEach((s) => parId.get(s.parentId).children.push({ ...s }));
-  return chapitres;
+  return buildTree(await listCategories());
 }
 
 /**
  * L'arbre de `listChapters()` remis à plat, **dans l'ordre de lecture** : chaque
- * chapitre suivi de ses sous-chapitres. Chaque élément porte `depth` — 0 pour un
- * chapitre, 1 pour un sous-chapitre — et plus de `children`.
+ * catégorie suivie de ses sous-chapitres. Chaque élément porte `depth` — 0 pour
+ * un chapitre, 1 et 2 pour les sous-chapitres — et plus de `children`.
  *
  * C'est la forme qu'attend un `<select>` de destination : une seule liste, où le
  * chapitre reste choisissable. Le libellé (indentation) appartient à la vue.
  */
 export function flattenChapters(chapters) {
-  return chapters.flatMap(({ children, ...chap }) => [
-    { ...chap, depth: 0 },
-    ...children.map((s) => ({ ...s, depth: 1 })),
-  ]);
+  return flattenTree(chapters);
 }
 
-export async function getCategory(id) {
-  const d = await getDoc(ref('categories', id));
-  return d.exists() ? toObj(d) : null;
+/** L'arbre relu, directement à plat : la forme où se lisent les descendants. */
+async function listFlat() {
+  return flattenTree(await listChapters());
 }
 
 /**
@@ -149,16 +139,13 @@ export async function getCategory(id) {
  * toutes les catégories donnerait à un premier sous-chapitre la position 12,
  * ce qui ne veut rien dire sous un chapitre qui n'en a aucun autre.
  *
- * C'est ici que tient le niveau unique : un parent introuvable, ou qui est
- * lui-même un sous-chapitre, est refusé.
+ * C'est ici que tient le plafond de niveaux : un parent introuvable, ou qui est
+ * déjà au dernier niveau, est refusé (`createRefusal`, arbre.js).
  */
 export async function createCategory(name, parentId = null) {
-  if (parentId) {
-    const parent = await getCategory(parentId);
-    if (!parent) throw new Error('Chapitre parent introuvable.');
-    if (isSubchapter(parent)) throw new Error('Un sous-chapitre ne se découpe pas.');
-  }
   const existantes = await listCategories();
+  const refus = createRefusal(flattenTree(buildTree(existantes)), parentId);
+  if (refus) throw new Error(refus);
   const freres = existantes.filter((c) => (parentId ? c.parentId === parentId : !isSubchapter(c)));
   const donnees = { name, order: freres.length };
   // Pas de `parentId: null` sur un chapitre : l'absence du champ **est** l'état
@@ -216,17 +203,18 @@ export async function setCategoriesOrder(orderedIds) {
 }
 
 /**
- * **Rattache** une catégorie : sous le chapitre `parentId`, ou au premier niveau
- * si `parentId` est nul. Un seul geste pour trois cas — un chapitre qui devient
- * sous-chapitre, un sous-chapitre qui devient chapitre, un sous-chapitre qui
- * change de chapitre (docs/decisions.md, « Rattacher une catégorie »).
+ * **Rattache** une catégorie : sous la catégorie `parentId`, ou au premier
+ * niveau si `parentId` est nul. Un seul geste pour trois cas — un chapitre qui
+ * devient sous-chapitre, un sous-chapitre qui devient chapitre, un sous-chapitre
+ * qui change de parent (docs/decisions.md, « Rattacher une catégorie »).
  *
- * Refus, pour tenir le niveau unique :
- *   - le parent visé est introuvable, est un sous-chapitre, ou est la catégorie
- *     elle-même ;
- *   - la catégorie est un chapitre qui a des sous-chapitres, et on veut la placer
- *     sous un autre : ses enfants deviendraient petits-enfants. On ne les
- *     aplatit ni ne les libère d'office — rien ne bouge par effet de bord.
+ * **Le sous-arbre suit** (« Trois niveaux de catégories ») : seule la catégorie
+ * rattachée change de `parentId` ; ses descendants désignent toujours leur
+ * parent direct, ils descendent ou remontent donc avec elle, sans écriture.
+ *
+ * Refus (`attachRefusal`, arbre.js) : catégorie ou parent introuvable ; parent
+ * qui est la catégorie elle-même ou l'un de ses descendants (cycle) ;
+ * descendant le plus bas qui passerait sous le dernier niveau.
  *
  * La catégorie arrive **à la fin de ses nouveaux frères**, comme à la création.
  * Anciens et nouveaux frères sont renumérotés de 0 dans le **même** `writeBatch`
@@ -238,7 +226,8 @@ export async function setCategoriesOrder(orderedIds) {
  * la catégorie qui change d'étage. Elles gardent donc leur place.
  *
  * On relit l'arbre plutôt que de croire l'écran appelant : un sous-chapitre a pu
- * être ajouté depuis un autre appareil au chapitre qu'on s'apprête à rattacher.
+ * être ajouté depuis un autre appareil à la catégorie qu'on s'apprête à
+ * rattacher, et changer sa hauteur.
  *
  * @returns {Promise<object>} la catégorie telle qu'écrite (`order`, `parentId`?)
  */
@@ -247,22 +236,13 @@ export async function attachCategory(id, parentId = null) {
   const toutes = await listCategories();
   const cat = toutes.find((c) => c.id === id);
   if (!cat) throw new Error('Catégorie introuvable.');
-  if (cible === id) throw new Error('Une catégorie ne se rattache pas à elle-même.');
 
   const actuel = isSubchapter(cat) ? cat.parentId : null;
   // Déjà là : rien à écrire, et surtout pas de renumérotation gratuite.
   if (cible === actuel) return { ...cat };
 
-  if (cible) {
-    const parent = toutes.find((c) => c.id === cible);
-    if (!parent) throw new Error('Chapitre parent introuvable.');
-    if (isSubchapter(parent)) throw new Error('Un sous-chapitre ne se découpe pas.');
-    const enfants = toutes.filter((c) => c.parentId === id).length;
-    if (enfants > 0) {
-      throw new Error(`« ${cat.name} » a ${enfants} sous-chapitre${enfants > 1 ? 's' : ''} : `
-        + 'rattache-les ailleurs d’abord.');
-    }
-  }
+  const refus = attachRefusal(flattenTree(buildTree(toutes)), id, cible);
+  if (refus) throw new Error(refus);
 
   // Les frères d'un niveau, sans la catégorie elle-même, dans leur ordre.
   // `toutes` est déjà trié par `order`.
@@ -286,7 +266,7 @@ export async function attachCategory(id, parentId = null) {
   return cible ? { ...reste, order, parentId: cible } : { ...reste, order };
 }
 
-/** Les sous-chapitres d'un chapitre, dans leur ordre. */
+/** Les sous-chapitres **directs** d'une catégorie, dans leur ordre. */
 async function listSubchapters(chapterId) {
   // Filtre par `where`, tri en mémoire : `where` + `orderBy` sur deux champs
   // différents exigerait un index composite déclaré à la main.
@@ -295,15 +275,16 @@ async function listSubchapters(chapterId) {
 }
 
 /**
- * Supprime une catégorie — **refuse** si elle contient des cartes, ou si c'est
- * un chapitre qui a encore des sous-chapitres, même vides.
+ * Supprime une catégorie — **refuse** si elle contient des cartes, ou si elle a
+ * encore des sous-chapitres, même vides. Les sous-chapitres directs suffisent à
+ * le savoir : on ne supprime jamais qu'une feuille, de bas en haut.
  * Décision actée : aucune donnée ne disparaît par effet de bord, et il n'existe
  * pas de zone « sans catégorie » où reléguer les orphelines.
  */
 export async function deleteCategory(id) {
   const [cartes, sous] = await Promise.all([listCards(id), listSubchapters(id)]);
   if (sous.length > 0) {
-    throw new Error(`Ce chapitre a ${sous.length} sous-chapitre(s). Supprime-les d'abord.`);
+    throw new Error(`Cette catégorie a ${sous.length} sous-chapitre(s). Supprime-les d'abord.`);
   }
   if (cartes.length > 0) {
     throw new Error(`Cette catégorie contient ${cartes.length} carte(s). Vide-la ou déplace-les d'abord.`);
@@ -353,11 +334,12 @@ export async function listCards(categoryId) {
 const IN_MAX = 30;
 
 /**
- * Les cartes **d'un chapitre et de ses sous-chapitres** — pour la recherche de
- * l'écran d'un chapitre, qui mentirait si elle ignorait ce qu'on a découpé.
+ * Les cartes **d'une catégorie et de tout ce qui est dessous** — sous-chapitres,
+ * et leurs sous-chapitres — pour la recherche de l'écran d'une catégorie
+ * découpée, qui mentirait si elle ignorait ce qu'on a découpé.
  *
- * Ordre renvoyé : les cartes propres au chapitre d'abord, puis celles de chaque
- * sous-chapitre dans l'ordre des sous-chapitres ; à l'intérieur de chaque
+ * Ordre renvoyé : les cartes propres à la catégorie d'abord, puis celles de
+ * chaque descendant dans l'ordre de lecture de l'arbre ; à l'intérieur de chaque
  * catégorie, l'ordre habituel (`compareCards`). Les positions de deux catégories
  * ne se comparent pas, d'où ce groupement plutôt qu'un tri unique.
  *
@@ -365,7 +347,7 @@ const IN_MAX = 30;
  * devient donc pas une limite du nombre de sous-chapitres.
  */
 export async function listCardsUnder(chapterId) {
-  const sous = await listSubchapters(chapterId);
+  const sous = descendantsOf(await listFlat(), chapterId);
   const ids = [chapterId, ...sous.map((s) => s.id)];
 
   const tranches = [];
@@ -404,12 +386,13 @@ export async function setCardsOrder(orderedIds) {
  * - `total` — les cartes rangées **directement** dans la catégorie ;
  * - `unplaced` — parmi elles, celles qui n'ont pas de place : l'écran de gestion
  *   s'en sert pour montrer où il reste de l'ordre à mettre ;
- * - `cumulative` — sur un chapitre, `total` plus les cartes de ses
- *   sous-chapitres ; sur un sous-chapitre, `total`. C'est le compteur de
- *   l'accueil : sans lui, découper un chapitre le ferait paraître vidé.
+ * - `cumulative` — `total` plus les cartes de **tout ce qui est dessous**
+ *   (sous-chapitres, et leurs sous-chapitres). C'est le compteur de l'accueil et
+ *   des lignes de sous-chapitres : sans lui, découper une catégorie la ferait
+ *   paraître vidée.
  *
- * Seules les catégories qui portent au moins une carte, ou un sous-chapitre qui
- * en porte, figurent dans la table : l'appelant replie sur zéro.
+ * Seules les catégories qui portent au moins une carte, ou un descendant qui en
+ * porte, figurent dans la table : l'appelant replie sur zéro.
  */
 export async function countByCategory() {
   const [snap, categories] = await Promise.all([getDocs(col('cards')), listCategories()]);
@@ -427,12 +410,15 @@ export async function countByCategory() {
     if (typeof donnees.order !== 'number') c.unplaced += 1;
   });
 
-  // Report des sous-chapitres sur leur chapitre. Même filet que `listChapters` :
-  // un parent disparu ne reçoit rien, le sous-chapitre garde son propre compte.
-  const ids = new Set(categories.map((c) => c.id));
-  categories.forEach((cat) => {
-    if (!isSubchapter(cat) || !ids.has(cat.parentId) || !compte.has(cat.id)) return;
-    entree(cat.parentId).cumulative += compte.get(cat.id).total;
+  // Report de chaque catégorie sur **tous** ses ancêtres, lus dans l'arbre
+  // affiché. Même filet que `listChapters` : une catégorie que le filet a faite
+  // chapitre n'a pas d'ancêtre, elle garde son propre compte et ne le reporte
+  // nulle part.
+  const plat = flattenTree(buildTree(categories));
+  plat.forEach((cat) => {
+    if (!compte.has(cat.id)) return;
+    const propres = compte.get(cat.id).total;
+    ancestorsOf(plat, cat.id).forEach((a) => { entree(a.id).cumulative += propres; });
   });
   return compte;
 }
