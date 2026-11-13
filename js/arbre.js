@@ -76,13 +76,42 @@ export function buildTree(categories) {
 /**
  * L'arbre remis à plat, dans l'ordre de lecture : chaque catégorie suivie de
  * ses sous-chapitres. Chaque élément porte `depth` (0 pour un chapitre) et plus
- * de `children`. Le libellé (indentation) appartient à la vue.
+ * de `children`.
+ *
+ * `children` absent vaut « aucun » : une vue qui pousse dans l'arbre la
+ * catégorie que `createCategory` vient de rendre n'a pas à penser à l'ajouter.
  */
 export function flattenTree(roots, depth = 0) {
-  return roots.flatMap(({ children, ...cat }) => [
+  return roots.flatMap(({ children = [], ...cat }) => [
     { ...cat, depth },
     ...flattenTree(children, depth + 1),
   ]);
+}
+
+/**
+ * Le nœud d'une catégorie dans l'arbre (avec ses `children`), ou `null`. C'est
+ * le nœud lui-même, pas une copie : une vue qui réordonne ses `children` en
+ * mémoire réordonne l'arbre qu'elle remettra à plat.
+ */
+export function findNode(roots, id) {
+  for (const n of roots) {
+    if (n.id === id) return n;
+    const trouve = findNode(n.children || [], id);
+    if (trouve) return trouve;
+  }
+  return null;
+}
+
+/**
+ * Le libellé d'une catégorie dans un `<select>` : indentée d'un cran par
+ * niveau. L'indentation passe par le texte — le CSS sur `<option>` est ignoré
+ * par la plupart des navigateurs mobiles — et par des espaces **insécables**,
+ * qu'une option ne fusionne pas. Un seul libellé pour les deux sélecteurs
+ * (éditeur, ⇄ de l'écran d'une catégorie), qui se liraient sinon différemment.
+ */
+export function indentedLabel(cat) {
+  if (!cat.depth) return cat.name;
+  return '   '.repeat(cat.depth) + '└ ' + cat.name;
 }
 
 /** Position d'une catégorie dans la liste à plat, ou -1. */

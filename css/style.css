@@ -135,6 +135,8 @@ button:active, .btn:active { transform: translateY(1px); }
   margin-left: 22px;
   border-left: 3px solid var(--line);
 }
+/* Troisième niveau : un cran de plus. Pas davantage, il n'y en a pas d'autre. */
+.list li.sous-chapitre.niveau-3 { margin-left: 44px; }
 
 /* « Livres », en tête de l'écran d'une catégorie : replié, une ligne ; le
    résumé (début du texte) se coupe plutôt que de passer à la ligne. */

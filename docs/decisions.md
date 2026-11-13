@@ -1707,8 +1707,16 @@ non. Concrètement :
   Sylow ») ; l'écran d'un niveau 2 se comporte comme celui d'un chapitre (bloc
   des sous-chapitres et ses gestes), celui d'un niveau 3 n'a pas ce bloc ;
   retour ‹ au parent direct ; sélecteurs indentés d'un cran par niveau, la
-  « famille » en tête étant le chapitre de niveau 1 et tout son sous-arbre ;
-  « + » de « Gérer » aux niveaux 1 et 2. Suppression et livres inchangés.
+  « famille » en tête du ⇄ étant le chapitre de niveau 1 et tout son
+  sous-arbre ; « + » de « Gérer » aux niveaux 1 et 2. Suppression et livres
+  inchangés.
+- **⇄ : la catégorie de la carte reste, désactivée** — dans la famille, elle
+  s'affiche « (ici) » au lieu d'être retirée. Retirée, ses sous-chapitres
+  passaient sous la catégorie précédente, dont ils avaient l'air d'être les
+  enfants : le bug corrigé dans « Déplacer une carte : la famille en tête »,
+  revenu un niveau plus bas dès qu'un sous-chapitre a lui-même des enfants.
+  C'est l'alternative grisée écartée ce jour-là, qui devient nécessaire
+  maintenant que la famille ne suffit plus à garder l'arbre juste.
 - **Rattacher : le sous-arbre suit** — seule la catégorie rattachée change de
   `parentId` ; ses descendants la désignent toujours, les cartes ne bougent
   pas. Deux refus : la cible est la catégorie ou l'un de ses descendants

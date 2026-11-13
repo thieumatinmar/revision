@@ -37,6 +37,7 @@ import {
 } from '../store.js';
 import { surEnregistrement, surCollageImages, surNavigation, surSortie } from '../raccourcis.js';
 import { depuisFichier, poidsTotal, formatePoids, BUDGET } from '../images.js';
+import { indentedLabel } from '../arbre.js';
 
 /**
  * Délai avant de recomposer l'aperçu, en ms. Recomposer tout le KaTeX à chaque
@@ -53,7 +54,7 @@ export async function render(ctx) {
   // faudrait deviner à partir de la forme de l'identifiant — fragile.
   const creation = ctx.mode === 'creation';
   const [param] = ctx.params;
-  // Les catégories dans l'ordre de l'arbre : chaque chapitre suivi de ses
+  // Les catégories dans l'ordre de l'arbre : chaque catégorie suivie de ses
   // sous-chapitres, pour que le sélecteur se lise comme l'accueil.
   const arbre = await listChapters();
   const categories = flattenChapters(arbre);
@@ -127,12 +128,11 @@ export async function render(ctx) {
 
   // --- Champs -----------------------------------------------------------------
   // Une seule liste : le chapitre reste choisissable, ses sous-chapitres sont
-  // indentés sous lui. L'indentation passe par le texte de l'option — le CSS sur
-  // `<option>` est ignoré par la plupart des navigateurs mobiles. Même libellé
-  // que le sélecteur « ⇄ » de views/cartes.js : à changer ensemble.
+  // indentés sous lui, d'un cran par niveau. Le libellé est celui du sélecteur
+  // « ⇄ » de views/cartes.js : un seul, `indentedLabel` (arbre.js).
   const categorie = el('select', {},
     categories.map((c) => el('option', { value: c.id, selected: c.id === card.categoryId },
-      (c.depth === 1 ? '   └ ' : '') + c.name)),
+      indentedLabel(c))),
   );
 
   const titre = champTitre(card.title);

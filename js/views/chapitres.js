@@ -1,5 +1,6 @@
 // views/chapitres.js — gérer les catégories : renommer, réordonner, créer,
-// supprimer, sur les deux niveaux (chapitres et sous-chapitres).
+// supprimer, sur les trois niveaux (docs/decisions.md, « Trois niveaux de
+// catégories »).
 //
 // **Seul écran où l'arbre entier se voit et se modifie** (docs/decisions.md,
 // « Sous-chapitres ») : chapitres de premier niveau et rattachement ne vivent
@@ -15,12 +16,13 @@
 // `deleteCategory`, `setCategoriesOrder`) : les deux écrans ne font que
 // présenter leurs refus.
 //
-// Les sous-chapitres s'affichent indentés sous leur chapitre, avec les mêmes
-// gestes. Les flèches n'échangent qu'**entre frères** : un chapitre avec un
-// chapitre, un sous-chapitre avec un sous-chapitre du même chapitre. Changer
-// d'étage, c'est **rattacher** (⤴) : un sélecteur sous la ligne, qui couvre
+// Les sous-chapitres s'affichent indentés sous leur parent, un cran par niveau,
+// avec les mêmes gestes ; « + » n'existe que là où l'on peut encore découper.
+// Les flèches n'échangent qu'**entre frères** : un chapitre avec un chapitre,
+// un sous-chapitre avec un sous-chapitre du même parent. Changer de niveau ou
+// de parent, c'est **rattacher** (⤴) : un sélecteur sous la ligne, qui couvre
 // promotion, rétrogradation et changement de parent (docs/decisions.md,
-// « Rattacher une catégorie »).
+// « Rattacher une catégorie ») — le sous-arbre suit.
 //
 // Le renommage se valide à la perte de focus plutôt qu'avec un bouton
 // « Enregistrer » : corriger une coquille dans un titre ne mérite pas deux clics.
@@ -40,6 +42,9 @@ import {
   listChapters, countByCategory, createCategory, renameCategory,
   deleteCategory, setCategoriesOrder, attachCategory,
 } from '../store.js';
+import {
+  flattenTree, findNode, heightOf, canHaveChildren, attachRefusal, indentedLabel, MAX_DEPTH,
+} from '../arbre.js';
 
 export async function render(ctx) {
   ctx.setTitle('Chapitres');
@@ -51,14 +56,14 @@ export async function render(ctx) {
     el('span', { class: 'small muted', title: 'Version du code exécutée' }, 'v' + VERSION),
   );
 
-  // L'arbre : chaque chapitre porte `children`, ses sous-chapitres ordonnés.
+  // L'arbre : chaque catégorie porte `children`, ses sous-chapitres ordonnés.
   // `let` : un rattachement réorganise l'arbre, qu'on relit alors en entier.
   let [chapitres, compte] = await Promise.all([listChapters(), countByCategory()]);
   const compteDe = (id) => compte.get(id) || { total: 0, unplaced: 0 };
 
   // Message attaché à une catégorie : { id, texte, type } ou null.
   let annonce = null;
-  // Chapitre dont le champ « nouveau sous-chapitre » est ouvert (un seul à la fois).
+  // Catégorie dont le champ « nouveau sous-chapitre » est ouvert (un seul à la fois).
   let creationSous = null;
   // Catégorie dont le sélecteur « Rattacher à… » est ouvert (un seul à la fois,
   // et jamais en même temps qu'un champ de création).
@@ -70,30 +75,44 @@ export async function render(ctx) {
   const liste = el('ul', { class: 'list' });
   fill(ctx.root,
     el('p', { class: 'muted small' },
-      'Renomme, réordonne, ajoute. « + » découpe un chapitre en sous-chapitres. '
+      'Renomme, réordonne, ajoute. « + » découpe une catégorie en sous-chapitres, '
+      + `sur ${MAX_DEPTH} niveaux au plus. `
       + 'Une catégorie ne peut être supprimée que si elle est vide.'),
     liste,
   );
 
   function dessiner() {
-    fill(liste, chapitres.flatMap((chap, i) => [
-      ...ligne(chap, chapitres, i),
-      ...chap.children.flatMap((sous, j) => ligne(sous, chap.children, j, chap)),
-      ...(creationSous === chap.id ? [champSousChapitre(chap)] : []),
-    ]));
+    fill(liste, rendre(chapitres, null, 0));
   }
+
+  /**
+   * Des frères et, sous chacun, ses descendants — récursivement, dans l'ordre
+   * de lecture. Le champ de création d'une catégorie vient **après tout son
+   * sous-arbre** : là où son nouveau sous-chapitre va apparaître.
+   */
+  function rendre(freres, parent, depth) {
+    return freres.flatMap((cat, i) => [
+      ...ligne(cat, freres, i, parent, depth),
+      ...rendre(cat.children || [], cat, depth + 1),
+      ...(creationSous === cat.id ? [champSousChapitre(cat, depth + 1)] : []),
+    ]);
+  }
+
+  /** La classe d'indentation d'une ligne de niveau `depth` (0 pour un chapitre). */
+  const indentation = (depth) => (depth === 0 ? '' : ` sous-chapitre niveau-${depth + 1}`);
 
   /**
    * Une catégorie, suivie de son éventuel message.
    *
-   * @param cat     la catégorie
+   * @param cat     la catégorie (nœud de l'arbre, avec `children`)
    * @param freres  la liste où elle se trouve — celle que les flèches réordonnent
    * @param i       sa place dans `freres`
-   * @param parent  le chapitre, quand `cat` est un sous-chapitre
+   * @param parent  son parent direct, nul pour un chapitre
+   * @param depth   son niveau, 0 pour un chapitre
    */
-  function ligne(cat, freres, i, parent = null) {
+  function ligne(cat, freres, i, parent, depth) {
     const { total: n, unplaced } = compteDe(cat.id);
-    const nbSous = parent ? 0 : cat.children.length;
+    const nbSous = (cat.children || []).length;
 
     const nom = el('input', {
       value: cat.name,
@@ -114,7 +133,7 @@ export async function render(ctx) {
       },
     });
 
-    const li = el('li', { class: parent ? 'sous-chapitre' : null },
+    const li = el('li', { class: indentation(depth).trim() || null },
       el('div', { class: 'grow' },
         nom,
         // Les compteurs sont ceux des cartes **directement** rangées ici : c'est
@@ -128,15 +147,15 @@ export async function render(ctx) {
           unplaced > 0 && el('span', { style: 'color:var(--accent)' },
             ` · ${unplaced} non rangée${unplaced > 1 ? 's' : ''}`)),
       ),
-      // « + » n'existe que sur un chapitre : un sous-chapitre ne se découpe pas.
-      !parent && el('button', {
+      // « + » n'existe que là où l'on peut encore découper : pas au dernier niveau.
+      canHaveChildren({ depth }) && el('button', {
         class: 'btn-sm',
         title: 'Ajouter un sous-chapitre',
         on: { click: () => ouvrirCreation(cat) },
       }, '+'),
       el('button', {
         class: 'btn-sm',
-        title: 'Rattacher à… (changer d’étage)',
+        title: 'Rattacher à… (changer de niveau ou de parent)',
         on: { click: () => ouvrirRattachement(cat) },
       }, '⤴'),
       el('button', {
@@ -158,20 +177,22 @@ export async function render(ctx) {
 
     // Le message prend la place d'une ligne de liste, juste sous la sienne.
     const msg = annonce && annonce.id === cat.id
-      ? el('li', { class: 'annonce ' + annonce.type + (parent ? ' sous-chapitre' : '') }, annonce.texte)
+      ? el('li', { class: 'annonce ' + annonce.type + indentation(depth) }, annonce.texte)
       : null;
 
-    return [li, msg, rattachementDe === cat.id && champRattachement(cat, parent)].filter(Boolean);
+    return [li, msg, rattachementDe === cat.id && champRattachement(cat, parent, depth)].filter(Boolean);
   }
 
   /**
-   * Le champ de création d'un sous-chapitre, sous le dernier sous-chapitre du
-   * chapitre — là où le nouveau va apparaître.
+   * Le champ de création d'un sous-chapitre, sous le dernier descendant de la
+   * catégorie — là où le nouveau va apparaître.
    *
    * Ouvert à la demande, et un seul à la fois : douze champs permanents
    * doubleraient la hauteur de l'écran pour un geste rare.
+   *
+   * @param depth  le niveau du sous-chapitre à créer
    */
-  function champSousChapitre(chap) {
+  function champSousChapitre(chap, depth) {
     const saisie = el('input', {
       placeholder: `Nouveau sous-chapitre de « ${chap.name} »…`,
       on: {
@@ -185,7 +206,7 @@ export async function render(ctx) {
     // qu'on vient d'ouvrir sans pouvoir y taper serait un clic de trop.
     queueMicrotask(() => saisie.focus());
 
-    return el('li', { class: 'sous-chapitre' },
+    return el('li', { class: indentation(depth).trim() },
       el('div', { class: 'row grow' },
         saisie,
         el('button', { class: 'btn-primary', on: { click: () => ajouterSous(chap, saisie) } }, 'Ajouter'),
@@ -198,22 +219,30 @@ export async function render(ctx) {
    * Le sélecteur « Rattacher à… », sous la ligne de la catégorie — même motif
    * que le ⇄ d'une carte.
    *
-   * « — Chapitre » ramène au premier niveau ; un chapitre place dessous. Le
-   * rattachement actuel est présélectionné, et la catégorie elle-même absente.
+   * « — Chapitre » ramène au premier niveau ; une catégorie place dessous,
+   * indentée comme dans l'arbre. Le rattachement actuel est présélectionné.
    *
-   * Un chapitre découpé ne peut que rester chapitre : les chapitres sont alors
-   * **désactivés**, pas retirés, et une ligne dit pourquoi — une liste réduite à
-   * une option ferait croire à un bug. Le store refuse de toute façon.
+   * **Seules les cibles valides** sont proposées : c'est `attachRefusal`
+   * (arbre.js) qui en décide, la règle même que le store appliquera — la
+   * catégorie et ce qui est dessous (cycle), et les places où ses
+   * sous-chapitres passeraient sous le dernier niveau. Ce qu'on retire est
+   * toujours un sous-arbre entier ou des niveaux du bas : ce qui reste se lit
+   * encore comme un arbre, sans enfant qui aurait l'air d'appartenir au voisin.
+   *
+   * Quand la catégorie emmène des sous-chapitres, une ligne dit pourquoi la
+   * liste est courte — une liste réduite sans raison ferait croire à un bug.
    */
-  function champRattachement(cat, parent) {
-    const decoupe = !parent && cat.children.length > 0;
+  function champRattachement(cat, parent, depth) {
     const actuel = parent ? parent.id : '';
+    const plat = flattenTree(chapitres);
+    const hauteur = heightOf(plat, cat.id);
+    const cibles = plat.filter((c) => c.id === actuel || !attachRefusal(plat, cat.id, c.id));
 
     const choix = el('select', {},
       el('option', { value: '', selected: !parent }, '— Chapitre (aucun parent)'),
-      chapitres.filter((c) => c.id !== cat.id).map((c) => el('option', {
-        value: c.id, selected: c.id === actuel, disabled: decoupe,
-      }, `Sous « ${c.name} »`)),
+      cibles.map((c) => el('option', {
+        value: c.id, selected: c.id === actuel,
+      }, indentedLabel({ ...c, name: `Sous « ${c.name} »` }))),
     );
 
     choix.addEventListener('change', async () => {
@@ -227,7 +256,7 @@ export async function render(ctx) {
         // compteurs, eux, ne bougent pas — aucune carte n'a changé de catégorie.
         chapitres = await listChapters();
         rattachementDe = null;
-        const nom = cible ? chapitres.find((c) => c.id === cible).name : null;
+        const nom = cible ? findNode(chapitres, cible).name : null;
         dire(cat.id, nom ? `Rattaché à « ${nom} ».` : 'Devenu chapitre.', 'info');
       } catch (err) {
         rattachementDe = null;
@@ -235,13 +264,18 @@ export async function render(ctx) {
       }
     });
 
-    return el('li', { class: 'annonce info' + (parent ? ' sous-chapitre' : '') },
+    // Seul « — Chapitre » reste quand aucune catégorie n'est une cible valide.
+    const seulChapitre = cibles.length === 0;
+    return el('li', { class: 'annonce info' + indentation(depth) },
       el('div', { class: 'row' },
         choix,
         el('button', { class: 'btn-sm', on: { click: () => { rattachementDe = null; dessiner(); } } }, 'Annuler'),
       ),
-      decoupe && el('div', { class: 'small muted', style: 'margin-top:6px' },
-        `« ${cat.name} » a des sous-chapitres : il ne peut que rester chapitre.`),
+      hauteur > 0 && el('div', { class: 'small muted', style: 'margin-top:6px' },
+        seulChapitre
+          ? `« ${cat.name} » emmène ${hauteur} niveaux de sous-chapitres : il ne peut que rester chapitre.`
+          : `« ${cat.name} » emmène ses sous-chapitres : seules les places où ils tiennent dans les `
+            + `${MAX_DEPTH} niveaux sont proposées.`),
     );
   }
 
@@ -265,7 +299,7 @@ export async function render(ctx) {
     saisie.disabled = true;
     try {
       const sous = await createCategory(v, chap.id);
-      chap.children.push(sous);
+      chap.children.push({ ...sous, children: [] });
       creationSous = null;
       dire(sous.id, 'Sous-chapitre ajouté.', 'info');
     } catch (err) {
@@ -289,7 +323,7 @@ export async function render(ctx) {
 
   async function supprimer(cat, freres, parent) {
     const { total: n } = compteDe(cat.id);
-    const nbSous = parent ? 0 : cat.children.length;
+    const nbSous = (cat.children || []).length;
 
     // Refus annoncés tôt, d'après les compteurs affichés. Le store refera le
     // contrôle : c'est lui qui a le dernier mot.

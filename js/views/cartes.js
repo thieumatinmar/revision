@@ -15,17 +15,22 @@
 // implicitement tout le chapitre et le repère « non rangée » disparaîtrait sans
 // qu'on l'ait décidé.
 //
-// **Sur un chapitre découpé** (docs/decisions.md, « Sous-chapitres ») :
+// **Sur une catégorie découpée** (docs/decisions.md, « Sous-chapitres » et
+// « Trois niveaux de catégories ») — un chapitre ou un sous-chapitre de
+// niveau 2, le même écran :
 //
-//   - sans recherche, ses sous-chapitres s'affichent en tête, comme des liens,
-//     puis ses cartes propres. Ils s'y créent, s'ordonnent et se suppriment
-//     aussi, comme dans « Gérer » (docs/decisions.md, « Gérer les
-//     sous-chapitres depuis l'écran du chapitre ») : on découpe un chapitre en
-//     le travaillant. Les règles sont celles du store, la vue ne fait que
-//     présenter ses refus. Le rattachement, lui, reste dans « Gérer » ;
-//   - en recherche, les cartes des sous-chapitres qui correspondent s'ajoutent
-//     aux siennes, chacune avec le nom de son sous-chapitre. Sans ça, découper un
-//     chapitre ferait mentir « Aucune carte ne correspond ».
+//   - sans recherche, ses sous-chapitres directs s'affichent en tête, comme des
+//     liens, chacun avec le compte **cumulé** de ce qu'il contient, puis ses
+//     cartes propres. Ils s'y créent, s'ordonnent et se suppriment aussi, comme
+//     dans « Gérer » (docs/decisions.md, « Gérer les sous-chapitres depuis
+//     l'écran du chapitre ») : on découpe une catégorie en la travaillant. Les
+//     règles sont celles du store, la vue ne fait que présenter ses refus. Le
+//     rattachement, lui, reste dans « Gérer ». Au dernier niveau, pas de bloc :
+//     une catégorie de niveau 3 ne se découpe pas ;
+//   - en recherche, les cartes de **tout ce qui est dessous** qui correspondent
+//     s'ajoutent aux siennes, chacune avec son chemin depuis cet écran
+//     (« Groupes › Sylow »). Sans ça, découper ferait mentir « Aucune carte ne
+//     correspond ».
 //
 // Une carte venue d'un sous-chapitre s'ouvre, se duplique et se déplace, mais ne
 // s'ordonne pas d'ici : sa place se compte dans son sous-chapitre, pas dans cette
@@ -45,6 +50,9 @@ import {
   isPlaced, duplicateCard, deleteCard, setCategoryBooks, renameCategory,
   createCategory, deleteCategory, setCategoriesOrder,
 } from '../store.js';
+import {
+  findNode, descendantsOf, ancestorsOf, canHaveChildren, indentedLabel,
+} from '../arbre.js';
 
 /**
  * Renommer la catégorie depuis son propre écran. Rend deux morceaux : le
@@ -167,11 +175,27 @@ function ajuste(zone) {
   zone.style.height = `${zone.scrollHeight + 2}px`;
 }
 
-/** Libellé d'une destination dans un `<select>` : les sous-chapitres indentés. */
-const libelle = (cat) => (cat.depth === 1 ? '   └ ' : '') + cat.name;
+/**
+ * Le chapitre (niveau 1) d'une catégorie de la liste à plat : elle-même, ou
+ * le premier de ses ancêtres. C'est lui qui définit la « famille » du ⇄.
+ */
+const racineDe = (flat, cat) => (cat.depth === 0 ? cat.id : ancestorsOf(flat, cat.id)[0].id);
 
-/** Le chapitre d'une catégorie de la liste plate : elle-même, ou son parent. */
-const chapitreDe = (cat) => (cat.depth === 1 ? cat.parentId : cat.id);
+/**
+ * Le chemin de chaque catégorie située sous `id`, **depuis** `id` :
+ * `Map(idDescendant → « Groupes › Sylow »)`. C'est l'étiquette d'une carte
+ * venue d'en dessous, dans les résultats d'une recherche ; et la table dit
+ * aussi, par `has`, si une catégorie est sous cet écran.
+ */
+function cheminsSous(flat, id) {
+  const chemins = new Map();
+  descendantsOf(flat, id).forEach((d) => {
+    const ancetres = ancestorsOf(flat, d.id);
+    const depuis = ancetres.findIndex((a) => a.id === id);
+    chemins.set(d.id, [...ancetres.slice(depuis + 1), d].map((c) => c.name).join(' › '));
+  });
+  return chemins;
+}
 
 export async function render(ctx) {
   const categoryId = ctx.params[0];
@@ -181,26 +205,28 @@ export async function render(ctx) {
   // destinations d'une carte, qu'on recalcule alors (`majDestinations`).
   let categories = flattenChapters(arbre);
   const category = categories.find((c) => c.id === categoryId) || null;
-  // Le nœud de l'arbre, s'il s'agit d'un chapitre : c'est lui qui porte ses
-  // sous-chapitres. Sur un sous-chapitre, `chapitre` est null.
-  const chapitre = arbre.find((c) => c.id === categoryId) || null;
-  const sousChapitres = chapitre ? chapitre.children : [];
-  const parent = category && category.depth === 1
-    ? arbre.find((c) => c.id === category.parentId) : null;
+  // Le nœud de l'arbre : c'est lui qui porte les sous-chapitres directs, dans
+  // le tableau même que l'arbre remettra à plat.
+  const noeud = findNode(arbre, categoryId);
+  const decoupable = !!category && canHaveChildren(category);
+  const sousChapitres = noeud ? noeud.children : [];
+  // Le parent **direct**, lu dans l'arbre affiché : nul pour un chapitre.
+  const parent = category ? ancestorsOf(categories, categoryId).pop() || null : null;
 
-  // Une seule lecture de cartes : sur un chapitre, lui et ses sous-chapitres
-  // (la recherche en a besoin, et les compteurs des sous-chapitres en sortent) ;
-  // sur un sous-chapitre, ses seules cartes.
+  // Une seule lecture de cartes : sur une catégorie découpée, elle et tout ce
+  // qui est dessous (la recherche en a besoin, et les compteurs des
+  // sous-chapitres en sortent) ; sinon, ses seules cartes.
   const toutes = sousChapitres.length > 0 ? await listCardsUnder(categoryId) : await listCards(categoryId);
   const cards = toutes.filter((c) => c.categoryId === categoryId);
-  // Les cartes des sous-chapitres, dans l'ordre des sous-chapitres.
+  // Les cartes d'en dessous, dans l'ordre de lecture de l'arbre.
   const autres = toutes.filter((c) => c.categoryId !== categoryId);
-  const nomSous = new Map(sousChapitres.map((s) => [s.id, s.name]));
+  // `let` : recalculé avec les destinations, après un changement de structure.
+  let chemins = cheminsSous(categories, categoryId);
 
   const renommer = category && renommage(category);
   ctx.setTitle(renommer ? renommer.titre : 'Cartes');
   ctx.setHeader(
-    // Depuis un sous-chapitre, on remonte à son chapitre, pas à l'accueil :
+    // Depuis un sous-chapitre, on remonte à son parent direct, pas à l'accueil :
     // c'est de là qu'on vient, et c'est là qu'on choisit le sous-chapitre voisin.
     parent
       ? el('a', { class: 'btn btn-sm btn-ghost', href: `#/cartes/${parent.id}` }, `‹ ${parent.name}`)
@@ -209,19 +235,21 @@ export async function render(ctx) {
   );
 
   /**
-   * Les catégories où l'on peut ranger une carte — toutes sauf la sienne —, en
-   * deux groupes :
+   * Les catégories où l'on peut ranger une carte, en deux groupes :
    *
-   *   - `proches` : sa **famille**, c'est-à-dire son chapitre et les
-   *     sous-chapitres de celui-ci. En tête du sélecteur : découper un chapitre,
+   *   - `proches` : sa **famille**, c'est-à-dire son chapitre de niveau 1 et
+   *     tout ce qui est dessous. En tête du sélecteur : découper un chapitre,
    *     c'est répartir ses cartes entre ses sous-chapitres, et ce geste ne doit
-   *     pas obliger à chercher sa destination au milieu de tout le programme ;
-   *   - `loin` : le reste de l'arbre, dans son ordre.
+   *     pas obliger à chercher sa destination au milieu de tout le programme.
+   *     La catégorie de la carte **y reste**, à désactiver par l'appelant :
+   *     retirée, ses sous-chapitres s'afficheraient sous la catégorie
+   *     précédente, dont ils auraient l'air d'être les enfants. C'est le bug du
+   *     11/11/2026, réapparu un niveau plus bas avec le troisième niveau ;
+   *   - `loin` : le reste de l'arbre, dans son ordre. Retirer la famille
+   *     **entière** de ce groupe est ce qui le garde juste.
    *
-   * Retirer la famille **entière** du second groupe, et pas seulement la
-   * catégorie de la carte, est ce qui garde l'arbre juste : retirée seule, la
-   * catégorie laissait ses sous-chapitres sous le chapitre précédent, dont ils
-   * avaient l'air d'être les enfants (bug du 11/11/2026).
+   * `seule` : la famille se réduit à la catégorie de la carte (chapitre non
+   * découpé) — un groupe d'une option désactivée n'aurait rien à proposer.
    *
    * `nomFamille` titre le premier groupe. Pour le chapitre affiché, il vient de
    * `category`, que le renommage tient à jour ; l'entrée de `categories` peut
@@ -229,12 +257,13 @@ export async function render(ctx) {
    */
   function destinationsDe(card) {
     const sienne = categories.find((c) => c.id === card.categoryId);
-    const famille = sienne ? chapitreDe(sienne) : null;
-    const autresQueSienne = categories.filter((c) => c.id !== card.categoryId);
+    const famille = sienne ? racineDe(categories, sienne) : null;
     const tete = famille === categoryId ? category : categories.find((c) => c.id === famille);
+    const proches = categories.filter((c) => racineDe(categories, c) === famille);
     return {
-      proches: autresQueSienne.filter((c) => chapitreDe(c) === famille),
-      loin: autresQueSienne.filter((c) => chapitreDe(c) !== famille),
+      proches,
+      loin: categories.filter((c) => racineDe(categories, c) !== famille),
+      seule: proches.every((c) => c.id === card.categoryId),
       nomFamille: tete ? tete.name : '',
     };
   }
@@ -284,11 +313,11 @@ export async function render(ctx) {
   function paint() {
     const rangeesVues = rangees.filter(correspond);
     const nonRangeesVues = nonRangees.filter(correspond);
-    // Les cartes des sous-chapitres ne s'affichent qu'en recherche : sans elle,
-    // on y accède par leur sous-chapitre. Groupées dans l'ordre **actuel** des
-    // sous-chapitres, qui a pu changer depuis la lecture ; le tri est stable,
-    // chaque groupe garde donc l'ordre de ses cartes.
-    const rangSous = new Map(sousChapitres.map((s, i) => [s.id, i]));
+    // Les cartes d'en dessous ne s'affichent qu'en recherche : sans elle, on y
+    // accède par leur sous-chapitre. Groupées dans l'ordre **actuel** de
+    // l'arbre, qui a pu changer depuis la lecture ; le tri est stable, chaque
+    // groupe garde donc l'ordre de ses cartes.
+    const rangSous = new Map(categories.map((s, i) => [s.id, i]));
     const autresVues = query
       ? autres.filter(correspond).sort((a, b) => rangSous.get(a.categoryId) - rangSous.get(b.categoryId))
       : [];
@@ -330,25 +359,30 @@ export async function render(ctx) {
   }
 
   /**
-   * Les sous-chapitres, en tête de l'écran d'un chapitre. Compteur de chacun :
-   * ses cartes, lues dans la même requête que celles du chapitre.
+   * Les sous-chapitres directs, en tête de l'écran d'une catégorie découpable.
+   * Compteur de chacun : **cumulé**, ses cartes et celles de ce qui est
+   * dessous, lues dans la même requête que celles de l'écran — sinon découper
+   * un sous-chapitre le ferait paraître vidé. Le nombre de ses propres
+   * sous-chapitres suit, quand il en a.
    *
    * Chaque ligne porte ses gestes de structure, toujours visibles : ↑/↓ entre
    * frères, puis × en dernier, loin des flèches — comme une ligne de carte.
    * Sous la liste, « + Sous-chapitre » ; c'est le seul contenu du bloc tant que
-   * le chapitre n'est pas découpé. Rien sur l'écran d'un sous-chapitre : il ne
-   * se découpe pas.
+   * la catégorie n'est pas découpée. Rien au dernier niveau : il ne se découpe
+   * pas.
    */
   function blocSousChapitres() {
-    if (!chapitre) return null;
+    if (!decoupable) return null;
     return el('div', { style: 'margin-bottom:18px' },
       sousChapitres.length > 0 && el('ul', { class: 'list' },
         sousChapitres.map((s, i) => {
-          const n = cartesDe(s).length;
+          const n = cartesSous(s).length;
+          const k = (s.children || []).length;
           return el('li', {},
             el('a', { class: 'grow', href: `#/cartes/${s.id}`, style: 'text-decoration:none;color:inherit' },
               el('div', { class: 'name' }, s.name),
-              el('div', { class: 'small muted' }, n === 0 ? 'aucune carte' : `${n} carte${n > 1 ? 's' : ''}`),
+              el('div', { class: 'small muted' }, n === 0 ? 'aucune carte' : `${n} carte${n > 1 ? 's' : ''}`,
+                k > 0 && ` · ${k} sous-chapitre${k > 1 ? 's' : ''}`),
             ),
             el('a', { class: 'btn btn-sm', href: `#/carte/nouvelle/${s.id}`, title: 'Nouvelle carte dans ce sous-chapitre' }, '+'),
             el('button', {
@@ -364,7 +398,8 @@ export async function render(ctx) {
             el('button', {
               class: 'btn-sm',
               style: 'color:#e8695f',
-              title: n > 0 ? `Contient ${n} carte(s) — suppression impossible` : 'Supprimer ce sous-chapitre',
+              title: k > 0 ? `A ${k} sous-chapitre(s) — suppression impossible`
+                : n > 0 ? `Contient ${n} carte(s) — suppression impossible` : 'Supprimer ce sous-chapitre',
               on: { click: (ev) => supprimerSous(s, ev.currentTarget) },
             }, '×'),
           );
@@ -380,8 +415,14 @@ export async function render(ctx) {
     );
   }
 
-  /** Les cartes d'un sous-chapitre, d'après la lecture tenue en mémoire. */
+  /** Les cartes rangées **directement** dans un sous-chapitre (lecture en mémoire). */
   const cartesDe = (s) => autres.filter((c) => c.categoryId === s.id);
+
+  /** Les cartes d'un sous-chapitre **et de tout ce qui est dessous**. */
+  const cartesSous = (s) => {
+    const ids = new Set([s.id, ...descendantsOf(categories, s.id).map((d) => d.id)]);
+    return autres.filter((c) => ids.has(c.categoryId));
+  };
 
   /**
    * Après un changement de structure, les destinations du ⇄ suivent : sans
@@ -389,12 +430,14 @@ export async function render(ctx) {
    * un rechargement — alors que découper, c'est justement répartir ensuite.
    *
    * L'arbre est relu en mémoire, pas en base : `sousChapitres` **est** le
-   * tableau `children` de son nœud, déjà à jour. Seul le nom du chapitre peut
-   * y être périmé : le renommage tient `category`, pas le nœud.
+   * tableau `children` de son nœud, déjà à jour. Seul le nom de la catégorie
+   * affichée peut y être périmé : le renommage tient `category`, pas le nœud.
+   * Les chemins des cartes d'en dessous suivent avec la liste à plat.
    */
   function majDestinations() {
-    chapitre.name = category.name;
+    noeud.name = category.name;
     categories = flattenChapters(arbre);
+    chemins = cheminsSous(categories, categoryId);
   }
 
   function ouvrirCreation() {
@@ -411,7 +454,7 @@ export async function render(ctx) {
 
   /**
    * Crée un sous-chapitre à la fin des autres — c'est `createCategory` qui
-   * décide de la place et refuse un second niveau.
+   * décide de la place et refuse sous le dernier niveau.
    *
    * Le champ **reste ouvert**, vidé, focus rendu : découper un chapitre, c'est
    * créer plusieurs sous-chapitres d'affilée. Il est désactivé pendant l'appel,
@@ -423,8 +466,7 @@ export async function render(ctx) {
     saisieSous.disabled = true;
     try {
       const sous = await createCategory(v, categoryId);
-      sousChapitres.push(sous);
-      nomSous.set(sous.id, sous.name);
+      sousChapitres.push({ ...sous, children: [] });
       majDestinations();
       saisieSous.value = '';
       annonce = `Sous-chapitre « ${sous.name} » ajouté.`;
@@ -453,11 +495,19 @@ export async function render(ctx) {
   /**
    * Supprime un sous-chapitre vide, après confirmation.
    *
-   * Le refus d'un sous-chapitre qui a des cartes s'annonce tout de suite,
-   * d'après le compteur affiché ; `deleteCategory` refait le contrôle et a le
-   * dernier mot — une carte a pu y arriver depuis un autre appareil.
+   * Le refus d'un sous-chapitre qui a des sous-chapitres ou des cartes
+   * s'annonce tout de suite, d'après ce que l'écran tient en mémoire ;
+   * `deleteCategory` refait le contrôle et a le dernier mot — une carte a pu y
+   * arriver depuis un autre appareil.
    */
   async function supprimerSous(s, bouton) {
+    const k = (s.children || []).length;
+    if (k > 0) {
+      annonce = `Impossible : « ${s.name} » a ${k} sous-chapitre${k > 1 ? 's' : ''}. `
+        + 'Supprime-les d’abord.';
+      paint();
+      return;
+    }
     const n = cartesDe(s).length;
     if (n > 0) {
       annonce = `Impossible : « ${s.name} » contient ${n} carte${n > 1 ? 's' : ''}. `
@@ -476,7 +526,6 @@ export async function render(ctx) {
       return;
     }
     sousChapitres.splice(sousChapitres.indexOf(s), 1);
-    nomSous.delete(s.id);
     majDestinations();
     annonce = `Sous-chapitre « ${s.name} » supprimé.`;
     paint();
@@ -485,10 +534,11 @@ export async function render(ctx) {
   /** Ce qu'on affiche quand aucune carte n'est visible. */
   function vide() {
     if (query) return el('p', { class: 'empty' }, 'Aucune carte ne correspond.');
-    // Un chapitre découpé dont toutes les cartes sont dans ses sous-chapitres
-    // n'est pas « vide » : on ne lui propose pas de créer « la première ».
+    // Une catégorie découpée dont toutes les cartes sont dans ses
+    // sous-chapitres n'est pas « vide » : on ne lui propose pas de créer « la
+    // première ».
     if (sousChapitres.length > 0) {
-      return el('p', { class: 'small muted' }, 'Aucune carte directement dans ce chapitre.');
+      return el('p', { class: 'small muted' }, 'Aucune carte directement ici.');
     }
     return el('p', { class: 'empty' },
       'Aucune carte dans ce chapitre.',
@@ -506,7 +556,8 @@ export async function render(ctx) {
    */
   function ligne(card, position) {
     const placee = position !== null;
-    const sous = nomSous.get(card.categoryId) || null;
+    // Le chemin depuis cet écran, pour une carte venue d'en dessous.
+    const sous = chemins.get(card.categoryId) || null;
 
     const item = el('li', { class: placee || sous ? null : 'non-rangee' },
       // Le titre, quand il existe, tient la ligne principale et le recto passe
@@ -574,11 +625,15 @@ export async function render(ctx) {
     // Deux `<optgroup>` quand la carte a une famille où aller : son en-tête,
     // natif, se lit sur PC comme sur téléphone. Sans famille (chapitre non
     // découpé), la liste reste simple — un seul groupe n'aurait rien à séparer.
-    const { proches, loin, nomFamille } = destinationsDe(card);
-    const options = (liste) => liste.map((c) => el('option', { value: c.id }, libelle(c)));
+    const { proches, loin, seule, nomFamille } = destinationsDe(card);
+    // La catégorie de la carte reste à sa place dans l'arbre, désactivée : on
+    // n'y « déplace » pas, mais elle porte visuellement ses sous-chapitres.
+    const options = (liste) => liste.map((c) => el('option', {
+      value: c.id, disabled: c.id === card.categoryId,
+    }, indentedLabel(c) + (c.id === card.categoryId ? ' (ici)' : '')));
     const choix = el('select', {},
       el('option', { value: '' }, 'Déplacer vers…'),
-      proches.length > 0
+      !seule
         ? [
           el('optgroup', { label: nomFamille }, options(proches)),
           loin.length > 0 && el('optgroup', { label: 'Autres chapitres' }, options(loin)),
@@ -694,7 +749,7 @@ export async function render(ctx) {
     card.categoryId = cibleId;
     delete card.order;
     if (cibleId === categoryId) nonRangees.push(card);
-    else if (nomSous.has(cibleId)) autres.push(card);
+    else if (chemins.has(cibleId)) autres.push(card);
   }
 
   /**
